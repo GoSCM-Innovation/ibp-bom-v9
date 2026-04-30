@@ -63,7 +63,7 @@ function FieldRow({ label, count, rawData, children }) {
   )
 }
 
-export default function RunModal({ connection, sessionId, onConfirm, onClose }) {
+export default function RunModal({ connection, sessionId, orchNodes = [], onConfirm, onClose }) {
   const PRESETS_KEY = `ibp-presets-${connection.id}`
   const [agents,     setAgents]     = useState([])
   const [configs,    setConfigs]    = useState([])
@@ -75,37 +75,36 @@ export default function RunModal({ connection, sessionId, onConfirm, onClose }) 
     try { return JSON.parse(localStorage.getItem(PRESETS_KEY) || '[]') } catch { return [] }
   })
 
-  const [selectedAgent,    setSelectedAgent]    = useState('')
-  const [selectedConfig,   setSelectedConfig]   = useState('')
-  const [manualAgent,      setManualAgent]       = useState('')
-  const [manualConfig,     setManualConfig]      = useState('')
-  const [useManual,        setUseManual]         = useState(false)
-  const [globalVariables,  setGlobalVariables]   = useState([])
+  const [selectedAgent,   setSelectedAgent]  = useState('')
+  const [selectedConfig,  setSelectedConfig] = useState('')
+  const [manualAgent,     setManualAgent]    = useState('')
+  const [manualConfig,    setManualConfig]   = useState('')
+  const [useManual,       setUseManual]      = useState(false)
 
-  function addGlobalVar() { setGlobalVariables(v => [...v, { name: '', value: '' }]) }
-  function removeGlobalVar(i) { setGlobalVariables(v => v.filter((_, j) => j !== i)) }
+  // Orchestration-level global variables
+  const [globalVariables, setGlobalVariables] = useState([])
+  const [availableVars,   setAvailableVars]   = useState([]) // [{name, defaultValue, description}]
+  const [varsStatus,      setVarsStatus]      = useState('idle') // idle | loading | loaded | error
+
+  function addGlobalVar() {
+    setGlobalVariables(v => [...v, { name: '', value: '' }])
+  }
+  function removeGlobalVar(i) {
+    setGlobalVariables(v => v.filter((_, j) => j !== i))
+  }
   function patchGlobalVar(i, field, val) {
-    setGlobalVariables(v => v.map((row, j) => j === i ? { ...row, [field]: val } : row))
+    setGlobalVariables(v => v.map((row, j) => {
+      if (j !== i) return row
+      const next = { ...row, [field]: val }
+      if (field === 'name') {
+        const av = availableVars.find(a => a.name === val)
+        next.value = av?.defaultValue ?? ''
+      }
+      return next
+    }))
   }
 
-  function savePreset() {
-    const label = prompt('Nombre del preset:')?.trim()
-    if (!label) return
-    const agent  = useManual ? manualAgent.trim()  : selectedAgent
-    const config = useManual ? manualConfig.trim() : selectedConfig
-    const vars   = globalVariables.filter(v => v.name.trim())
-    const next = [...presets, { id: crypto.randomUUID(), label, agentName: agent || null, profileName: config || null, globalVariables: vars }]
-    setPresets(next)
-    localStorage.setItem(PRESETS_KEY, JSON.stringify(next))
-  }
-
-  function deletePreset(e, id) {
-    e.stopPropagation()
-    const next = presets.filter(p => p.id !== id)
-    setPresets(next)
-    localStorage.setItem(PRESETS_KEY, JSON.stringify(next))
-  }
-
+  // Load agents + system configs
   useEffect(() => {
     async function load() {
       try {
@@ -130,12 +129,66 @@ export default function RunModal({ connection, sessionId, onConfirm, onClose }) 
     load()
   }, [connection, sessionId])
 
+  // Load available variables from all tasks in the orchestration
+  useEffect(() => {
+    const taskNodes = orchNodes.filter(n => (n.type === 'task' || n.type === 'orchTask') && n.data?.taskGuid)
+    const guids = [...new Set(taskNodes.map(n => n.data.taskGuid))]
+    if (guids.length === 0) { setVarsStatus('idle'); return }
+
+    setVarsStatus('loading')
+    let cancelled = false
+
+    Promise.allSettled(guids.map(guid => soapCall(connection, sessionId, 'getTaskInfo', { taskGuid: guid })))
+      .then(results => {
+        if (cancelled) return
+        const seen = new Map()
+        for (const r of results) {
+          if (r.status !== 'fulfilled') continue
+          for (const v of (r.value?.globalVariables || [])) {
+            if (!seen.has(v.name)) seen.set(v.name, v)
+          }
+        }
+        const merged = [...seen.values()]
+        setAvailableVars(merged)
+        // Pre-populate all known vars with their SAP default values
+        setGlobalVariables(merged.map(v => ({ name: v.name, value: v.defaultValue ?? '' })))
+        setVarsStatus(merged.length > 0 ? 'loaded' : 'loaded')
+      })
+      .catch(() => { if (!cancelled) setVarsStatus('error') })
+
+    return () => { cancelled = true }
+  }, [orchNodes, connection, sessionId])
+
+  function savePreset() {
+    const label = prompt('Nombre del preset:')?.trim()
+    if (!label) return
+    const agent  = useManual ? manualAgent.trim()  : selectedAgent
+    const config = useManual ? manualConfig.trim() : selectedConfig
+    const vars   = globalVariables.filter(v => v.name.trim())
+    const next = [...presets, { id: crypto.randomUUID(), label, agentName: agent || null, profileName: config || null, globalVariables: vars }]
+    setPresets(next)
+    localStorage.setItem(PRESETS_KEY, JSON.stringify(next))
+  }
+
+  function deletePreset(e, id) {
+    e.stopPropagation()
+    const next = presets.filter(p => p.id !== id)
+    setPresets(next)
+    localStorage.setItem(PRESETS_KEY, JSON.stringify(next))
+  }
+
   function handleConfirm() {
     const agent  = useManual ? (manualAgent.trim() || null)  : (selectedAgent  || null)
     const config = useManual ? (manualConfig.trim() || null) : (selectedConfig || null)
     const vars   = globalVariables.filter(v => v.name.trim())
     onConfirm(agent, config, vars)
   }
+
+  const varsHeader = varsStatus === 'loading'
+    ? 'Variables globales — cargando…'
+    : varsStatus === 'error'
+      ? 'Variables globales — error al cargar'
+      : `Variables globales (${availableVars.length} disponibles en sistema)`
 
   return (
     <div
@@ -148,13 +201,14 @@ export default function RunModal({ connection, sessionId, onConfirm, onClose }) 
     >
       <div style={{
         background: 'var(--bg2)', border: '1px solid var(--border)',
-        borderRadius: 10, width: 400, boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+        borderRadius: 10, width: 440, maxHeight: '88vh',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
         display: 'flex', flexDirection: 'column', overflow: 'hidden',
       }}>
         {/* Header */}
         <div style={{
           padding: '14px 16px', borderBottom: '1px solid var(--border)',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0,
         }}>
           <div>
             <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>Iniciar orquestación</div>
@@ -165,8 +219,8 @@ export default function RunModal({ connection, sessionId, onConfirm, onClose }) 
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text2)', fontSize: 18, cursor: 'pointer', lineHeight: 1 }}>×</button>
         </div>
 
-        {/* Body */}
-        <div style={{ padding: 16 }}>
+        {/* Body — scrollable */}
+        <div style={{ padding: 16, overflowY: 'auto', flex: 1 }}>
           {/* Presets de ejecución rápida */}
           {presets.length > 0 && (
             <div style={{ marginBottom: 14 }}>
@@ -270,46 +324,72 @@ export default function RunModal({ connection, sessionId, onConfirm, onClose }) 
               {/* Variables globales de orquestación */}
               <div style={{ marginBottom: 14 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
-                  <label style={labelStyle}>Variables globales</label>
+                  <label style={labelStyle}>
+                    {varsHeader}
+                    {varsStatus === 'loading' && <span style={{ marginLeft: 4, fontSize: 9, color: 'var(--text3)' }}>⏳</span>}
+                    {varsStatus === 'error' && <span style={{ marginLeft: 4, fontSize: 9, color: 'var(--red)' }}>Error SAP</span>}
+                  </label>
                   <button onClick={addGlobalVar} style={{
                     fontSize: 9, padding: '2px 7px', borderRadius: 4, cursor: 'pointer',
                     background: 'var(--bg3)', border: '1px solid var(--border)', color: 'var(--text2)',
+                    flexShrink: 0,
                   }}>+ Variable</button>
                 </div>
+
                 {globalVariables.length === 0 && (
                   <div style={{ fontSize: 10, color: 'var(--text3)', fontStyle: 'italic' }}>
-                    Sin variables globales — se usarán las de cada task individual.
+                    {varsStatus === 'loading'
+                      ? 'Cargando variables del sistema…'
+                      : varsStatus === 'error'
+                        ? 'No se pudieron cargar las variables del sistema.'
+                        : 'Sin variables globales — se usarán las de cada task individual.'}
                   </div>
                 )}
+
                 {globalVariables.map((v, i) => (
                   <div key={i} style={{ display: 'flex', gap: 4, marginBottom: 4, alignItems: 'center' }}>
+                    {varsStatus === 'loading' ? (
+                      <div style={{ ...inputStyle, flex: 1, color: 'var(--text3)', fontSize: 11 }}>Cargando…</div>
+                    ) : (
+                      <select
+                        style={{ ...selectStyle, flex: 1, padding: '6px 8px' }}
+                        value={v.name}
+                        onChange={e => patchGlobalVar(i, 'name', e.target.value)}
+                      >
+                        <option value="">— Seleccionar —</option>
+                        {v.name && !availableVars.some(a => a.name === v.name) && (
+                          <option value={v.name}>{v.name}</option>
+                        )}
+                        {availableVars.map(a => (
+                          <option key={a.name} value={a.name}>
+                            {a.name}{a.description ? ` — ${a.description}` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                     <input
-                      style={{ ...inputStyle, flex: 1 }}
-                      value={v.name}
-                      onChange={e => patchGlobalVar(i, 'name', e.target.value)}
-                      placeholder="Nombre"
-                    />
-                    <input
-                      style={{ ...inputStyle, flex: 1 }}
+                      style={{ ...inputStyle, flex: 1, padding: '6px 8px' }}
                       value={v.value}
                       onChange={e => patchGlobalVar(i, 'value', e.target.value)}
-                      placeholder="Valor"
+                      placeholder={availableVars.find(a => a.name === v.name)?.defaultValue || 'valor'}
+                      disabled={varsStatus === 'loading'}
                     />
                     <button onClick={() => removeGlobalVar(i)} style={{
-                      background: 'none', border: 'none', color: 'var(--text3)',
-                      cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: '0 2px',
+                      background: 'none', border: 'none', color: 'var(--red)',
+                      cursor: 'pointer', fontSize: 16, padding: '0 4px', flexShrink: 0,
                     }}>×</button>
                   </div>
                 ))}
+
                 {globalVariables.length > 0 && (
                   <div style={{ fontSize: 9, color: 'var(--text3)', lineHeight: 1.5, marginTop: 4 }}>
-                    Si una variable está definida aquí y en el task, la global tiene prioridad.
+                    Variables definidas aquí tienen prioridad sobre las del task individual (merge por nombre).
                   </div>
                 )}
               </div>
 
               <div style={{ fontSize: 10, color: 'var(--text3)', lineHeight: 1.5 }}>
-                Si dejas ambos vacíos, SAP usará el agente y configuración por defecto del sistema.
+                Si dejas agente y configuración vacíos, SAP usará los valores por defecto del sistema.
               </div>
             </>
           )}
@@ -318,7 +398,7 @@ export default function RunModal({ connection, sessionId, onConfirm, onClose }) 
         {/* Footer */}
         <div style={{
           padding: '12px 16px', borderTop: '1px solid var(--border)',
-          display: 'flex', gap: 8, justifyContent: 'flex-end',
+          display: 'flex', gap: 8, justifyContent: 'flex-end', flexShrink: 0,
         }}>
           <button onClick={onClose} style={{
             padding: '6px 14px', borderRadius: 6, fontSize: 11, fontWeight: 600,

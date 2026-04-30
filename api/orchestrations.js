@@ -69,6 +69,7 @@ function validateStep(s) {
 function validateNodeData(data = {}) {
   return {
     taskName:        data.taskName        || null,
+    taskGuid:        data.taskGuid        || null,
     label:           data.label           || data.taskName || 'Sin nombre',
     agentName:       data.agentName       || null,
     profileName:     data.profileName     || null,
@@ -78,7 +79,7 @@ function validateNodeData(data = {}) {
     retryDelaySec:   Math.min(3600, Math.max(0, Number(data.retryDelaySec ?? 30))),
     executionMode:   data.executionMode === 'serial' ? 'serial' : 'parallel',
     children:        Array.isArray(data.children) ? data.children : [],
-    runStatus:       undefined, // never persist transient run state in node data
+    runStatus:       undefined,
   }
 }
 
