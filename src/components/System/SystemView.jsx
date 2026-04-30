@@ -13,7 +13,7 @@ const TABS = [
   { id: 'orchestrations', label: 'Orquestaciones'    },
 ]
 
-export default function SystemView({ connection }) {
+export default function SystemView({ connection, onLoginCancel }) {
   const [activeTab, setActiveTab]           = useState('resumen')
   const [headerCollapsed, setHeaderCollapsed] = useState(false)
   const [pendingTaskName, setPendingTaskName] = useState(null)
@@ -39,7 +39,7 @@ export default function SystemView({ connection }) {
         <SapLoginModal
           connection={connection}
           onSuccess={handleLoginSuccess}
-          onCancel={() => history.back()}
+          onCancel={onLoginCancel}
         />
       )}
 

@@ -80,7 +80,7 @@ export default function App() {
       return <GlobalResumen connections={connections} />
     }
     if (activeConn) {
-      return <SystemView connection={activeConn} />
+      return <SystemView connection={activeConn} onLoginCancel={() => setActiveId('connections')} />
     }
     return null
   }
