@@ -316,66 +316,59 @@ async function pollGroupNode(run, nodeId, nodeDef, allNodes, allEdges) {
 
   const defaults = { agentName: run.defaultAgent, profileName: run.defaultProfile, globalVariables: run.globalVariables || [] }
 
-  // Lazily initialize groupWaves for runs stored before this refactor
-  if (!ns.groupWaves || ns.groupWaves.length === 0) {
-    const groupEdges = allEdges.filter(e =>
-      groupChildren.some(c => c.id === e.source) && groupChildren.some(c => c.id === e.target)
-    )
-    ns.groupWaves = buildWaves(groupChildren, groupEdges)
-    ns.currentGroupWave = 0
+  const groupEdges = allEdges.filter(e =>
+    groupChildren.some(c => c.id === e.source) && groupChildren.some(c => c.id === e.target)
+  )
+
+  // Predecessor map for group children — same dependency-based approach as top-level tick
+  const predMap = {}
+  for (const c of groupChildren) predMap[c.id] = []
+  for (const e of groupEdges) {
+    if (e.target in predMap && e.source in predMap) predMap[e.target].push(e.source)
   }
 
-  const currentWaveIds = ns.groupWaves[ns.currentGroupWave]
-  if (!currentWaveIds) return
-
-  // Poll all children in current wave
-  await Promise.allSettled(currentWaveIds.map(async childId => {
-    const childDef = allNodes.find(n => n.id === childId)
-    const cs = ns.children[childId]
-    if (!childDef || !cs) return
-    // Retry re-launch
-    if (cs.status === 'pending' && cs.retryAt && new Date(cs.retryAt).getTime() <= Date.now()) {
-      cs.retryAt = null
-      try { cs.sapRunId = await launchTask(run.connection, run.sessionId, childDef, defaults); cs.status = 'running' }
+  // 1. Poll running children + handle pending-retry children
+  await Promise.allSettled(groupChildren.map(async child => {
+    const cs = ns.children[child.id]
+    if (!cs) return
+    if (cs.status === 'running' && cs.sapRunId) {
+      let sapStatus
+      try { sapStatus = await pollSapStatus(run.connection, run.sessionId, cs.sapRunId) }
+      catch { return }
+      applyTaskResult(cs, sapStatus,
+        child.data?.errorStrategy || 'stop',
+        child.data?.maxRetries    || 0,
+        child.data?.retryDelaySec || 30)
+    } else if (cs.status === 'pending' && cs.retryAt && new Date(cs.retryAt).getTime() <= Date.now()) {
+      cs.retryAt = null; cs.status = 'running'
+      try { cs.sapRunId = await launchTask(run.connection, run.sessionId, child, defaults) }
       catch (e) { cs.status = 'error'; cs.finishedAt = new Date().toISOString(); cs.error = e.message }
-      return
     }
-    if (cs.status !== 'running' || !cs.sapRunId) return
-    let sapStatus
-    try { sapStatus = await pollSapStatus(run.connection, run.sessionId, cs.sapRunId) }
-    catch { return }
-    applyTaskResult(cs, sapStatus,
-      childDef.data?.errorStrategy || 'stop',
-      childDef.data?.maxRetries    || 0,
-      childDef.data?.retryDelaySec || 30)
   }))
 
-  // Check if current wave is done
-  const waveDone = currentWaveIds.every(id => DONE_NODE.has(ns.children[id]?.status))
-  if (!waveDone) return
+  // 2. Launch pending children whose direct predecessors are all done
+  await Promise.allSettled(groupChildren.map(async child => {
+    const cs = ns.children[child.id]
+    if (!cs || cs.status !== 'pending' || cs.retryAt) return
+    const preds = predMap[child.id]
+    if (!preds.every(pid => DONE_NODE.has(ns.children[pid]?.status))) return
 
-  // Check for blocking errors in current wave
-  const hasBlockingError = currentWaveIds.some(id => {
-    if (ns.children[id]?.status !== 'error') return false
-    const childDef = allNodes.find(n => n.id === id)
-    return (childDef?.data?.errorStrategy || 'stop') === 'stop'
-  })
+    const blocked = preds.some(pid => {
+      const ps = ns.children[pid]?.status
+      if (ps === 'skipped') return true
+      if (ps === 'error') return (allNodes.find(x => x.id === pid)?.data?.errorStrategy || 'stop') === 'stop'
+      return false
+    })
+    if (blocked) { cs.status = 'skipped'; return }
 
-  if (hasBlockingError) {
-    for (const waveIds of ns.groupWaves.slice(ns.currentGroupWave + 1)) {
-      for (const id of waveIds) if (ns.children[id]) ns.children[id].status = 'skipped'
-    }
-    ns.status = 'error'; ns.finishedAt = new Date().toISOString()
-    return
-  }
+    cs.status = 'running'; cs.startedAt = new Date().toISOString()
+    try { cs.sapRunId = await launchTask(run.connection, run.sessionId, child, defaults) }
+    catch (e) { cs.status = 'error'; cs.finishedAt = new Date().toISOString(); cs.error = e.message }
+  }))
 
-  // Advance to next wave or mark group done
-  if (ns.currentGroupWave < ns.groupWaves.length - 1) {
-    ns.currentGroupWave++
-    await launchGroupWave(run, ns, ns.groupWaves[ns.currentGroupWave], allNodes, defaults)
-  } else {
-    const anyErr = Object.values(ns.children).some(cs => cs.status === 'error')
-    ns.status = anyErr ? 'error' : 'success'
+  // 3. Check group completion
+  if (groupChildren.every(c => DONE_NODE.has(ns.children[c.id]?.status))) {
+    ns.status = groupChildren.some(c => ns.children[c.id]?.status === 'error') ? 'error' : 'success'
     ns.finishedAt = new Date().toISOString()
   }
 }
@@ -418,6 +411,9 @@ async function startRun(orchestrationId, connection, sessionId, defaultAgent = n
 }
 
 // ─── Tick ─────────────────────────────────────────────────────────────────────
+// Each top-level node is scheduled independently based on its own predecessors,
+// not by wave. This allows independent chains (A→B, C→D) to advance in parallel
+// without waiting for every chain in the same "wave" to finish.
 
 async function tick(orchestrationId) {
   const locked = await withRunLock(orchestrationId, async () => {
@@ -432,38 +428,64 @@ async function tick(orchestrationId) {
     }
 
     const { nodes, edges } = resolveGraph(orch)
-    const waveNodeIds = run.waves[run.currentWave] || []
+    const topNodes = nodes.filter(n => !n.parentId)
+    const defaults = { agentName: run.defaultAgent, profileName: run.defaultProfile, globalVariables: run.globalVariables || [] }
 
-    // Poll all nodes in current wave
-    await Promise.allSettled(waveNodeIds.map(async nodeId => {
-      const nodeDef = nodes.find(n => n.id === nodeId)
-      if (!nodeDef) return
-      if (nodeDef.type === 'task')  await pollTaskNode(run, nodeId, nodeDef)
-      if (nodeDef.type === 'group') await pollGroupNode(run, nodeId, nodeDef, nodes, edges)
+    // Build direct-predecessor map for top-level nodes
+    const predMap = {}
+    for (const n of topNodes) predMap[n.id] = []
+    for (const e of edges) {
+      if (e.target in predMap && e.source in predMap) predMap[e.target].push(e.source)
+    }
+
+    // 1. Poll all currently running nodes (and pending-retry nodes)
+    await Promise.allSettled(topNodes.map(async n => {
+      const ns = run.nodes[n.id]
+      if (!ns) return
+      if (ns.status === 'running') {
+        if (n.type === 'task')  await pollTaskNode(run, n.id, n)
+        if (n.type === 'group') await pollGroupNode(run, n.id, n, nodes, edges)
+      } else if (ns.status === 'pending' && ns.retryAt) {
+        await pollTaskNode(run, n.id, n) // handles retry re-launch
+      }
     }))
 
-    // Check if wave is complete
-    const waveComplete = waveNodeIds.every(id => DONE_NODE.has(run.nodes[id]?.status))
-    if (!waveComplete) { await redisSetObj(RUN_KEY, run); return run }
+    // 2. Launch any pending node whose direct predecessors are all done
+    await Promise.allSettled(topNodes.map(async n => {
+      const ns = run.nodes[n.id]
+      if (!ns || ns.status !== 'pending' || ns.retryAt) return
+      const preds = predMap[n.id]
+      if (!preds.every(pid => DONE_NODE.has(run.nodes[pid]?.status))) return
 
-    // Check for blocking errors (errorStrategy === 'stop')
-    const hasBlockingError = waveNodeIds.some(id => {
-      if (run.nodes[id]?.status !== 'error') return false
-      const nodeDef = nodes.find(n => n.id === id)
-      return (nodeDef?.data?.errorStrategy || 'stop') === 'stop'
-    })
+      // Propagate skip when a predecessor errored with strategy=stop or was itself skipped
+      const blocked = preds.some(pid => {
+        const ps = run.nodes[pid]?.status
+        if (ps === 'skipped') return true
+        if (ps === 'error') return (nodes.find(x => x.id === pid)?.data?.errorStrategy || 'stop') === 'stop'
+        return false
+      })
+      if (blocked) { ns.status = 'skipped'; return }
 
-    if (hasBlockingError) {
-      run.status = 'error'; run.finishedAt = new Date().toISOString()
-      for (const futureWave of run.waves.slice(run.currentWave + 1)) {
-        for (const nid of futureWave) if (run.nodes[nid]) run.nodes[nid].status = 'skipped'
+      if (n.type === 'task') {
+        ns.status = 'running'; ns.startedAt = new Date().toISOString()
+        try { ns.sapRunId = await launchTask(run.connection, run.sessionId, n, defaults) }
+        catch (e) { ns.status = 'error'; ns.finishedAt = new Date().toISOString(); ns.error = e.message }
+      } else if (n.type === 'group') {
+        ns.status = 'running'; ns.startedAt = new Date().toISOString()
+        const groupChildren = nodes.filter(nd => nd.parentId === n.id)
+        if (groupChildren.length === 0) { ns.status = 'success'; ns.finishedAt = new Date().toISOString(); return }
+        const groupEdges = edges.filter(e =>
+          groupChildren.some(c => c.id === e.source) && groupChildren.some(c => c.id === e.target)
+        )
+        ns.groupWaves = buildWaves(groupChildren, groupEdges)
+        ns.currentGroupWave = 0
+        await launchGroupWave(run, ns, ns.groupWaves[0], nodes, defaults)
       }
-    } else if (run.currentWave < run.waves.length - 1) {
-      run.currentWave++
-      run = await executeWave(run, run.currentWave, nodes, edges)
-    } else {
-      const anyErr = Object.values(run.nodes).some(ns => ns.status === 'error')
-      run.status = anyErr ? 'error' : 'success'
+    }))
+
+    // 3. Check overall completion
+    if (topNodes.every(n => DONE_NODE.has(run.nodes[n.id]?.status))) {
+      run.status = topNodes.some(n => run.nodes[n.id]?.status === 'error') ? 'error' : 'success'
       run.finishedAt = new Date().toISOString()
     }
 
