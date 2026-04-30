@@ -31,6 +31,16 @@ async function redisGetObj(key) {
   try { return JSON.parse(result) } catch { return null }
 }
 
+async function redisGetRaw(key) {
+  const resp = await fetch(`${REDIS_URL}/pipeline`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${REDIS_TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify([['GET', key]]),
+  })
+  const data = await resp.json()
+  return data[0]?.result ?? null
+}
+
 async function redisSetObj(key, value, exSeconds = 172800) {
   const resp = await fetch(`${REDIS_URL}/pipeline`, {
     method: 'POST',
@@ -69,7 +79,7 @@ async function withRunLock(orchestrationId, fn) {
     return await fn()
   } finally {
     try {
-      const current = await redisGetObj(lockKey)
+      const current = await redisGetRaw(lockKey)
       if (current === lockToken) await redisDel(lockKey)
     } catch {
       // lock expires automatically (EX), swallow cleanup errors
@@ -467,7 +477,7 @@ async function tick(orchestrationId) {
 // ─── Cancel run ───────────────────────────────────────────────────────────────
 
 async function cancelRun(orchestrationId) {
-  const locked = await withRunLock(orchestrationId, async () => {
+  const doCancel = async () => withRunLock(orchestrationId, async () => {
     const RUN_KEY = `cids:orch_run:${orchestrationId}`
     const run = await redisGetObj(RUN_KEY)
     if (!run) throw new Error('No hay ejecución registrada')
@@ -476,7 +486,6 @@ async function cancelRun(orchestrationId) {
     }
 
     const now = new Date().toISOString()
-    // Cancel all running SAP tasks (best-effort)
     await Promise.allSettled(Object.values(run.nodes).flatMap(ns => {
       const tasks = []
       if (ns.type === 'task' && ns.status === 'running' && ns.sapRunId) {
@@ -494,8 +503,7 @@ async function cancelRun(orchestrationId) {
 
     run.status = 'cancelled'; run.finishedAt = now
     for (const ns of Object.values(run.nodes)) {
-      if (ns.status === 'running') ns.status = 'cancelled'
-      ns.finishedAt = now
+      if (ns.status === 'running') { ns.status = 'cancelled'; ns.finishedAt = now }
       if (ns.status === 'pending') ns.status = 'skipped'
       if (ns.type === 'group') {
         for (const cs of Object.values(ns.children || {})) {
@@ -508,7 +516,13 @@ async function cancelRun(orchestrationId) {
     await redisSetObj(RUN_KEY, run)
     return run
   })
-  if (locked !== null) return locked
+
+  // Retry up to 5 times (500 ms apart) in case a tick holds the lock
+  for (let i = 0; i < 5; i++) {
+    const result = await doCancel()
+    if (result !== null) return result
+    await new Promise(r => setTimeout(r, 500))
+  }
   return redisGetObj(`cids:orch_run:${orchestrationId}`)
 }
 

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import TechLogs, { useTechLogs } from '../TechLogs'
 import ProgressBar from '../ui/ProgressBar'
+import { getTzMode, setTzMode, toInputDate, inputDateToDate, formatEpochMs, TZ_OPTIONS } from '../../utils/dateUtils'
 
 const REFRESH_MS = 30000
 
@@ -20,20 +21,6 @@ const STATUS_META = {
 
 const CANCELABLE = new Set(['RUNNING', 'QUEUEING', 'IMPORTED', 'FETCHED'])
 
-function fmtDate(epochMs) {
-  if (!epochMs) return '—'
-  try { return new Date(parseInt(epochMs)).toLocaleString() } catch { return epochMs }
-}
-
-function isoNow(offsetDays = 0) {
-  const d = new Date(Date.now() + offsetDays * 86400000)
-  return d.toISOString().slice(0, 16)
-}
-
-function toIso(localDatetime) {
-  if (!localDatetime) return undefined
-  return new Date(localDatetime).toISOString()
-}
 
 async function soapCall(connection, sessionId, operation, params = {}) {
   const debugSoap = typeof window !== 'undefined'
@@ -86,8 +73,18 @@ export default function TaskMonitor({ connection, sessionId, onSessionExpired, i
   const addLogRef = useRef(addLog)
   addLogRef.current = addLog
 
-  const [fromDate, setFromDate] = useState(() => isoNow(-7))
-  const [toDate,   setToDate]   = useState(() => isoNow(0))
+  const [tzMode, setTzModeState] = useState(() => getTzMode())
+  const [fromDate, setFromDate]  = useState(() => toInputDate(new Date(Date.now() - 7 * 86400000), getTzMode()))
+  const [toDate,   setToDate]    = useState(() => toInputDate(new Date(), getTzMode()))
+
+  function handleTzChange(newMode) {
+    const from = inputDateToDate(fromDate, tzMode)
+    const to   = inputDateToDate(toDate,   tzMode)
+    setFromDate(toInputDate(from, newMode))
+    setToDate(toInputDate(to,   newMode))
+    setTzModeState(newMode)
+    setTzMode(newMode)
+  }
 
   useEffect(() => {
     if (initialSearch) { setSearch(initialSearch); onSearchConsumed?.() }
@@ -102,16 +99,20 @@ export default function TaskMonitor({ connection, sessionId, onSessionExpired, i
   function handleFromChange(val) {
     setFromDate(val)
     if (val && toDate) {
-      const diff = Math.round((new Date(toDate) - new Date(val)) / 86400000)
-      if (diff > MAX_DAYS) setToDate(new Date(new Date(val).getTime() + MAX_DAYS * 86400000).toISOString().slice(0, 16))
+      const fromMs = inputDateToDate(val, tzMode).getTime()
+      const toMs   = inputDateToDate(toDate, tzMode).getTime()
+      if (Math.round((toMs - fromMs) / 86400000) > MAX_DAYS)
+        setToDate(toInputDate(new Date(fromMs + MAX_DAYS * 86400000), tzMode))
     }
   }
 
   function handleToChange(val) {
     setToDate(val)
     if (val && fromDate) {
-      const diff = Math.round((new Date(val) - new Date(fromDate)) / 86400000)
-      if (diff > MAX_DAYS) setFromDate(new Date(new Date(val).getTime() - MAX_DAYS * 86400000).toISOString().slice(0, 16))
+      const fromMs = inputDateToDate(fromDate, tzMode).getTime()
+      const toMs   = inputDateToDate(val, tzMode).getTime()
+      if (Math.round((toMs - fromMs) / 86400000) > MAX_DAYS)
+        setFromDate(toInputDate(new Date(toMs - MAX_DAYS * 86400000), tzMode))
     }
   }
 
@@ -121,8 +122,8 @@ export default function TaskMonitor({ connection, sessionId, onSessionExpired, i
     const start = performance.now()
     try {
       const data = await soapCall(connection, sessionId, 'getAllExecutedTasks2', {
-        startDateFrom: toIso(fromDate),
-        startDateTo:   toIso(toDate),
+        startDateFrom: inputDateToDate(fromDate, tzMode)?.toISOString(),
+        startDateTo:   inputDateToDate(toDate,   tzMode)?.toISOString(),
       })
       addLogRef.current({ method: 'POST', path: 'getAllExecutedTasks2', status: 200, duration: Math.round(performance.now() - start), detail: `${data.length} tasks` })
       setRows(Array.isArray(data) ? data : [])
@@ -184,7 +185,7 @@ export default function TaskMonitor({ connection, sessionId, onSessionExpired, i
   const COLS = useMemo(() => [
     { key: 'statusCode', label: 'Estado',    w: 200, render: v => <StatusBadge code={v} /> },
     { key: 'taskName',   label: 'Task',      w: 280 },
-    { key: 'startDate',  label: 'Inicio',    w: 180, render: v => fmtDate(v) },
+    { key: 'startDate',  label: 'Inicio',    w: 180, render: v => formatEpochMs(v, tzMode) },
     { key: 'runId',      label: 'RunID',     w: 120 },
     { key: 'jobId',      label: 'JobID',     w: 150 },
   ].map(c => ({ ...c, w: colWidths[c.key] ?? c.w })), [colWidths])
@@ -223,6 +224,17 @@ export default function TaskMonitor({ connection, sessionId, onSessionExpired, i
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          {/* Timezone selector */}
+          <div style={{ display: 'flex', borderRadius: 5, overflow: 'hidden', border: '1px solid var(--border)', flexShrink: 0 }}>
+            {TZ_OPTIONS.filter(o => o.value !== 'local').map(opt => (
+              <button key={opt.value} onClick={() => handleTzChange(opt.value)} style={{
+                padding: '5px 9px', fontSize: 10, fontWeight: 700, border: 'none', cursor: 'pointer',
+                background: tzMode === opt.value ? 'var(--accent)' : 'var(--bg3)',
+                color:      tzMode === opt.value ? '#000'          : 'var(--text2)',
+                transition: 'background .15s',
+              }}>{opt.label}</button>
+            ))}
+          </div>
           <input type="datetime-local" value={fromDate} onChange={e => handleFromChange(e.target.value)} style={{ ...inputStyle, borderColor: rangeExceeded ? 'var(--red)' : undefined }} />
           <span style={{ color: 'var(--text2)', fontSize: 11 }}>→</span>
           <input type="datetime-local" value={toDate}   onChange={e => handleToChange(e.target.value)}   style={{ ...inputStyle, borderColor: rangeExceeded ? 'var(--red)' : undefined }} />

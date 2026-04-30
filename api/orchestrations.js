@@ -70,6 +70,7 @@ function validateNodeData(data = {}) {
   return {
     taskName:        data.taskName        || null,
     taskGuid:        data.taskGuid        || null,
+    taskType:        data.taskType        || null,
     label:           data.label           || data.taskName || 'Sin nombre',
     agentName:       data.agentName       || null,
     profileName:     data.profileName     || null,

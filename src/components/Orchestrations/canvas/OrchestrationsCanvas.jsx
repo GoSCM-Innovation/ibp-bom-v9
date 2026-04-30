@@ -150,7 +150,8 @@ function CanvasInner({
           ...(parentId ? { parentId, extent } : {}),
           ...(persistedStyle ? { style: persistedStyle } : {}),
           data: {
-            taskName: data.taskName, taskGuid: data.taskGuid, label: data.label,
+            taskName: data.taskName, taskGuid: data.taskGuid, taskType: data.taskType || null,
+            label: data.label,
             agentName: data.agentName, profileName: data.profileName,
             errorStrategy: data.errorStrategy, maxRetries: data.maxRetries,
             retryDelaySec: data.retryDelaySec,
@@ -251,7 +252,7 @@ function CanvasInner({
         : position,
       ...(groupNode ? { parentId: groupNode.id, extent: 'parent' } : {}),
       data: {
-        taskName, taskGuid, label: taskName, agentName: null, profileName: null,
+        taskName, taskGuid, taskType: type || null, label: taskName, agentName: null, profileName: null,
         errorStrategy: 'stop', maxRetries: 0, retryDelaySec: 30,
         globalVariables: [], children: [],
         runStatus: 'pending', onSelect: handleNodeSelect,

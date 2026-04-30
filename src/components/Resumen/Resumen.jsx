@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import ProgressBar from '../ui/ProgressBar'
+import { getTzMode, setTzMode, toInputDate, inputDateToDate, formatEpochMs, dayLabelEpoch, TZ_OPTIONS } from '../../utils/dateUtils'
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend,
@@ -30,17 +31,6 @@ const STATUS_LABELS = {
   'TERMINATION_FAILED': 'Termination failed', 'UNKNOWN': 'Unknown',
 }
 
-function isoNow(offsetDays = 0) {
-  return new Date(Date.now() + offsetDays * 86400000).toISOString().slice(0, 16)
-}
-function toIso(localDatetime) {
-  if (!localDatetime) return undefined
-  return new Date(localDatetime).toISOString()
-}
-function dayLabel(epochMs) {
-  if (!epochMs) return '?'
-  return new Date(parseInt(epochMs)).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-}
 function fmtDuration(mins) {
   if (mins < 1) return `${Math.round(mins * 60)}s`
   if (mins < 60) return `${Math.round(mins)} min`
@@ -92,8 +82,18 @@ export default function Resumen({ connection, sessionId, onSessionExpired }) {
   const addLogRef = useRef(addLog)
   addLogRef.current = addLog
 
-  const [fromDate, setFromDate] = useState(() => isoNow(-7))
-  const [toDate,   setToDate]   = useState(() => isoNow(0))
+  const [tzMode, setTzModeState] = useState(() => getTzMode())
+  const [fromDate, setFromDate]  = useState(() => toInputDate(new Date(Date.now() - 7 * 86400000), getTzMode()))
+  const [toDate,   setToDate]    = useState(() => toInputDate(new Date(), getTzMode()))
+
+  function handleTzChange(newMode) {
+    const from = inputDateToDate(fromDate, tzMode)
+    const to   = inputDateToDate(toDate,   tzMode)
+    setFromDate(toInputDate(from, newMode))
+    setToDate(toInputDate(to,   newMode))
+    setTzModeState(newMode)
+    setTzMode(newMode)
+  }
 
   const loadData = useCallback(async () => {
     setLoading(true); setError('')
@@ -101,8 +101,8 @@ export default function Resumen({ connection, sessionId, onSessionExpired }) {
     try {
       const [tasks, agentGroups] = await Promise.all([
         soapCall(connection, sessionId, 'getAllExecutedTasks2', {
-          startDateFrom: toIso(fromDate),
-          startDateTo:   toIso(toDate),
+          startDateFrom: inputDateToDate(fromDate, tzMode)?.toISOString(),
+          startDateTo:   inputDateToDate(toDate,   tzMode)?.toISOString(),
         }),
         soapCall(connection, sessionId, 'getAgents', { activeOnly: false }),
       ])
@@ -146,7 +146,7 @@ export default function Resumen({ connection, sessionId, onSessionExpired }) {
   // Bar by day
   const dayMap = {}
   rows.forEach(r => {
-    const d = dayLabel(r.startDate)
+    const d = dayLabelEpoch(r.startDate, tzMode)
     if (!dayMap[d]) dayMap[d] = { day: d, Exitosas: 0, Fallidas: 0, Otras: 0 }
     if (r.statusCode === 'SUCCESS') dayMap[d].Exitosas++
     else if (r.statusCode === 'ERROR' || r.statusCode === 'TERMINATION_FAILED') dayMap[d].Fallidas++
@@ -193,6 +193,16 @@ export default function Resumen({ connection, sessionId, onSessionExpired }) {
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', borderRadius: 5, overflow: 'hidden', border: '1px solid var(--border)', flexShrink: 0 }}>
+            {TZ_OPTIONS.filter(o => o.value !== 'local').map(opt => (
+              <button key={opt.value} onClick={() => handleTzChange(opt.value)} style={{
+                padding: '5px 9px', fontSize: 10, fontWeight: 700, border: 'none', cursor: 'pointer',
+                background: tzMode === opt.value ? 'var(--accent)' : 'var(--bg3)',
+                color:      tzMode === opt.value ? '#000'          : 'var(--text2)',
+                transition: 'background .15s',
+              }}>{opt.label}</button>
+            ))}
+          </div>
           <input type="datetime-local" value={fromDate} onChange={e => setFromDate(e.target.value)} style={inputStyle} />
           <span style={{ color: 'var(--text2)', fontSize: 11 }}>→</span>
           <input type="datetime-local" value={toDate}   onChange={e => setToDate(e.target.value)}   style={inputStyle} />

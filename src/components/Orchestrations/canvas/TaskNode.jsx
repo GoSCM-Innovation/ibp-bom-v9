@@ -5,13 +5,15 @@ import { STATUS_COLORS, STATUS_ICONS } from '../canvasUtils'
 const STRATEGY_COLOR = { stop: '#64748b', continue: '#fbbf24', retry: '#3b82f6' }
 const STRATEGY_LABEL = { stop: 'error: detener', continue: 'error: continuar', retry: 'error: reintentar' }
 const RUNNING_GREEN = '#22c55e'
+const TYPE_COLOR = { PROCESS: '#8b5cf6', TASK: '#06b6d4' }
 
 export default function TaskNode({ data, selected, id }) {
   const [hovered, setHovered] = useState(false)
-  const status  = data.runStatus || 'pending'
-  const color   = STATUS_COLORS[status]
-  const icon    = STATUS_ICONS[status]
+  const status   = data.runStatus || 'pending'
+  const color    = STATUS_COLORS[status]
+  const icon     = STATUS_ICONS[status]
   const isActive = status === 'running'
+  const typeColor = TYPE_COLOR[data.taskType] || TYPE_COLOR.TASK
 
   return (
     <div
@@ -24,9 +26,15 @@ export default function TaskNode({ data, selected, id }) {
         borderRadius: 10, overflow: 'hidden', cursor: 'pointer',
         boxShadow: selected ? '0 0 0 2px rgba(247,168,0,.25)' : isActive ? '0 0 0 2px rgba(34,197,94,.25)' : 'none',
         transition: 'border-color .2s, box-shadow .2s',
-        userSelect: 'none',
+        userSelect: 'none', position: 'relative',
       }}
     >
+      {/* Type strip — left accent bar */}
+      <div style={{
+        position: 'absolute', left: 0, top: 0, width: 3, height: '100%',
+        background: typeColor, opacity: 0.75,
+      }} />
+
       {/* Status bar */}
       <div style={{
         height: 3, background: color, transition: 'background .3s',
