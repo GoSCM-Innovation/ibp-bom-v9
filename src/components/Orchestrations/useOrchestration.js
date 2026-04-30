@@ -139,7 +139,7 @@ export function useOrchestration(connection, sessionId) {
     } catch (e) { alert(e.message) }
   }
 
-  async function handleStart({ agentName = null, profileName = null } = {}) {
+  async function handleStart({ agentName = null, profileName = null, globalVariables = [] } = {}) {
     if (!selectedId || isRunning || starting) return
     setStarting(true)
     if ('Notification' in window && Notification.permission === 'default') {
@@ -155,6 +155,7 @@ export function useOrchestration(connection, sessionId) {
           connection: { hciUrl: connection.hciUrl, orgName: connection.orgName, isProduction: connection.isProduction },
           sessionId,
           defaultAgent: agentName || null, defaultProfile: profileName || null,
+          globalVariables: globalVariables || [],
         }),
       })
       const data = await res.json()

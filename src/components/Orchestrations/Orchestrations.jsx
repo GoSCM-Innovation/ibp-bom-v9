@@ -320,10 +320,10 @@ export default function Orchestrations({ connection, sessionId, onSessionExpired
         <RunModal
           connection={connection}
           sessionId={sessionId}
-          onConfirm={(agentName, profileName) => {
+          onConfirm={(agentName, profileName, globalVariables) => {
             setShowRunModal(false)
             setLastRunParams({ agentName, profileName })
-            handleStart({ agentName, profileName })
+            handleStart({ agentName, profileName, globalVariables })
           }}
           onClose={() => setShowRunModal(false)}
         />

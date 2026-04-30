@@ -78,7 +78,9 @@ function CanvasInner({
   const rfInstance  = useReactFlow()
   const saveTimer   = useRef(null)
   const [cycleErr, setCycleErr] = useState(false)
-  const lastTaskRef = useRef(null)
+  const lastByContext = useRef(new Map()) // Map<groupId|null, nodeId>
+  const nodesRef = useRef([])
+  useEffect(() => { nodesRef.current = nodes }, [nodes])
 
   useImperativeHandle(ref, () => ({
     patchNodeData: (nodeId, patch) => {
@@ -87,6 +89,13 @@ function CanvasInner({
     },
     deleteNode: (nodeId) => {
       clearTimeout(saveTimer.current)
+      const current = nodesRef.current
+      const deletedNode = current.find(n => n.id === nodeId)
+      const ctx = deletedNode?.parentId || null
+      if (lastByContext.current.get(ctx) === nodeId) {
+        const remaining = current.filter(n => n.type === 'orchTask' && (n.parentId || null) === ctx && n.id !== nodeId)
+        lastByContext.current.set(ctx, remaining.length ? remaining[remaining.length - 1].id : null)
+      }
       setNodes(nds => nds.filter(n => n.id !== nodeId && n.parentId !== nodeId))
       setEdges(eds => eds.filter(e => e.source !== nodeId && e.target !== nodeId))
     },
@@ -97,7 +106,7 @@ function CanvasInner({
     setNodes(toRFNodes(initialNodes, run, handleNodeSelect, onRunSingle, initialEdges))
     setEdges(toRFEdges(initialEdges, run))
     setCycleErr(false)
-    lastTaskRef.current = null
+    lastByContext.current.clear()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orchId])
 
@@ -182,6 +191,17 @@ function CanvasInner({
     }
     const nextNodes = nodes.filter(n => !toDelete.has(n.id))
     const nextEdges = edges.filter(e => !toDelete.has(e.source) && !toDelete.has(e.target))
+
+    for (const deletedId of toDelete) {
+      const dn = nodes.find(n => n.id === deletedId)
+      if (!dn || dn.type !== 'orchTask') continue
+      const ctx = dn.parentId || null
+      if (lastByContext.current.get(ctx) === deletedId) {
+        const remaining = nextNodes.filter(n => n.type === 'orchTask' && (n.parentId || null) === ctx)
+        lastByContext.current.set(ctx, remaining.length ? remaining[remaining.length - 1].id : null)
+      }
+    }
+
     setNodes(nextNodes)
     setEdges(nextEdges)
     debounced_save(nextNodes, nextEdges)
@@ -241,15 +261,17 @@ function CanvasInner({
     const newNodes = [...nodes, newNode]
     let newEdges = edges
 
-    // Auto-connect: link new top-level task to the last one added
-    if (autoConnect && !groupNode && lastTaskRef.current) {
-      const prevExists = nodes.some(n => n.id === lastTaskRef.current && n.type === 'orchTask' && !n.parentId)
+    // Auto-connect: link new task to the last one added in the same context (top-level or same group)
+    const ctxKey = groupNode?.id ?? null
+    const prevId = lastByContext.current.get(ctxKey)
+    if (autoConnect && prevId) {
+      const prevExists = nodes.some(n => n.id === prevId)
       if (prevExists) {
-        const autoEdge = { id: crypto.randomUUID(), source: lastTaskRef.current, target: newId, ...EDGE_DEFAULTS }
+        const autoEdge = { id: crypto.randomUUID(), source: prevId, target: newId, ...EDGE_DEFAULTS }
         newEdges = addEdge(autoEdge, edges)
       }
     }
-    if (!groupNode) lastTaskRef.current = newId
+    lastByContext.current.set(ctxKey, newId)
 
     setNodes(newNodes)
     if (newEdges !== edges) setEdges(newEdges)
@@ -287,7 +309,7 @@ function CanvasInner({
   }
 
   // Reset last task chain when autoConnect is turned off externally
-  useEffect(() => { if (!autoConnect) lastTaskRef.current = null }, [autoConnect])
+  useEffect(() => { if (!autoConnect) lastByContext.current.clear() }, [autoConnect])
 
   const nodeColor = (n) => STATUS_COLORS[n.data?.runStatus || 'pending'] || '#64748b'
 

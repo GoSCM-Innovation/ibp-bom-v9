@@ -167,12 +167,24 @@ function initNodeState(node, allNodes) {
 
 // ─── Task execution helpers ───────────────────────────────────────────────────
 
+function mergeVariables(taskVars = [], globalVars = []) {
+  if (!globalVars || globalVars.length === 0) return taskVars
+  const result = taskVars.map(v => {
+    const override = globalVars.find(g => g.name === v.name)
+    return override ? { ...v, value: override.value } : v
+  })
+  const extra = globalVars.filter(g => !taskVars.some(v => v.name === g.name))
+  return [...result, ...extra]
+}
+
 async function launchTask(connection, sessionId, nodeDef, defaults = {}) {
+  const taskVars   = nodeDef.data.globalVariables || []
+  const globalVars = defaults.globalVariables || []
   const result = await soapRequest(connection, sessionId, 'runTask', {
     taskName:        nodeDef.data.taskName,
     agentName:       nodeDef.data.agentName   || defaults.agentName  || undefined,
     profileName:     nodeDef.data.profileName || defaults.profileName || undefined,
-    globalVariables: nodeDef.data.globalVariables || [],
+    globalVariables: mergeVariables(taskVars, globalVars),
   })
   if (!result.runId) throw new Error('SAP no retornó runId')
   return result.runId
@@ -205,7 +217,7 @@ async function launchGroupWave(run, ns, waveIds, allNodes, defaults) {
 
 async function executeWave(run, waveIndex, allNodes, allEdges) {
   const waveNodeIds = run.waves[waveIndex]
-  const defaults = { agentName: run.defaultAgent, profileName: run.defaultProfile }
+  const defaults = { agentName: run.defaultAgent, profileName: run.defaultProfile, globalVariables: run.globalVariables || [] }
 
   await Promise.allSettled(waveNodeIds.map(async nodeId => {
     const nodeDef = allNodes.find(n => n.id === nodeId)
@@ -268,7 +280,7 @@ function applyTaskResult(ns, sapStatus, strategy, maxRetries, retryDelaySec) {
 
 async function pollTaskNode(run, nodeId, nodeDef) {
   const ns = run.nodes[nodeId]
-  const defaults = { agentName: run.defaultAgent, profileName: run.defaultProfile }
+  const defaults = { agentName: run.defaultAgent, profileName: run.defaultProfile, globalVariables: run.globalVariables || [] }
   // Re-launch if pending retry and delay elapsed
   if (ns.status === 'pending' && ns.retryAt && new Date(ns.retryAt).getTime() <= Date.now()) {
     ns.status = 'running'; ns.retryAt = null; ns.sapRunId = null
@@ -292,7 +304,7 @@ async function pollGroupNode(run, nodeId, nodeDef, allNodes, allEdges) {
   const groupChildren = allNodes.filter(n => n.parentId === nodeId)
   if (groupChildren.length === 0) { ns.status = 'success'; ns.finishedAt = new Date().toISOString(); return }
 
-  const defaults = { agentName: run.defaultAgent, profileName: run.defaultProfile }
+  const defaults = { agentName: run.defaultAgent, profileName: run.defaultProfile, globalVariables: run.globalVariables || [] }
 
   // Lazily initialize groupWaves for runs stored before this refactor
   if (!ns.groupWaves || ns.groupWaves.length === 0) {
@@ -360,7 +372,7 @@ async function pollGroupNode(run, nodeId, nodeDef, allNodes, allEdges) {
 
 // ─── Start run ────────────────────────────────────────────────────────────────
 
-async function startRun(orchestrationId, connection, sessionId, defaultAgent = null, defaultProfile = null) {
+async function startRun(orchestrationId, connection, sessionId, defaultAgent = null, defaultProfile = null, globalVariables = []) {
   return withRunLock(orchestrationId, async () => {
     const orch = await getOrchestration(orchestrationId)
     if (!orch) throw new Error('Orquestación no encontrada')
@@ -384,6 +396,7 @@ async function startRun(orchestrationId, connection, sessionId, defaultAgent = n
       status: 'running', currentWave: 0,
       startedAt: new Date().toISOString(), finishedAt: null,
       defaultAgent: defaultAgent || null, defaultProfile: defaultProfile || null,
+      globalVariables: globalVariables || [],
       waves,
       nodes: Object.fromEntries(nodes.map(n => [n.id, initNodeState(n, nodes)])),
     }
@@ -510,12 +523,12 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === 'POST') {
-      const { orchestrationId, action, defaultAgent, defaultProfile } = req.body || {}
+      const { orchestrationId, action, defaultAgent, defaultProfile, globalVariables } = req.body || {}
       if (!orchestrationId) return res.status(400).json({ error: 'orchestrationId requerido' })
       if (action !== 'start') return res.status(400).json({ error: 'action debe ser "start"' })
       const { connection, sessionId } = req.body || {}
       if (!connection?.hciUrl || !sessionId) return res.status(400).json({ error: 'connection y sessionId requeridos' })
-      const run = await startRun(orchestrationId, connection, sessionId, defaultAgent || null, defaultProfile || null)
+      const run = await startRun(orchestrationId, connection, sessionId, defaultAgent || null, defaultProfile || null, globalVariables || [])
       return res.status(201).json(run)
     }
 
