@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Tasks from '../Tasks/Tasks'
 import TaskMonitor from '../Tasks/TaskMonitor'
 import Resumen from '../Resumen/Resumen'
@@ -19,6 +19,12 @@ export default function SystemView({ connection, onLoginCancel }) {
   const [pendingTaskName, setPendingTaskName] = useState(null)
   const [sessionId, setSessionId] = useState(() => sessionStorage.getItem(`sap_${connection.id}`))
   const [showLogin, setShowLogin] = useState(!sessionStorage.getItem(`sap_${connection.id}`))
+
+  useEffect(() => {
+    const sid = sessionStorage.getItem(`sap_${connection.id}`)
+    setSessionId(sid)
+    setShowLogin(!sid)
+  }, [connection.id])
 
   function handleLoginSuccess(sid) {
     sessionStorage.setItem(`sap_${connection.id}`, sid)
