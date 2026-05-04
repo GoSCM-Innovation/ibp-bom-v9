@@ -63,6 +63,26 @@ function connMiniStats(rows) {
   return { total, running, success, failed, warnings, rate }
 }
 
+function buildChartData(rows, tzMode) {
+  const statusCount = {}
+  rows.forEach(r => { statusCount[r.statusCode] = (statusCount[r.statusCode] || 0) + 1 })
+  const donutData = Object.entries(statusCount)
+    .map(([code, count]) => ({ name: STATUS_LABELS[code] || code, value: count, code }))
+    .sort((a, b) => b.value - a.value)
+
+  const dayMap = {}
+  rows.forEach(r => {
+    const d = dayLabelEpoch(r.startDate, tzMode)
+    if (!dayMap[d]) dayMap[d] = { day: d, Exitosas: 0, Fallidas: 0, Otras: 0 }
+    if (r.statusCode === 'SUCCESS') dayMap[d].Exitosas++
+    else if (r.statusCode === 'ERROR' || r.statusCode === 'TERMINATION_FAILED') dayMap[d].Fallidas++
+    else dayMap[d].Otras++
+  })
+  const barData = Object.values(dayMap).sort((a, b) => a.day.localeCompare(b.day)).slice(-14)
+
+  return { donutData, barData }
+}
+
 export default function GlobalResumen({ connections }) {
   const [connData, setConnData]         = useState({})
   const [tzMode, setTzModeState]        = useState(() => getTzMode())
@@ -70,6 +90,7 @@ export default function GlobalResumen({ connections }) {
   const [toDate,   setToDate]           = useState(() => toInputDate(new Date(), getTzMode()))
   const [loadingAll, setLoadingAll]     = useState(false)
   const [lastRefresh, setLastRefresh]   = useState(null)
+  const [activeChartIdx, setActiveChartIdx] = useState(0)
   const timerRef = useRef(null)
 
   function handleTzChange(newMode) {
@@ -134,8 +155,8 @@ export default function GlobalResumen({ connections }) {
   )
 
   // Aggregates — computed from connections with status 'ok' only
-  const okConns  = connections.filter(c => connData[c.id]?.status === 'ok')
-  const allRows   = okConns.flatMap(c => connData[c.id].rows)
+  const okConns = connections.filter(c => connData[c.id]?.status === 'ok')
+  const allRows  = okConns.flatMap(c => connData[c.id].rows)
 
   const total         = allRows.length
   const running       = allRows.filter(r => r.statusCode === 'RUNNING').length
@@ -144,23 +165,14 @@ export default function GlobalResumen({ connections }) {
   const failed        = allRows.filter(r => r.statusCode === 'ERROR').length
   const warningsCount = allRows.filter(r => ['SUCCESS_WITH_ERRORS_D', 'SUCCESS_WITH_ERRORS_E'].includes(r.statusCode)).length
   const successRate   = total > 0 ? Math.round(((success + warningsCount) / total) * 100) : 0
+  const rateColor     = total === 0 ? 'var(--text2)' : successRate >= 90 ? 'var(--green)' : successRate >= 70 ? 'var(--accent)' : 'var(--red)'
 
-  const statusCount = {}
-  allRows.forEach(r => { statusCount[r.statusCode] = (statusCount[r.statusCode] || 0) + 1 })
-  const donutData = Object.entries(statusCount)
-    .map(([code, count]) => ({ name: STATUS_LABELS[code] || code, value: count, code }))
-    .sort((a, b) => b.value - a.value)
+  // Chart slide: 0 = global, 1..N = okConns index
+  const safeIdx   = Math.min(activeChartIdx, okConns.length)
+  const chartRows = safeIdx === 0 ? allRows : (connData[okConns[safeIdx - 1]?.id]?.rows || [])
+  const { donutData, barData } = buildChartData(chartRows, tzMode)
 
-  const dayMap = {}
-  allRows.forEach(r => {
-    const d = dayLabelEpoch(r.startDate, tzMode)
-    if (!dayMap[d]) dayMap[d] = { day: d, Exitosas: 0, Fallidas: 0, Otras: 0 }
-    if (r.statusCode === 'SUCCESS') dayMap[d].Exitosas++
-    else if (r.statusCode === 'ERROR' || r.statusCode === 'TERMINATION_FAILED') dayMap[d].Fallidas++
-    else dayMap[d].Otras++
-  })
-  const barData = Object.values(dayMap).sort((a, b) => a.day.localeCompare(b.day)).slice(-14)
-
+  // Stats (always global)
   const taskMap = {}
   allRows.forEach(r => { const k = r.taskName || '—'; taskMap[k] = (taskMap[k] || 0) + 1 })
   const topTasks = Object.entries(taskMap).sort((a, b) => b[1] - a[1]).slice(0, 5)
@@ -177,8 +189,6 @@ export default function GlobalResumen({ connections }) {
     const s = connData[c.id]?.status
     return !s || s === 'no-session' || s === 'session-expired'
   })
-
-  const rateColor = total === 0 ? 'var(--text2)' : successRate >= 90 ? 'var(--green)' : successRate >= 70 ? 'var(--accent)' : 'var(--red)'
 
   return (
     <div style={{ padding: 28, overflowY: 'auto', height: '100%', boxSizing: 'border-box', position: 'relative' }}>
@@ -254,50 +264,104 @@ export default function GlobalResumen({ connections }) {
 
       {/* Charts — only when there's aggregated data */}
       {allRows.length > 0 && (
-        <div className="grid-charts">
-          <div style={cardStyle}>
-            <div style={cardTitle}>Distribución por estado</div>
-            {donutData.length === 0 ? <Empty /> : (
-              <ResponsiveContainer width="100%" height={220}>
-                <PieChart>
-                  <Pie data={donutData} cx="50%" cy="50%" innerRadius={55} outerRadius={85} paddingAngle={2} dataKey="value">
-                    {donutData.map((entry, i) => <Cell key={i} fill={STATUS_COLORS[entry.code] || '#6b7280'} />)}
-                  </Pie>
-                  <Tooltip contentStyle={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 11 }} />
-                </PieChart>
-              </ResponsiveContainer>
-            )}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 12px', marginTop: 8 }}>
-              {donutData.map((d, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: 'var(--text2)' }}>
-                  <div style={{ width: 8, height: 8, borderRadius: 2, background: STATUS_COLORS[d.code] || '#6b7280', flexShrink: 0 }} />
-                  {d.name} ({d.value})
-                </div>
+        <div style={{ marginBottom: 24 }}>
+
+          {/* Slide navigation */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+            <button
+              onClick={() => setActiveChartIdx(p => Math.max(0, p - 1))}
+              disabled={safeIdx === 0}
+              style={arrowBtnStyle(safeIdx === 0)}
+            >‹</button>
+
+            <div style={{ flex: 1, display: 'flex', gap: 4, overflowX: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 2 }}>
+              {/* Global pill */}
+              <ChartPill
+                active={safeIdx === 0}
+                onClick={() => setActiveChartIdx(0)}
+                label="Global"
+                count={allRows.length}
+              />
+              {/* Per-connection pills — only connections with data */}
+              {okConns.map((conn, i) => (
+                <ChartPill
+                  key={conn.id}
+                  active={safeIdx === i + 1}
+                  onClick={() => setActiveChartIdx(i + 1)}
+                  label={conn.name}
+                  count={connData[conn.id].rows.length}
+                  conn={conn}
+                />
               ))}
             </div>
+
+            <button
+              onClick={() => setActiveChartIdx(p => Math.min(okConns.length, p + 1))}
+              disabled={safeIdx === okConns.length}
+              style={arrowBtnStyle(safeIdx === okConns.length)}
+            >›</button>
           </div>
 
-          <div style={cardStyle}>
-            <div style={cardTitle}>Ejecuciones por día</div>
-            {barData.length === 0 ? <Empty /> : (
-              <ResponsiveContainer width="100%" height={240}>
-                <BarChart data={barData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                  <XAxis dataKey="day" tick={{ fontSize: 10, fill: 'var(--text2)' }} />
-                  <YAxis tick={{ fontSize: 10, fill: 'var(--text2)' }} allowDecimals={false} />
-                  <Tooltip contentStyle={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 11 }} />
-                  <Legend wrapperStyle={{ fontSize: 11, color: 'var(--text2)' }} />
-                  <Bar dataKey="Exitosas" stackId="a" fill="#34d399" />
-                  <Bar dataKey="Fallidas" stackId="a" fill="#ff6b6b" />
-                  <Bar dataKey="Otras"    stackId="a" fill="#6b7280" radius={[3, 3, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+          {/* Chart context label */}
+          <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+            {safeIdx === 0 ? (
+              <span>Todas las conexiones · <strong style={{ color: 'var(--text)' }}>{allRows.length}</strong> ejecuciones</span>
+            ) : (
+              <>
+                <ConnectionAvatar name={okConns[safeIdx - 1].name} logoUrl={okConns[safeIdx - 1].logoUrl} size={16} />
+                <span>{okConns[safeIdx - 1].name} · <strong style={{ color: 'var(--text)' }}>{chartRows.length}</strong> ejecuciones</span>
+                <span style={{ color: 'var(--text3)' }}>· {okConns[safeIdx - 1].isProduction ? 'Producción' : 'Sandbox'}</span>
+              </>
             )}
+            <span style={{ marginLeft: 'auto', color: 'var(--text3)', fontSize: 10 }}>{safeIdx + 1} / {okConns.length + 1}</span>
+          </div>
+
+          {/* Charts grid — key forces recharts entry animation on each slide switch */}
+          <div className="grid-charts" key={safeIdx}>
+            <div style={cardStyle}>
+              <div style={cardTitle}>Distribución por estado</div>
+              {donutData.length === 0 ? <Empty /> : (
+                <ResponsiveContainer width="100%" height={220}>
+                  <PieChart>
+                    <Pie data={donutData} cx="50%" cy="50%" innerRadius={55} outerRadius={85} paddingAngle={2} dataKey="value">
+                      {donutData.map((entry, i) => <Cell key={i} fill={STATUS_COLORS[entry.code] || '#6b7280'} />)}
+                    </Pie>
+                    <Tooltip contentStyle={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 11 }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 12px', marginTop: 8 }}>
+                {donutData.map((d, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: 'var(--text2)' }}>
+                    <div style={{ width: 8, height: 8, borderRadius: 2, background: STATUS_COLORS[d.code] || '#6b7280', flexShrink: 0 }} />
+                    {d.name} ({d.value})
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div style={cardStyle}>
+              <div style={cardTitle}>Ejecuciones por día</div>
+              {barData.length === 0 ? <Empty /> : (
+                <ResponsiveContainer width="100%" height={240}>
+                  <BarChart data={barData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                    <XAxis dataKey="day" tick={{ fontSize: 10, fill: 'var(--text2)' }} />
+                    <YAxis tick={{ fontSize: 10, fill: 'var(--text2)' }} allowDecimals={false} />
+                    <Tooltip contentStyle={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 11 }} />
+                    <Legend wrapperStyle={{ fontSize: 11, color: 'var(--text2)' }} />
+                    <Bar dataKey="Exitosas" stackId="a" fill="#34d399" />
+                    <Bar dataKey="Fallidas" stackId="a" fill="#ff6b6b" />
+                    <Bar dataKey="Otras"    stackId="a" fill="#6b7280" radius={[3, 3, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </div>
           </div>
         </div>
       )}
 
-      {/* Stats grid — only when there's aggregated data */}
+      {/* Stats grid — global, only when there's data */}
       {allRows.length > 0 && (
         <div className="grid-stats">
           <div style={cardStyle}>
@@ -323,6 +387,32 @@ export default function GlobalResumen({ connections }) {
       )}
     </div>
   )
+}
+
+function ChartPill({ active, onClick, label, count, conn }) {
+  return (
+    <button onClick={onClick} style={{
+      display: 'flex', alignItems: 'center', gap: 5,
+      padding: '5px 12px', borderRadius: 20, border: active ? 'none' : '1px solid var(--border)',
+      cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap', transition: 'background .15s, color .15s',
+      background: active ? 'var(--accent)' : 'var(--bg3)',
+      color:      active ? '#000'          : 'var(--text2)',
+      fontSize: 11, fontWeight: active ? 700 : 400,
+    }}>
+      {conn && <ConnectionAvatar name={conn.name} logoUrl={conn.logoUrl} size={16} />}
+      {label}
+      <span style={{ opacity: .65, fontSize: 10 }}>{count}</span>
+    </button>
+  )
+}
+
+function arrowBtnStyle(disabled) {
+  return {
+    background: 'var(--bg3)', border: '1px solid var(--border)',
+    borderRadius: 6, color: disabled ? 'var(--text3)' : 'var(--text)',
+    fontSize: 18, fontWeight: 700, padding: '2px 10px', cursor: disabled ? 'default' : 'pointer',
+    flexShrink: 0, lineHeight: 1.4, opacity: disabled ? .35 : 1, transition: 'opacity .15s',
+  }
 }
 
 function StatusBadge({ status, error }) {
