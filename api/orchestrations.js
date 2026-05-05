@@ -123,9 +123,21 @@ export default async function handler(req, res) {
       return res.json(all.filter(o => o.connectionId === connectionId))
     }
 
-    // ── POST: create ──────────────────────────────────────────────────────────
+    // ── POST: create / duplicate ──────────────────────────────────────────────
     if (req.method === 'POST') {
-      const { connectionId, name, steps = [], nodes = [], edges = [] } = req.body || {}
+      const { connectionId, name, steps = [], nodes = [], edges = [], action, id } = req.body || {}
+
+      if (action === 'duplicate') {
+        if (!id) return res.status(400).json({ error: 'id requerido' })
+        const all = await redisGetArr(KEY)
+        const src = all.find(o => o.id === id)
+        if (!src) return res.status(404).json({ error: 'Orquestación no encontrada' })
+        const now = new Date().toISOString()
+        const copy = { ...src, id: crypto.randomUUID(), name: `${src.name} (copia)`, createdAt: now, updatedAt: now }
+        await redisSet(KEY, [...all, copy])
+        return res.status(201).json(copy)
+      }
+
       if (!connectionId) return res.status(400).json({ error: 'connectionId requerido' })
       if (!name?.trim()) return res.status(400).json({ error: 'name requerido' })
       const now = new Date().toISOString()

@@ -67,6 +67,25 @@ function toRFEdges(edges, run) {
   })
 }
 
+// ─── Auto-connect helpers ─────────────────────────────────────────────────────
+
+
+function deepestTailPerContext(taskNodes, edges) {
+  const result = new Map()
+  const contexts = new Set(taskNodes.map(n => n.parentId || null))
+  for (const ctx of contexts) {
+    const ctxNodes = taskNodes.filter(n => (n.parentId || null) === ctx)
+    if (!ctxNodes.length) continue
+    const tails = ctxNodes.filter(n =>
+      !edges.some(e => e.source === n.id && ctxNodes.some(t => t.id === e.target))
+    )
+    // Ambiguous: multiple independent tails — let the user decide manually
+    if (tails.length !== 1) continue
+    result.set(ctx, tails[0].id)
+  }
+  return result
+}
+
 // ─── Inner canvas (must be inside ReactFlowProvider) ─────────────────────────
 
 function CanvasInner({
@@ -80,7 +99,9 @@ function CanvasInner({
   const [cycleErr, setCycleErr] = useState(false)
   const lastByContext = useRef(new Map()) // Map<groupId|null, nodeId>
   const nodesRef = useRef([])
+  const edgesRef = useRef([])
   useEffect(() => { nodesRef.current = nodes }, [nodes])
+  useEffect(() => { edgesRef.current = edges }, [edges])
 
   useImperativeHandle(ref, () => ({
     patchNodeData: (nodeId, patch) => {
@@ -309,8 +330,19 @@ function CanvasInner({
     setTimeout(() => rfInstance.fitView({ padding: 0.15 }), 50)
   }
 
-  // Reset last task chain when autoConnect is turned off externally
-  useEffect(() => { if (!autoConnect) lastByContext.current.clear() }, [autoConnect])
+  useEffect(() => {
+    if (!autoConnect) {
+      lastByContext.current.clear()
+      return
+    }
+    // Al reactivar: sembrar lastByContext con la cola de la cadena más profunda por contexto
+    const taskNodes = nodesRef.current.filter(n => n.type === 'orchTask')
+    const tails = deepestTailPerContext(taskNodes, edgesRef.current)
+    lastByContext.current.clear()
+    for (const [ctx, nodeId] of tails) {
+      if (nodeId) lastByContext.current.set(ctx, nodeId)
+    }
+  }, [autoConnect])
 
   const nodeColor = (n) => STATUS_COLORS[n.data?.runStatus || 'pending'] || '#64748b'
 

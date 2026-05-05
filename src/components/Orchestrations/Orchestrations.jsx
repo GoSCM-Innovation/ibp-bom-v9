@@ -28,7 +28,7 @@ export default function Orchestrations({ connection, sessionId, onSessionExpired
   const {
     orchs, loading, error, selected, selectedId, setSelectedId,
     run, isRunning, saving, starting, cancelling,
-    createOrch, deleteOrch, saveGraph, commitName,
+    createOrch, duplicateOrch, deleteOrch, saveGraph, commitName,
     handleStart, handleResume, handleCancel,
   } = useOrchestration(connection, sessionId, onSessionExpired)
 
@@ -298,6 +298,7 @@ export default function Orchestrations({ connection, sessionId, onSessionExpired
           selectedId={selectedId}
           onSelect={id => { setSelectedId(id); setSelectedNodeId(null) }}
           onCreate={createOrch}
+          onDuplicate={duplicateOrch}
           onDelete={deleteOrch}
           connectionId={connection.id}
           collapsed={orchListCollapsed}

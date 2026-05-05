@@ -92,6 +92,21 @@ export function useOrchestration(connection, sessionId, onSessionExpired) {
     } catch (e) { alert(e.message) }
   }
 
+  async function duplicateOrch(id) {
+    try {
+      const res = await fetch('/api/orchestrations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'duplicate', id }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      const migrated = migrateStepsToGraph(data)
+      setOrchs(prev => [...prev, migrated])
+      setSelectedId(migrated.id)
+    } catch (e) { alert(e.message) }
+  }
+
   async function deleteOrch(id) {
     if (!confirm('¿Eliminar esta orquestación?')) return
     try {
@@ -207,6 +222,6 @@ export function useOrchestration(connection, sessionId, onSessionExpired) {
   return {
     orchs, loading, error, selected, selectedId, setSelectedId,
     run, isRunning, saving, starting, cancelling,
-    createOrch, deleteOrch, saveGraph, commitName, handleStart, handleResume, handleCancel,
+    createOrch, duplicateOrch, deleteOrch, saveGraph, commitName, handleStart, handleResume, handleCancel,
   }
 }

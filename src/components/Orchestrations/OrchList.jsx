@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-export default function OrchList({ orchs, selectedId, onSelect, onCreate, onDelete, connectionId, collapsed = false, onToggle }) {
+export default function OrchList({ orchs, selectedId, onSelect, onCreate, onDuplicate, onDelete, connectionId, collapsed = false, onToggle }) {
   const FAVS_KEY = `ibp-favs-${connectionId}`
   const [favs, setFavs] = useState(() => {
     try { return new Set(JSON.parse(localStorage.getItem(FAVS_KEY) || '[]')) } catch { return new Set() }
@@ -98,6 +98,13 @@ export default function OrchList({ orchs, selectedId, onSelect, onCreate, onDele
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
                 {o.name}
               </span>
+              <button
+                onClick={e => { e.stopPropagation(); onDuplicate(o.id) }}
+                title="Duplicar orquestación"
+                style={{ background: 'none', border: 'none', color: 'var(--border2)', cursor: 'pointer', fontSize: 12, padding: '0 2px', flexShrink: 0, lineHeight: 1 }}
+                onMouseEnter={e => e.currentTarget.style.color = '#3b82f6'}
+                onMouseLeave={e => e.currentTarget.style.color = 'var(--border2)'}
+              >⎘</button>
               <button
                 onClick={e => { e.stopPropagation(); onDelete(o.id) }}
                 title="Eliminar"
