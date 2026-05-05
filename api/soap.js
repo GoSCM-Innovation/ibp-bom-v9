@@ -160,7 +160,7 @@ function buildBody(operation, params = {}) {
         ? `<${name}><getLog>true</getLog><pageNum>${p.pageNum || 1}</pageNum></${name}>`
         : ''
       return `<web:taskLogsRequest>
-        <runID>${xe(params.runId)}</runID>
+        <runId>${xe(params.runId)}</runId>
         <base64Encode>${params.base64Encode !== false ? 'true' : 'false'}</base64Encode>
         ${logBlock('traceLog',   params.traceLog)}
         ${logBlock('monitorLog', params.monitorLog)}
