@@ -334,7 +334,7 @@ export default function Orchestrations({ connection, sessionId, onSessionExpired
           orchNodes={selected?.nodes || []}
           onConfirm={(agentName, profileName, globalVariables) => {
             setShowRunModal(false)
-            setLastRunParams({ agentName, profileName })
+            setLastRunParams({ agentName, profileName, globalVariables })
             handleStart({ agentName, profileName, globalVariables })
           }}
           onClose={() => setShowRunModal(false)}
