@@ -4,7 +4,7 @@ import { migrateStepsToGraph } from './canvasUtils'
 const POLL_MS = 5000
 const TERMINAL = new Set(['success', 'error', 'cancelled'])
 
-export function useOrchestration(connection, sessionId) {
+export function useOrchestration(connection, sessionId, onSessionExpired) {
   const [orchs, setOrchs]     = useState([])
   const [selectedId, setSelectedId] = useState(null)
   const [run, setRun]         = useState(null)
@@ -159,6 +159,29 @@ export function useOrchestration(connection, sessionId) {
         }),
       })
       const data = await res.json()
+      if (res.status === 401) { onSessionExpired?.(); setStarting(false); return }
+      if (!res.ok) throw new Error(data.error)
+      setRun(data)
+    } catch (e) { alert(e.message) }
+    setStarting(false)
+  }
+
+  async function handleResume() {
+    if (!selectedId || isRunning || starting) return
+    setStarting(true)
+    prevStatusRef.current = null
+    try {
+      const res = await fetch('/api/orchestrate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orchestrationId: selectedId, action: 'resume',
+          connection: { hciUrl: connection.hciUrl, orgName: connection.orgName, isProduction: connection.isProduction },
+          sessionId,
+        }),
+      })
+      const data = await res.json()
+      if (res.status === 401) { onSessionExpired?.(); setStarting(false); return }
       if (!res.ok) throw new Error(data.error)
       setRun(data)
     } catch (e) { alert(e.message) }
@@ -184,6 +207,6 @@ export function useOrchestration(connection, sessionId) {
   return {
     orchs, loading, error, selected, selectedId, setSelectedId,
     run, isRunning, saving, starting, cancelling,
-    createOrch, deleteOrch, saveGraph, commitName, handleStart, handleCancel,
+    createOrch, deleteOrch, saveGraph, commitName, handleStart, handleResume, handleCancel,
   }
 }

@@ -29,8 +29,8 @@ export default function Orchestrations({ connection, sessionId, onSessionExpired
     orchs, loading, error, selected, selectedId, setSelectedId,
     run, isRunning, saving, starting, cancelling,
     createOrch, deleteOrch, saveGraph, commitName,
-    handleStart, handleCancel,
-  } = useOrchestration(connection, sessionId)
+    handleStart, handleResume, handleCancel,
+  } = useOrchestration(connection, sessionId, onSessionExpired)
 
   const [selectedNodeId, setSelectedNodeId]   = useState(null)
   const [editingName, setEditingName]         = useState(false)
@@ -210,6 +210,17 @@ export default function Orchestrations({ connection, sessionId, onSessionExpired
               title={`Repetir con ${lastRunParams.agentName || 'default'} / ${lastRunParams.profileName || 'default'}`}
             >
               {starting ? 'Iniciando…' : '↺ Repetir'}
+            </button>
+          )}
+
+          {run?.status === 'error' && !isRunning && (
+            <button
+              onClick={handleResume}
+              disabled={starting}
+              style={actionBtn('#f59e0b', starting)}
+              title="Reanudar desde el primer nodo fallido, conservando los resultados ya completados"
+            >
+              {starting ? 'Iniciando…' : '⏭ Reanudar'}
             </button>
           )}
 

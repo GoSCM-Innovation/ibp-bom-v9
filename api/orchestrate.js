@@ -1,5 +1,5 @@
 import crypto from 'crypto'
-import { buildBody, buildEnvelope, soapCall as rawSoapCall, parseResponse } from './soap.js'
+import { buildBody, buildEnvelope, soapCall as rawSoapCall, parseResponse, parseFault } from './soap.js'
 
 const REDIS_URL   = process.env.KV_REST_API_URL
 const REDIS_TOKEN = process.env.KV_REST_API_TOKEN
@@ -96,8 +96,8 @@ async function soapRequest(connection, sessionId, operation, params) {
   const envelope   = buildEnvelope(body, sessionId, version)
   const { ok, status, text } = await rawSoapCall(connection.hciUrl, soapAction, envelope)
   if (!ok) {
-    const m = text.match(/<(?:[\w]+:)?faultstring[^>]*>([\s\S]*?)<\/(?:[\w]+:)?faultstring>/i)
-    throw new Error(m ? m[1].trim() : `SOAP error HTTP ${status}`)
+    const fault = parseFault(text)
+    throw new Error(fault?.faultString || fault?.faultCode || `SOAP error HTTP ${status}`)
   }
   return parseResponse(operation, text)
 }
@@ -190,14 +190,27 @@ function mergeVariables(taskVars = [], globalVars = []) {
 async function launchTask(connection, sessionId, nodeDef, defaults = {}) {
   const taskVars   = nodeDef.data.globalVariables || []
   const globalVars = defaults.globalVariables || []
-  const result = await soapRequest(connection, sessionId, 'runTask', {
+  const params = {
     taskName:        nodeDef.data.taskName,
     agentName:       nodeDef.data.agentName   || defaults.agentName  || undefined,
     profileName:     nodeDef.data.profileName || defaults.profileName || undefined,
     globalVariables: mergeVariables(taskVars, globalVars),
-  })
-  if (!result.runId) throw new Error('SAP no retornó runId')
-  return result.runId
+  }
+  try {
+    const result = await soapRequest(connection, sessionId, 'runTask', params)
+    if (!result.runId) throw new Error('SAP no retornó runId')
+    return result.runId
+  } catch (e) {
+    // Session errors won't resolve with the same sessionId — don't retry.
+    if (/session/i.test(e.message)) throw e
+    // SAP can reject the first runTask call transiently (cold-start / service init).
+    // A single retry after a brief wait is safe: a non-200 SOAP response guarantees
+    // SAP did not start the task, so there is no risk of double execution.
+    await new Promise(r => setTimeout(r, 1500))
+    const result = await soapRequest(connection, sessionId, 'runTask', params)
+    if (!result.runId) throw new Error('SAP no retornó runId')
+    return result.runId
+  }
 }
 
 async function pollSapStatus(connection, sessionId, sapRunId) {
@@ -223,40 +236,6 @@ async function launchGroupWave(run, ns, waveIds, allNodes, defaults) {
   }))
 }
 
-// ─── Execute a wave: launch all nodes in parallel ────────────────────────────
-
-async function executeWave(run, waveIndex, allNodes, allEdges) {
-  const waveNodeIds = run.waves[waveIndex]
-  const defaults = { agentName: run.defaultAgent, profileName: run.defaultProfile, globalVariables: run.globalVariables || [] }
-
-  await Promise.allSettled(waveNodeIds.map(async nodeId => {
-    const nodeDef = allNodes.find(n => n.id === nodeId)
-    if (!nodeDef) return
-    const ns = run.nodes[nodeId]
-
-    if (nodeDef.type === 'task') {
-      ns.status = 'running'; ns.startedAt = new Date().toISOString()
-      try { ns.sapRunId = await launchTask(run.connection, run.sessionId, nodeDef, defaults) }
-      catch (e) { ns.status = 'error'; ns.finishedAt = new Date().toISOString(); ns.error = e.message }
-
-    } else if (nodeDef.type === 'group') {
-      ns.status = 'running'; ns.startedAt = new Date().toISOString()
-      const groupChildren = allNodes.filter(n => n.parentId === nodeId)
-      if (groupChildren.length === 0) {
-        ns.status = 'success'; ns.finishedAt = new Date().toISOString(); return
-      }
-      const groupEdges = allEdges.filter(e =>
-        groupChildren.some(c => c.id === e.source) && groupChildren.some(c => c.id === e.target)
-      )
-      const groupWaves = buildWaves(groupChildren, groupEdges)
-      ns.groupWaves = groupWaves
-      ns.currentGroupWave = 0
-      await launchGroupWave(run, ns, groupWaves[0], allNodes, defaults)
-    }
-  }))
-  return run
-}
-
 // ─── Poll helpers ─────────────────────────────────────────────────────────────
 
 function applyTaskResult(ns, sapStatus, strategy, maxRetries, retryDelaySec) {
@@ -270,13 +249,14 @@ function applyTaskResult(ns, sapStatus, strategy, maxRetries, retryDelaySec) {
     ns.status = 'success'
     ns.sapStatusCode = code; ns.finishedAt = new Date().toISOString()
   } else if (TERMINAL_ERR_CODES.has(code)) {
+    const msg = sapStatus?.statusMsg ? ` - ${sapStatus.statusMsg}` : ''
     if (strategy === 'retry' && ns.retryCount < maxRetries) {
       ns.status = 'pending'; ns.sapRunId = null; ns.sapStatusCode = null
-      ns.retryCount++; ns.error = `SAP: ${code} (intento ${ns.retryCount}/${maxRetries})`
+      ns.retryCount++; ns.error = `SAP: ${code}${msg} (intento ${ns.retryCount}/${maxRetries})`
       ns.retryAt = new Date(Date.now() + retryDelaySec * 1000).toISOString()
     } else {
       ns.status = 'error'; ns.sapStatusCode = code
-      ns.finishedAt = new Date().toISOString(); ns.error = `SAP: ${code}`
+      ns.finishedAt = new Date().toISOString(); ns.error = `SAP: ${code}${msg}`
     }
   } else if (hasEndTime && !NON_TERMINAL_CODES.has(code)) {
     // Defensive fallback: some tenants return non-documented terminal codes.
@@ -373,6 +353,50 @@ async function pollGroupNode(run, nodeId, nodeDef, allNodes, allEdges) {
   }
 }
 
+// ─── Resume run ───────────────────────────────────────────────────────────────
+// Reset non-successful nodes to pending so execution continues from where it failed,
+// preserving the results of nodes that already completed successfully.
+
+async function resumeRun(orchestrationId, connection, sessionId) {
+  return withRunLock(orchestrationId, async () => {
+    const RUN_KEY = `cids:orch_run:${orchestrationId}`
+    const run = await redisGetObj(RUN_KEY)
+    if (!run) throw new Error('No hay ejecución registrada')
+    if (run.status === 'running') {
+      const err = new Error('Ya hay una ejecución activa'); err.statusCode = 409; throw err
+    }
+    if (run.status === 'success') {
+      const err = new Error('La orquestación ya finalizó correctamente'); err.statusCode = 409; throw err
+    }
+
+    run.connection = connection
+    run.sessionId  = sessionId
+    run.status     = 'running'
+    run.finishedAt = null
+
+    function resetNs(ns) {
+      if (ns.status === 'success' || ns.status === 'success_with_errors') return
+      ns.status = 'pending'; ns.startedAt = null; ns.finishedAt = null
+      ns.error = null; ns.sapRunId = null; ns.sapStatusCode = null
+      ns.retryCount = 0; ns.retryAt = null
+    }
+
+    for (const ns of Object.values(run.nodes)) {
+      if (ns.type === 'group') {
+        if (ns.status === 'success' || ns.status === 'success_with_errors') continue
+        ns.status = 'pending'; ns.startedAt = null; ns.finishedAt = null
+        ns.error = null; ns.currentGroupWave = 0
+        for (const cs of Object.values(ns.children || {})) resetNs(cs)
+      } else {
+        resetNs(ns)
+      }
+    }
+
+    await redisSetObj(RUN_KEY, run)
+    return run
+  })
+}
+
 // ─── Start run ────────────────────────────────────────────────────────────────
 
 async function startRun(orchestrationId, connection, sessionId, defaultAgent = null, defaultProfile = null, globalVariables = []) {
@@ -392,7 +416,7 @@ async function startRun(orchestrationId, connection, sessionId, defaultAgent = n
     const waves = buildWaves(nodes.filter(n => !n.parentId), edges)
     if (waves.length === 0) throw new Error('No se pudo determinar el orden de ejecución (¿ciclo detectado?)')
 
-    let run = {
+    const run = {
       runId: crypto.randomUUID(),
       orchestrationId,
       connection, sessionId,
@@ -404,7 +428,6 @@ async function startRun(orchestrationId, connection, sessionId, defaultAgent = n
       nodes: Object.fromEntries(nodes.map(n => [n.id, initNodeState(n, nodes)])),
     }
 
-    run = await executeWave(run, 0, nodes, edges)
     await redisSetObj(RUN_KEY, run)
     return run
   })
@@ -561,10 +584,16 @@ export default async function handler(req, res) {
     if (req.method === 'POST') {
       const { orchestrationId, action, defaultAgent, defaultProfile, globalVariables } = req.body || {}
       if (!orchestrationId) return res.status(400).json({ error: 'orchestrationId requerido' })
-      if (action !== 'start') return res.status(400).json({ error: 'action debe ser "start"' })
+      if (!['start', 'resume'].includes(action)) return res.status(400).json({ error: 'action debe ser "start" o "resume"' })
       const { connection, sessionId } = req.body || {}
       if (!connection?.hciUrl || !sessionId) return res.status(400).json({ error: 'connection y sessionId requeridos' })
-      const run = await startRun(orchestrationId, connection, sessionId, defaultAgent || null, defaultProfile || null, globalVariables || [])
+      if (action === 'resume') {
+        await resumeRun(orchestrationId, connection, sessionId)
+        const run = await tick(orchestrationId)
+        return res.status(200).json(run)
+      }
+      await startRun(orchestrationId, connection, sessionId, defaultAgent || null, defaultProfile || null, globalVariables || [])
+      const run = await tick(orchestrationId)
       return res.status(201).json(run)
     }
 

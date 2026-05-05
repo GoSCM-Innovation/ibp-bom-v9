@@ -17,24 +17,32 @@ export default function SystemView({ connection, onLoginCancel }) {
   const [activeTab, setActiveTab]           = useState('resumen')
   const [headerCollapsed, setHeaderCollapsed] = useState(false)
   const [pendingTaskName, setPendingTaskName] = useState(null)
-  const [sessionId, setSessionId] = useState(() => sessionStorage.getItem(`sap_${connection.id}`))
-  const [showLogin, setShowLogin] = useState(!sessionStorage.getItem(`sap_${connection.id}`))
+  const [sessionId, setSessionId]       = useState(() => sessionStorage.getItem(`sap_${connection.id}`))
+  const [showLogin, setShowLogin]       = useState(!sessionStorage.getItem(`sap_${connection.id}`))
+  const [sessionExpired, setSessionExpired] = useState(false)
 
   useEffect(() => {
     const sid = sessionStorage.getItem(`sap_${connection.id}`)
     setSessionId(sid)
     setShowLogin(!sid)
+    setSessionExpired(false)
   }, [connection.id])
 
   function handleLoginSuccess(sid) {
     sessionStorage.setItem(`sap_${connection.id}`, sid)
     setSessionId(sid)
     setShowLogin(false)
+    setSessionExpired(false)
   }
 
   function handleSessionExpired() {
     sessionStorage.removeItem(`sap_${connection.id}`)
     setSessionId(null)
+    setSessionExpired(true)
+  }
+
+  function handleReconnect() {
+    setSessionExpired(false)
     setShowLogin(true)
   }
 
@@ -103,6 +111,23 @@ export default function SystemView({ connection, onLoginCancel }) {
           }}>{tab.label}</button>
         ))}
       </div>
+
+      {/* Session expired banner */}
+      {sessionExpired && !showLogin && (
+        <div style={{
+          background: 'rgba(255,107,107,.08)', borderBottom: '1px solid rgba(255,107,107,.25)',
+          padding: '8px 24px', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0,
+        }}>
+          <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--red)', flexShrink: 0 }} />
+          <span style={{ flex: 1, fontSize: 12, color: 'var(--text2)' }}>
+            Sesión SAP expirada — los datos mostrados pueden estar desactualizados.
+          </span>
+          <button onClick={handleReconnect} style={{
+            background: 'var(--accent)', border: 'none', borderRadius: 6,
+            color: '#000', fontSize: 11, fontWeight: 700, padding: '5px 14px', cursor: 'pointer', flexShrink: 0,
+          }}>Reconectar</button>
+        </div>
+      )}
 
       {/* Content */}
       <div style={{ flex: 1, overflow: 'auto' }}>
