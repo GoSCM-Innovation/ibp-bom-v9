@@ -144,7 +144,7 @@ export default function RunLogModal({ run, connection, sessionId, nodes = [], on
       const def = nodes.find(n => n.id === ns.nodeId)
       return !def?.parentId
     })
-    .sort((a, b) => (a.startedAt || '').localeCompare(b.startedAt || ''))
+    .sort((a, b) => (b.startedAt || '').localeCompare(a.startedAt || ''))
 
   return (
     <div
@@ -178,7 +178,7 @@ export default function RunLogModal({ run, connection, sessionId, nodes = [], on
           ) : topLevel.map(ns => {
             const nodeDef = nodes.find(n => n.id === ns.nodeId)
             const children = ns.type === 'group' && ns.children
-              ? Object.values(ns.children).sort((a, b) => (a.startedAt || '').localeCompare(b.startedAt || ''))
+              ? Object.values(ns.children).sort((a, b) => (b.startedAt || '').localeCompare(a.startedAt || ''))
               : []
             return (
               <div key={ns.nodeId} style={{ marginTop: 8 }}>
