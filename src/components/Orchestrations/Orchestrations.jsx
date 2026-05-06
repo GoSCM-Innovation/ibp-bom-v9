@@ -108,6 +108,7 @@ export default function Orchestrations({ connection, sessionId, onSessionExpired
         onAddGroup={() => addGroupRef.current?.()}
         collapsed={paletteCollapsed}
         onToggle={() => setPaletteCollapsed(v => !v)}
+        fullscreen={fullscreen}
       />
 
       {/* Canvas area */}

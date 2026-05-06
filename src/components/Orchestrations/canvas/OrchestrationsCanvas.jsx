@@ -32,10 +32,21 @@ function computeGroupMode(groupId, allNodes, allEdges) {
   return children.every(c => connectedIds.has(c.id)) ? 'serial' : 'hybrid'
 }
 
+// Resolves run-state for any node, whether top-level or nested in a group.
+// Children live under run.nodes[parentId].children[childId], not at the top level.
+function nodeRunState(run, nodes, nodeId) {
+  if (!run?.nodes) return null
+  const node = nodes.find(n => n.id === nodeId)
+  if (!node) return null
+  return node.parentId
+    ? run.nodes[node.parentId]?.children?.[nodeId]
+    : run.nodes[nodeId]
+}
+
 function toRFNodes(nodes, run, onSelect, onRunSingle, edges = []) {
   return nodes.map(n => {
     const rfType = n.type === 'task' ? 'orchTask' : n.type === 'group' ? 'orchGroup' : n.type
-    const ns = run?.nodes?.[n.id]
+    const ns = nodeRunState(run, nodes, n.id)
     const runStatus = ns?.status || 'pending'
     let childSummary = null
     if (rfType === 'orchGroup' && ns?.children) {
@@ -54,10 +65,10 @@ function toRFNodes(nodes, run, onSelect, onRunSingle, edges = []) {
   })
 }
 
-function toRFEdges(edges, run) {
+function toRFEdges(edges, run, nodes = []) {
   return edges.map(e => {
-    const targetNs = run?.nodes?.[e.target]
-    const sourceNs = run?.nodes?.[e.source]
+    const sourceNs = nodeRunState(run, nodes, e.source)
+    const targetNs = nodeRunState(run, nodes, e.target)
     const animated = sourceNs?.status === 'success' && targetNs?.status === 'running'
     return {
       ...e, ...EDGE_DEFAULTS,
@@ -125,7 +136,7 @@ function CanvasInner({
   // Re-init when orchestration changes
   useEffect(() => {
     setNodes(toRFNodes(initialNodes, run, handleNodeSelect, onRunSingle, initialEdges))
-    setEdges(toRFEdges(initialEdges, run))
+    setEdges(toRFEdges(initialEdges, run, initialNodes))
     setCycleErr(false)
     lastByContext.current.clear()
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -135,7 +146,7 @@ function CanvasInner({
   useEffect(() => {
     if (!run) return
     setNodes(nds => toRFNodes(nds, run, handleNodeSelect, onRunSingle, edges))
-    setEdges(eds => toRFEdges(eds, run))
+    setEdges(eds => toRFEdges(eds, run, nodesRef.current))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [run])
 

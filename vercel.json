@@ -1,6 +1,9 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
+  "crons": [
+    { "path": "/api/cron-tick", "schedule": "* * * * *" }
+  ],
   "rewrites": [
     { "source": "/api/connections/:id", "destination": "/api/connections" },
     { "source": "/api/:path*", "destination": "/api/:path*" },

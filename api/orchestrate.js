@@ -569,6 +569,8 @@ async function cancelRun(orchestrationId) {
   return redisGetObj(`cids:orch_run:${orchestrationId}`)
 }
 
+export { tick }
+
 // ─── Handler ──────────────────────────────────────────────────────────────────
 
 export default async function handler(req, res) {

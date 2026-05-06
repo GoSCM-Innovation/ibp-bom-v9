@@ -159,12 +159,13 @@ function buildBody(operation, params = {}) {
       const logBlock = (name, p) => p?.getLog
         ? `<${name}><getLog>true</getLog><pageNum>${p.pageNum || 1}</pageNum></${name}>`
         : ''
+      // SAP XSD enforces this exact element order: base64Encode, traceLog, errorLog, runId, monitorLog
       return `<web:taskLogsRequest>
-        <runId>${xe(params.runId)}</runId>
         <base64Encode>${params.base64Encode !== false ? 'true' : 'false'}</base64Encode>
         ${logBlock('traceLog',   params.traceLog)}
-        ${logBlock('monitorLog', params.monitorLog)}
         ${logBlock('errorLog',   params.errorLog)}
+        <runId>${xe(params.runId)}</runId>
+        ${logBlock('monitorLog', params.monitorLog)}
       </web:taskLogsRequest>`
     }
 

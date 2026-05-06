@@ -16,7 +16,7 @@ async function soapCall(connection, sessionId, operation, params = {}) {
   return data
 }
 
-function DragChip({ task, style }) {
+function DragChip({ task, style, fullscreen }) {
   function onDragStart(e) {
     e.dataTransfer.effectAllowed = 'copy'
     e.dataTransfer.setData('application/x-orch-task', JSON.stringify({
@@ -26,12 +26,17 @@ function DragChip({ task, style }) {
     }))
   }
 
+  const desc = task.description?.trim() || ''
+  const hoverTitle = desc ? `${task.taskName}\n\n${desc}` : task.taskName
+  const showInlineDesc = fullscreen && desc
+
   return (
     <div
       draggable
       onDragStart={onDragStart}
+      title={hoverTitle}
       style={{
-        display: 'flex', alignItems: 'center', gap: 6,
+        display: 'flex', alignItems: showInlineDesc ? 'flex-start' : 'center', gap: 6,
         padding: '5px 8px 5px 14px', cursor: 'grab',
         userSelect: 'none', transition: 'background .1s',
         ...style,
@@ -39,23 +44,32 @@ function DragChip({ task, style }) {
       onMouseEnter={e => e.currentTarget.style.background = 'var(--bg3)'}
       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
     >
-      <span style={{ fontSize: 9, color: 'var(--text3)', flexShrink: 0 }}>⠿</span>
+      <span style={{ fontSize: 9, color: 'var(--text3)', flexShrink: 0, marginTop: showInlineDesc ? 3 : 0 }}>⠿</span>
       <span style={{
         fontSize: 8, fontWeight: 700, padding: '1px 5px', borderRadius: 8, flexShrink: 0,
+        marginTop: showInlineDesc ? 2 : 0,
         background: task.type === 'PROCESS' ? 'rgba(139,92,246,.15)' : 'rgba(6,182,212,.15)',
         color: task.type === 'PROCESS' ? 'var(--purple)' : 'var(--cyan)',
         border: `1px solid ${task.type === 'PROCESS' ? 'rgba(139,92,246,.3)' : 'rgba(6,182,212,.3)'}`,
         textTransform: 'uppercase',
       }}>{task.type || 'TASK'}</span>
-      <span style={{
-        fontSize: 11, color: 'var(--text)', flex: 1,
-        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-      }} title={task.taskName}>{task.taskName}</span>
+      <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+        <span style={{
+          fontSize: 11, color: 'var(--text)',
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>{task.taskName}</span>
+        {showInlineDesc && (
+          <span style={{
+            fontSize: 9, color: 'var(--text3)', marginTop: 1, lineHeight: 1.3,
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>{desc}</span>
+        )}
+      </span>
     </div>
   )
 }
 
-export default function TaskPalette({ connection, sessionId, onAddGroup, collapsed = false, onToggle }) {
+export default function TaskPalette({ connection, sessionId, onAddGroup, collapsed = false, onToggle, fullscreen = false }) {
   const PINS_KEY = `ibp-palette-pins-${connection.id}`
 
   const [projects, setProjects]     = useState([])
@@ -321,7 +335,7 @@ export default function TaskPalette({ connection, sessionId, onAddGroup, collaps
                   {filteredTasks.length === 0 && !isLoadingT
                     ? <div style={{ padding: '6px 14px', fontSize: 10, color: 'var(--text3)' }}>Sin tasks</div>
                     : filteredTasks.map(t => (
-                      <DragChip key={t.taskGuid || t.taskName} task={t} style={{}} />
+                      <DragChip key={t.taskGuid || t.taskName} task={t} style={{}} fullscreen={fullscreen} />
                     ))
                   }
                 </div>
