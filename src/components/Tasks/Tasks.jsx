@@ -125,7 +125,9 @@ export default function Tasks({ connection, sessionId, onSessionExpired, onTaskR
   }
 
   async function loadTaskMeta(taskList) {
+    console.log('[loadTaskMeta] tasks:', taskList.map(t => ({ taskName: t.taskName, taskGuid: t.taskGuid })))
     const pending = taskList.filter(t => t.taskGuid && !taskMetaRef.current[t.taskGuid])
+    console.log('[loadTaskMeta] pending:', pending.length)
     if (pending.length === 0) return
     setMetaLoading(p => {
       const next = { ...p }
