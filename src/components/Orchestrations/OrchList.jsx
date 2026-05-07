@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-export default function OrchList({ orchs, selectedId, onSelect, onCreate, onDuplicate, onDelete, connectionId, collapsed = false, onToggle }) {
+export default function OrchList({ orchs, selectedId, onSelect, onCreate, onDuplicate, onDelete, onExport, onImportClick, connectionId, collapsed = false, onToggle }) {
   const FAVS_KEY = `ibp-favs-${connectionId}`
   const [favs, setFavs] = useState(() => {
     try { return new Set(JSON.parse(localStorage.getItem(FAVS_KEY) || '[]')) } catch { return new Set() }
@@ -52,10 +52,25 @@ export default function OrchList({ orchs, selectedId, onSelect, onCreate, onDupl
         <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
           Orquestaciones
         </span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          {onImportClick && (
+            <button
+              onClick={onImportClick}
+              title="Importar orquestaciones desde archivo"
+              style={iconBtnStyle}
+            >↑</button>
+          )}
+          {onExport && (
+            <button
+              onClick={onExport}
+              disabled={orchs.length === 0}
+              title={orchs.length === 0 ? 'No hay orquestaciones para exportar' : 'Exportar todas a archivo'}
+              style={{ ...iconBtnStyle, opacity: orchs.length === 0 ? 0.4 : 1, cursor: orchs.length === 0 ? 'not-allowed' : 'pointer' }}
+            >↓</button>
+          )}
           <button onClick={onCreate} title="Nueva orquestación" style={{
             background: 'none', border: 'none', color: 'var(--accent)',
-            fontSize: 20, cursor: 'pointer', lineHeight: 1, padding: 0,
+            fontSize: 20, cursor: 'pointer', lineHeight: 1, padding: '0 2px',
           }}>+</button>
           <button onClick={onToggle} title="Contraer panel" style={{
             background: 'none', border: 'none', color: 'var(--text2)',
@@ -118,4 +133,10 @@ export default function OrchList({ orchs, selectedId, onSelect, onCreate, onDupl
       </div>
     </div>
   )
+}
+
+const iconBtnStyle = {
+  background: 'none', border: 'none', color: 'var(--text2)',
+  fontSize: 14, fontWeight: 700, cursor: 'pointer', lineHeight: 1,
+  padding: '2px 6px', borderRadius: 4,
 }

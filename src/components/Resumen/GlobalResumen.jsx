@@ -91,7 +91,27 @@ export default function GlobalResumen({ connections }) {
   const [loadingAll, setLoadingAll]     = useState(false)
   const [lastRefresh, setLastRefresh]   = useState(null)
   const [activeChartIdx, setActiveChartIdx] = useState(0)
+  const [selectedIds, setSelectedIds]   = useState(() => new Set())
   const timerRef = useRef(null)
+
+  // Empty set = no filter (everything visible). Non-empty = filter to those.
+  const isFiltered = selectedIds.size > 0
+  const isInFilter = id => !isFiltered || selectedIds.has(id)
+  const visibleConns = connections.filter(c => isInFilter(c.id))
+
+  function toggleConnFilter(id) {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+    setActiveChartIdx(0) // reset chart slide when filter changes
+  }
+
+  function clearConnFilter() {
+    setSelectedIds(new Set())
+    setActiveChartIdx(0)
+  }
 
   function handleTzChange(newMode) {
     const from = inputDateToDate(fromDate, tzMode)
@@ -154,8 +174,8 @@ export default function GlobalResumen({ connections }) {
     </div>
   )
 
-  // Aggregates — computed from connections with status 'ok' only
-  const okConns = connections.filter(c => connData[c.id]?.status === 'ok')
+  // Aggregates — computed from connections with status 'ok' only, respecting the filter
+  const okConns = visibleConns.filter(c => connData[c.id]?.status === 'ok')
   const allRows  = okConns.flatMap(c => connData[c.id].rows)
 
   const total         = allRows.length
@@ -185,7 +205,7 @@ export default function GlobalResumen({ connections }) {
     .sort((a, b) => (parseInt(b.startDate) || 0) - (parseInt(a.startDate) || 0))
     .slice(0, 5)
 
-  const allNoSession = !loadingAll && connections.every(c => {
+  const allNoSession = !loadingAll && visibleConns.length > 0 && visibleConns.every(c => {
     const s = connData[c.id]?.status
     return !s || s === 'no-session' || s === 'session-expired'
   })
@@ -199,7 +219,10 @@ export default function GlobalResumen({ connections }) {
         <div>
           <div style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>Resumen Global</div>
           <div style={{ fontSize: 11, color: 'var(--text2)', marginTop: 2 }}>
-            {connections.length} conexión(es) · {total} ejecuciones totales
+            {isFiltered
+              ? <>{selectedIds.size} de {connections.length} conexión(es) · <strong style={{ color: 'var(--accent)' }}>filtro activo</strong> · {total} ejecuciones</>
+              : <>{connections.length} conexión(es) · {total} ejecuciones totales</>
+            }
             {lastRefresh && !loadingAll && <span style={{ marginLeft: 8, opacity: .6 }}>· {lastRefresh.toLocaleTimeString()}</span>}
           </div>
         </div>
@@ -222,6 +245,57 @@ export default function GlobalResumen({ connections }) {
         </div>
       </div>
 
+      {/* Client filter bar — only when there's more than one connection */}
+      {connections.length > 1 && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+          marginBottom: 18, padding: '10px 14px',
+          background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 10,
+        }}>
+          <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '.06em', flexShrink: 0 }}>
+            Filtrar por cliente
+          </span>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', flex: 1, minWidth: 0 }}>
+            {connections.map(conn => {
+              const active = isInFilter(conn.id)
+              return (
+                <button
+                  key={conn.id}
+                  onClick={() => toggleConnFilter(conn.id)}
+                  title={active ? `Quitar ${conn.name} del filtro` : `Agregar ${conn.name} al filtro`}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    padding: '5px 11px', borderRadius: 20,
+                    border: active ? '1px solid var(--accent)' : '1px solid var(--border)',
+                    cursor: 'pointer', flexShrink: 0,
+                    background: active ? 'var(--accent)' : 'var(--bg3)',
+                    color:      active ? '#000'          : 'var(--text2)',
+                    fontSize: 11, fontWeight: active ? 700 : 500,
+                    whiteSpace: 'nowrap',
+                    transition: 'background .15s, color .15s, border-color .15s',
+                  }}
+                >
+                  <ConnectionAvatar name={conn.name} logoUrl={conn.logoUrl} size={16} />
+                  {conn.name}
+                </button>
+              )
+            })}
+          </div>
+          {isFiltered && (
+            <button
+              onClick={clearConnFilter}
+              style={{
+                background: 'none', border: '1px solid var(--border2)', borderRadius: 6,
+                color: 'var(--text2)', fontSize: 11, fontWeight: 600,
+                padding: '5px 11px', cursor: 'pointer', flexShrink: 0,
+              }}
+            >
+              Limpiar ({selectedIds.size})
+            </button>
+          )}
+        </div>
+      )}
+
       {/* No-session banner */}
       {allNoSession && (
         <div style={{ background: 'rgba(247,168,0,.08)', border: '1px solid rgba(247,168,0,.25)', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: 'var(--accent)', marginBottom: 20 }}>
@@ -241,14 +315,19 @@ export default function GlobalResumen({ connections }) {
 
       {/* Connection status table */}
       <div style={{ ...cardStyle, marginBottom: 24 }}>
-        <div style={cardTitle}>Estado por conexión</div>
-        {connections.map((conn, i) => {
+        <div style={cardTitle}>
+          Estado por conexión
+          {isFiltered && <span style={{ marginLeft: 8, fontSize: 10, color: 'var(--accent)', textTransform: 'none', letterSpacing: 0 }}>· filtrado</span>}
+        </div>
+        {visibleConns.length === 0 ? (
+          <div style={{ fontSize: 12, color: 'var(--text3)', padding: '12px 0' }}>Sin conexiones en el filtro</div>
+        ) : visibleConns.map((conn, i) => {
           const state = connData[conn.id] || { status: 'idle', rows: [], agents: [], error: null }
           const stats = state.status === 'ok' ? connMiniStats(state.rows) : null
           return (
             <div key={conn.id} style={{
               display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0',
-              borderBottom: i < connections.length - 1 ? '1px solid var(--border)' : 'none',
+              borderBottom: i < visibleConns.length - 1 ? '1px solid var(--border)' : 'none',
             }}>
               <ConnectionAvatar name={conn.name} logoUrl={conn.logoUrl} size={28} />
               <div style={{ flex: 1, minWidth: 0 }}>

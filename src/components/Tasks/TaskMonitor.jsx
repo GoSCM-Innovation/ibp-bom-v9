@@ -121,9 +121,11 @@ export default function TaskMonitor({ connection, sessionId, onSessionExpired, i
     setLoading(true); setError('')
     const start = performance.now()
     try {
+      const toDateObj = inputDateToDate(toDate, tzMode)
+      if (toDateObj) toDateObj.setSeconds(59, 999)
       const data = await soapCall(connection, sessionId, 'getAllExecutedTasks2', {
         startDateFrom: inputDateToDate(fromDate, tzMode)?.toISOString(),
-        startDateTo:   inputDateToDate(toDate,   tzMode)?.toISOString(),
+        startDateTo:   toDateObj?.toISOString(),
       })
       addLogRef.current({ method: 'POST', path: 'getAllExecutedTasks2', status: 200, duration: Math.round(performance.now() - start), detail: `${data.length} tasks` })
       setRows(Array.isArray(data) ? data : [])

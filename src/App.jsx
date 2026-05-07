@@ -57,6 +57,46 @@ export default function App() {
     persistConnections(updated)
   }
 
+  function bulkImportConnections(incoming, { replaceDuplicates }) {
+    const sameConn = (a, b) =>
+      (a.name    || '').trim().toLowerCase() === (b.name    || '').trim().toLowerCase() &&
+      (a.hciUrl  || '').trim().toLowerCase() === (b.hciUrl  || '').trim().toLowerCase() &&
+      (a.orgName || '').trim().toLowerCase() === (b.orgName || '').trim().toLowerCase()
+
+    const updated = [...connections]
+    let added = 0, replaced = 0, skipped = 0
+
+    for (const c of incoming) {
+      const idx = updated.findIndex(e => sameConn(e, c))
+      const next = {
+        id:           crypto.randomUUID(),
+        name:         c.name,
+        hciUrl:       c.hciUrl,
+        orgName:      c.orgName,
+        user:         c.user || '',
+        isProduction: c.isProduction !== false,
+        logoUrl:      c.logoUrl || '',
+      }
+      if (idx >= 0) {
+        if (replaceDuplicates) {
+          // Preserve local ID so existing orchestrations stay linked
+          next.id = updated[idx].id
+          updated[idx] = next
+          replaced++
+        } else {
+          skipped++
+        }
+      } else {
+        updated.push(next)
+        added++
+      }
+    }
+
+    setConnections(updated)
+    persistConnections(updated)
+    return { added, replaced, skipped }
+  }
+
   function handleSelect(id) {
     setActiveId(id)
     if (isMobile) setSidebarOpen(false)
@@ -73,6 +113,7 @@ export default function App() {
           onUpdate={updateConnection}
           onDelete={deleteConnection}
           onSelect={handleSelect}
+          onBulkImport={bulkImportConnections}
         />
       )
     }

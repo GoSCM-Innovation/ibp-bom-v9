@@ -219,9 +219,87 @@ export function useOrchestration(connection, sessionId, onSessionExpired) {
     setCancelling(false)
   }
 
+  // ── Export / Import ───────────────────────────────────────────────────────
+  function exportOrchestrations() {
+    if (!orchs.length) return
+    const payload = {
+      version:    '1.0',
+      exportedAt: new Date().toISOString(),
+      appVersion: typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : null,
+      sourceConnection: { name: connection.name, orgName: connection.orgName, isProduction: !!connection.isProduction },
+      orchestrations: orchs.map(o => ({
+        name:  o.name,
+        nodes: o.nodes || [],
+        edges: o.edges || [],
+      })),
+    }
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
+    const url  = URL.createObjectURL(blob)
+    const a    = document.createElement('a')
+    const date = new Date().toISOString().slice(0, 10)
+    const safeName = (connection.name || 'connection').replace(/[^\w-]+/g, '_').slice(0, 40)
+    a.href = url
+    a.download = `ibp-orquestaciones-${safeName}-${date}.json`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+  }
+
+  async function bulkImportOrchestrations(parsed, { replaceDuplicates }) {
+    let added = 0, replaced = 0, skipped = 0, failed = 0
+    const errors = []
+    for (const incoming of parsed.orchestrations) {
+      const existing = orchs.find(o =>
+        (o.name || '').trim().toLowerCase() === (incoming.name || '').trim().toLowerCase()
+      )
+      try {
+        if (existing) {
+          if (replaceDuplicates) {
+            const res = await fetch('/api/orchestrations', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                id:    existing.id,
+                name:  incoming.name,
+                nodes: incoming.nodes || [],
+                edges: incoming.edges || [],
+              }),
+            })
+            const data = await res.json()
+            if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
+            replaced++
+          } else {
+            skipped++
+          }
+        } else {
+          const res = await fetch('/api/orchestrations', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              connectionId: connection.id,
+              name:  incoming.name,
+              nodes: incoming.nodes || [],
+              edges: incoming.edges || [],
+            }),
+          })
+          const data = await res.json()
+          if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
+          added++
+        }
+      } catch (e) {
+        failed++
+        errors.push({ name: incoming.name, message: e.message })
+      }
+    }
+    await loadOrchs()
+    return { added, replaced, skipped, failed, errors }
+  }
+
   return {
     orchs, loading, error, selected, selectedId, setSelectedId,
     run, isRunning, saving, starting, cancelling,
     createOrch, duplicateOrch, deleteOrch, saveGraph, commitName, handleStart, handleResume, handleCancel,
+    exportOrchestrations, bulkImportOrchestrations,
   }
 }

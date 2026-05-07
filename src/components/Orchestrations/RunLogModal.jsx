@@ -55,7 +55,9 @@ function SapLogsButton({ connection, sessionId, sapRunId }) {
     setLoading(true)
     try {
       const data = await soapCall(connection, sessionId, 'getTaskLogs', {
-        runId: sapRunId, errorLog: true, monitorLog: true,
+        runId: sapRunId,
+        errorLog:   { getLog: true },
+        monitorLog: { getLog: true },
       })
       setLogs(data)
     } catch (e) {

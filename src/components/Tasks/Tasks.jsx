@@ -1,6 +1,21 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import ProgressBar from '../ui/ProgressBar'
 import TechLogs, { useTechLogs } from '../TechLogs'
+import { extractTaskMetadata } from '../../utils/taskMetadata'
+
+const META_CONCURRENCY = 5
+
+async function runWithConcurrency(items, worker, limit) {
+  const queue = items.slice()
+  const workers = Array(Math.min(limit, queue.length)).fill(0).map(async () => {
+    while (queue.length) {
+      const item = queue.shift()
+      if (!item) continue
+      try { await worker(item) } catch { /* swallow per-item errors */ }
+    }
+  })
+  await Promise.all(workers)
+}
 
 async function soapCall(connection, sessionId, operation, params = {}) {
   const debugSoap = typeof window !== 'undefined'
@@ -30,6 +45,8 @@ async function soapCall(connection, sessionId, operation, params = {}) {
 }
 
 export default function Tasks({ connection, sessionId, onSessionExpired, onTaskRun }) {
+  const PINS_KEY = `ibp-project-pins-${connection.id}`
+
   const [projects, setProjects]   = useState([])
   const [expanded, setExpanded]   = useState({})
   const [tasks, setTasks]         = useState({})     // projectGuid → tasks[]
@@ -39,6 +56,32 @@ export default function Tasks({ connection, sessionId, onSessionExpired, onTaskR
   const [search, setSearch]       = useState('')
   const [runModal, setRunModal]   = useState(null)   // task object
   const [logs, addLog]            = useTechLogs()
+  const [pinnedGuids, setPinnedGuids] = useState(() => {
+    try { return new Set(JSON.parse(localStorage.getItem(PINS_KEY) || '[]')) }
+    catch { return new Set() }
+  })
+  const [filterPinned, setFilterPinned] = useState(false)
+  const [taskMeta, setTaskMeta]         = useState({})  // taskGuid → { sourceSystem, targetSystem, raw }
+  const [metaLoading, setMetaLoading]   = useState({})  // taskGuid → boolean
+  const taskMetaRef = useRef(taskMeta)
+  taskMetaRef.current = taskMeta
+
+  function togglePin(e, guid) {
+    e.stopPropagation()
+    setPinnedGuids(prev => {
+      const next = new Set(prev)
+      if (next.has(guid)) next.delete(guid)
+      else next.add(guid)
+      localStorage.setItem(PINS_KEY, JSON.stringify([...next]))
+      return next
+    })
+  }
+
+  function clearPins() {
+    setPinnedGuids(new Set())
+    setFilterPinned(false)
+    localStorage.removeItem(PINS_KEY)
+  }
 
   const load = useCallback(async () => {
     setLoadingP(true); setError('')
@@ -68,7 +111,10 @@ export default function Tasks({ connection, sessionId, onSessionExpired, onTaskR
     try {
       const data = await soapCall(connection, sessionId, 'getProjectTasks', { projectGuid: guid })
       addLog({ method: 'POST', path: 'getProjectTasks', status: 200, duration: Math.round(performance.now() - start), detail: `${data.length} tasks` })
-      setTasks(p => ({ ...p, [guid]: Array.isArray(data) ? data : [] }))
+      const list = Array.isArray(data) ? data : []
+      setTasks(p => ({ ...p, [guid]: list }))
+      // Fire-and-forget: load per-task metadata in background, with concurrency cap
+      loadTaskMeta(list)
     } catch (e) {
       if (e.isSessionExpired) { onSessionExpired?.(); return }
       addLog({ method: 'POST', path: 'getProjectTasks', status: 0, duration: Math.round(performance.now() - start), detail: e.message })
@@ -78,7 +124,33 @@ export default function Tasks({ connection, sessionId, onSessionExpired, onTaskR
     }
   }
 
-  const filteredProjects = search.trim()
+  async function loadTaskMeta(taskList) {
+    const pending = taskList.filter(t => t.taskGuid && !taskMetaRef.current[t.taskGuid])
+    if (pending.length === 0) return
+    setMetaLoading(p => {
+      const next = { ...p }
+      pending.forEach(t => { next[t.taskGuid] = true })
+      return next
+    })
+    await runWithConcurrency(pending, async (t) => {
+      try {
+        const info = await soapCall(connection, sessionId, 'getTaskInfo', { taskGuid: t.taskGuid })
+        const meta = extractTaskMetadata(info?.properties)
+        setTaskMeta(p => ({ ...p, [t.taskGuid]: meta }))
+      } catch (e) {
+        if (e.isSessionExpired) { onSessionExpired?.(); throw e }
+        setTaskMeta(p => ({ ...p, [t.taskGuid]: { sourceSystem: null, targetSystem: null, raw: [], _error: e.message } }))
+      } finally {
+        setMetaLoading(p => {
+          const next = { ...p }
+          delete next[t.taskGuid]
+          return next
+        })
+      }
+    }, META_CONCURRENCY)
+  }
+
+  const searchFiltered = search.trim()
     ? projects.filter(p => {
         const q = search.toLowerCase()
         const matchProj = p.name?.toLowerCase().includes(q)
@@ -86,6 +158,18 @@ export default function Tasks({ connection, sessionId, onSessionExpired, onTaskR
         return matchProj || matchTask
       })
     : projects
+
+  const pinFiltered = filterPinned
+    ? searchFiltered.filter(p => pinnedGuids.has(p.guid))
+    : searchFiltered
+
+  // Pinned first, then alphabetical within each bucket
+  const filteredProjects = [...pinFiltered].sort((a, b) => {
+    const aPin = pinnedGuids.has(a.guid) ? 1 : 0
+    const bPin = pinnedGuids.has(b.guid) ? 1 : 0
+    if (aPin !== bPin) return bPin - aPin
+    return (a.name || '').localeCompare(b.name || '')
+  })
 
   return (
     <div style={{ padding: 28, display: 'flex', flexDirection: 'column', height: '100%', boxSizing: 'border-box', position: 'relative' }}>
@@ -99,12 +183,39 @@ export default function Tasks({ connection, sessionId, onSessionExpired, onTaskR
             {loadingP ? 'Cargando…' : `${projects.length} proyectos · ${connection.name}`}
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <input
             type="text" placeholder="Buscar proyecto o task…" value={search}
             onChange={e => setSearch(e.target.value)}
             style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text)', fontSize: 12, padding: '6px 12px', width: 240, outline: 'none' }}
           />
+          <button
+            onClick={() => setFilterPinned(v => !v)}
+            disabled={pinnedGuids.size === 0 && !filterPinned}
+            title={pinnedGuids.size === 0 ? 'Aún no hay proyectos fijados' : (filterPinned ? 'Mostrar todos los proyectos' : 'Mostrar solo los fijados')}
+            style={{
+              background: filterPinned ? 'var(--accent)' : 'var(--bg2)',
+              border: filterPinned ? '1px solid var(--accent)' : '1px solid var(--border2)',
+              borderRadius: 6,
+              color: filterPinned ? '#000' : 'var(--text2)',
+              fontSize: 11, fontWeight: filterPinned ? 700 : 600,
+              padding: '6px 12px',
+              cursor: pinnedGuids.size === 0 && !filterPinned ? 'not-allowed' : 'pointer',
+              opacity: pinnedGuids.size === 0 && !filterPinned ? 0.5 : 1,
+            }}
+          >
+            {filterPinned ? '★' : '☆'} Solo fijados {pinnedGuids.size > 0 && `(${pinnedGuids.size})`}
+          </button>
+          {pinnedGuids.size > 0 && (
+            <button
+              onClick={clearPins}
+              title="Quitar todos los fijados"
+              style={{
+                background: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: 6,
+                color: 'var(--text3)', fontSize: 11, fontWeight: 600, padding: '6px 10px', cursor: 'pointer',
+              }}
+            >Limpiar</button>
+          )}
           <button onClick={load} disabled={loadingP} style={{
             background: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: 6,
             color: 'var(--text2)', fontSize: 11, fontWeight: 600, padding: '6px 12px', cursor: 'pointer',
@@ -122,7 +233,9 @@ export default function Tasks({ connection, sessionId, onSessionExpired, onTaskR
       <div style={{ flex: 1, overflow: 'auto', border: '1px solid var(--border)', borderRadius: 8 }}>
         {filteredProjects.length === 0 && !loadingP ? (
           <div style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--text2)', fontSize: 12 }}>
-            {search ? `Sin resultados para "${search}"` : 'Sin proyectos'}
+            {search ? `Sin resultados para "${search}"`
+              : filterPinned ? 'No hay proyectos fijados que coincidan'
+              : 'Sin proyectos'}
           </div>
         ) : filteredProjects.map((proj, pi) => {
           const isExp = !!expanded[proj.guid]
@@ -145,6 +258,18 @@ export default function Tasks({ connection, sessionId, onSessionExpired, onTaskR
                 onMouseEnter={e => { if (!isExp) e.currentTarget.style.background = 'var(--bg2)' }}
                 onMouseLeave={e => { if (!isExp) e.currentTarget.style.background = 'transparent' }}
               >
+                <button
+                  onClick={e => togglePin(e, proj.guid)}
+                  title={pinnedGuids.has(proj.guid) ? 'Quitar de fijados' : 'Fijar proyecto'}
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    padding: 0, fontSize: 14, lineHeight: 1, flexShrink: 0,
+                    color: pinnedGuids.has(proj.guid) ? 'var(--accent)' : 'var(--text3)',
+                    width: 18, textAlign: 'center',
+                  }}
+                >
+                  {pinnedGuids.has(proj.guid) ? '★' : '☆'}
+                </button>
                 <span style={{ color: 'var(--text3)', fontSize: 11, width: 14, textAlign: 'center', flexShrink: 0 }}>
                   {isLoadingT ? '…' : isExp ? '▾' : '▸'}
                 </span>
@@ -170,6 +295,8 @@ export default function Tasks({ connection, sessionId, onSessionExpired, onTaskR
                     <TaskRow
                       key={task.taskGuid || ti}
                       task={task}
+                      meta={taskMeta[task.taskGuid]}
+                      metaLoading={!!metaLoading[task.taskGuid]}
                       onRun={() => setRunModal(task)}
                       isLast={ti === filteredTasks.length - 1}
                     />
@@ -199,7 +326,7 @@ export default function Tasks({ connection, sessionId, onSessionExpired, onTaskR
   )
 }
 
-function TaskRow({ task, onRun, isLast }) {
+function TaskRow({ task, meta, metaLoading, onRun, isLast }) {
   const typeColor = task.type === 'PROCESS' ? 'var(--purple)' : 'var(--cyan)'
   return (
     <div style={{
@@ -222,11 +349,34 @@ function TaskRow({ task, onRun, isLast }) {
           </div>
         )}
       </div>
+      <MetaCell label="Source" value={meta?.sourceSystem} loading={metaLoading} />
+      <MetaCell label="Target" value={meta?.targetSystem} loading={metaLoading} />
       <button onClick={e => { e.stopPropagation(); onRun() }} style={{
         padding: '4px 12px', borderRadius: 5, border: '1px solid rgba(34,197,94,.35)',
         background: 'rgba(34,197,94,.08)', color: '#22c55e',
         fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
       }}>▶ Ejecutar</button>
+    </div>
+  )
+}
+
+function MetaCell({ label, value, loading }) {
+  return (
+    <div style={{ width: 130, flexShrink: 0, fontSize: 10, lineHeight: 1.2 }}>
+      <div style={{ color: 'var(--text3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', fontSize: 9 }}>
+        {label}
+      </div>
+      <div
+        title={value || ''}
+        style={{
+          color: value ? 'var(--text)' : 'var(--text3)',
+          fontFamily: 'var(--mono)',
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          marginTop: 1,
+        }}
+      >
+        {loading ? '…' : (value || '—')}
+      </div>
     </div>
   )
 }

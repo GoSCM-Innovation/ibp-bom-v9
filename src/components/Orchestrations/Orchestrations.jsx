@@ -1,13 +1,56 @@
 import { useState, useRef, useEffect } from 'react'
-import OrchList              from './OrchList'
-import TaskPalette           from './panel/TaskPalette'
-import OrchestrationsCanvas  from './canvas/OrchestrationsCanvas'
-import NodeConfigPanel       from './canvas/NodeConfigPanel'
-import RunModal              from './RunModal'
-import RunSingleModal        from './RunSingleModal'
-import RunLogModal           from './RunLogModal'
-import { useOrchestration }  from './useOrchestration'
-import { STATUS_COLORS }     from './canvasUtils'
+import OrchList                    from './OrchList'
+import TaskPalette                 from './panel/TaskPalette'
+import OrchestrationsCanvas        from './canvas/OrchestrationsCanvas'
+import NodeConfigPanel             from './canvas/NodeConfigPanel'
+import RunModal                    from './RunModal'
+import RunSingleModal              from './RunSingleModal'
+import RunLogModal                 from './RunLogModal'
+import ImportOrchestrationsModal   from './ImportOrchestrationsModal'
+import { useOrchestration }        from './useOrchestration'
+import { STATUS_COLORS }           from './canvasUtils'
+
+function parseOrchImportText(text) {
+  let raw
+  try { raw = JSON.parse(text) }
+  catch { throw new Error('El archivo no es un JSON válido') }
+
+  const arr = Array.isArray(raw) ? raw : raw?.orchestrations
+  if (!Array.isArray(arr)) {
+    throw new Error('El archivo no contiene un array de orquestaciones')
+  }
+
+  const valid = []
+  const invalid = []
+  arr.forEach((o, i) => {
+    if (!o || typeof o !== 'object') {
+      invalid.push({ index: i, reason: 'no es un objeto' }); return
+    }
+    const name = typeof o.name === 'string' ? o.name.trim() : ''
+    if (!name) {
+      invalid.push({ index: i, reason: 'falta el campo name' }); return
+    }
+    if (!Array.isArray(o.nodes)) {
+      invalid.push({ index: i, reason: 'nodes no es un array' }); return
+    }
+    if (o.edges !== undefined && !Array.isArray(o.edges)) {
+      invalid.push({ index: i, reason: 'edges debe ser un array' }); return
+    }
+    valid.push({
+      name,
+      nodes: o.nodes,
+      edges: Array.isArray(o.edges) ? o.edges : [],
+    })
+  })
+
+  return {
+    orchestrations:   valid,
+    invalid,
+    version:          raw?.version,
+    exportedAt:       raw?.exportedAt,
+    sourceConnection: raw?.sourceConnection || null,
+  }
+}
 
 function RunBadge({ status }) {
   const labels = { running: 'Ejecutando', success: 'Completado', error: 'Error', cancelled: 'Cancelado' }
@@ -30,6 +73,7 @@ export default function Orchestrations({ connection, sessionId, onSessionExpired
     run, isRunning, saving, starting, cancelling,
     createOrch, duplicateOrch, deleteOrch, saveGraph, commitName,
     handleStart, handleResume, handleCancel,
+    exportOrchestrations, bulkImportOrchestrations,
   } = useOrchestration(connection, sessionId, onSessionExpired)
 
   const [selectedNodeId, setSelectedNodeId]   = useState(null)
@@ -44,8 +88,68 @@ export default function Orchestrations({ connection, sessionId, onSessionExpired
   const [orphanWarning, setOrphanWarning]         = useState(null)
   const [autoConnect, setAutoConnect]             = useState(false)
   const [fullscreen, setFullscreen]               = useState(false)
-  const addGroupRef = useRef(() => {})
-  const canvasRef   = useRef(null)
+  const [importParsed, setImportParsed]           = useState(null)
+  const [importFileName, setImportFileName]       = useState('')
+  const [importFeedback, setImportFeedback]       = useState(null)
+  const addGroupRef  = useRef(() => {})
+  const canvasRef    = useRef(null)
+  const fileInputRef = useRef(null)
+
+  function handleExportClick() {
+    if (!orchs.length) return
+    try {
+      exportOrchestrations()
+      setImportFeedback({ kind: 'ok', text: `${orchs.length} orquestacion${orchs.length === 1 ? '' : 'es'} exportada${orchs.length === 1 ? '' : 's'}` })
+      setTimeout(() => setImportFeedback(null), 3500)
+    } catch (e) {
+      setImportFeedback({ kind: 'error', text: `No se pudo exportar: ${e.message}` })
+    }
+  }
+
+  function handleImportClick() {
+    setImportFeedback(null)
+    fileInputRef.current?.click()
+  }
+
+  async function handleFileChange(e) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    try {
+      const text   = await file.text()
+      const parsed = parseOrchImportText(text)
+      if (parsed.orchestrations.length === 0 && parsed.invalid.length === 0) {
+        setImportFeedback({ kind: 'error', text: 'El archivo no contiene orquestaciones' })
+        return
+      }
+      setImportFileName(file.name)
+      setImportParsed(parsed)
+    } catch (err) {
+      setImportFeedback({ kind: 'error', text: err.message })
+    }
+  }
+
+  async function handleImportConfirm({ replaceDuplicates }) {
+    if (!importParsed) return
+    const result = await bulkImportOrchestrations(importParsed, { replaceDuplicates })
+    setImportParsed(null)
+    setImportFileName('')
+    const parts = []
+    if (result.added)    parts.push(`${result.added} agregada${result.added === 1 ? '' : 's'}`)
+    if (result.replaced) parts.push(`${result.replaced} reemplazada${result.replaced === 1 ? '' : 's'}`)
+    if (result.skipped)  parts.push(`${result.skipped} omitida${result.skipped === 1 ? '' : 's'}`)
+    if (result.failed)   parts.push(`${result.failed} con error`)
+    setImportFeedback({
+      kind: result.failed > 0 ? 'error' : 'ok',
+      text: parts.length ? parts.join(', ') : 'Sin cambios',
+    })
+    setTimeout(() => setImportFeedback(null), 5000)
+  }
+
+  function handleImportCancel() {
+    setImportParsed(null)
+    setImportFileName('')
+  }
 
   // Global Escape key to exit fullscreen
   useEffect(() => {
@@ -301,9 +405,51 @@ export default function Orchestrations({ connection, sessionId, onSessionExpired
           onCreate={createOrch}
           onDuplicate={duplicateOrch}
           onDelete={deleteOrch}
+          onExport={handleExportClick}
+          onImportClick={handleImportClick}
           connectionId={connection.id}
           collapsed={orchListCollapsed}
           onToggle={() => setOrchListCollapsed(v => !v)}
+        />
+      )}
+
+      {/* Hidden file input for import */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="application/json,.json"
+        onChange={handleFileChange}
+        style={{ display: 'none' }}
+      />
+
+      {/* Feedback toast for export/import */}
+      {importFeedback && (
+        <div style={{
+          position: 'fixed', bottom: 20, right: 20, zIndex: 1100,
+          padding: '10px 16px', borderRadius: 8, fontSize: 12,
+          background: importFeedback.kind === 'ok' ? 'rgba(52,211,153,.15)' : 'rgba(255,107,107,.15)',
+          border:     `1px solid ${importFeedback.kind === 'ok' ? 'rgba(52,211,153,.40)' : 'rgba(255,107,107,.40)'}`,
+          color:      importFeedback.kind === 'ok' ? 'var(--green)' : 'var(--red)',
+          display: 'flex', gap: 12, alignItems: 'center',
+          boxShadow: '0 6px 20px rgba(0,0,0,.35)',
+        }}>
+          <span>{importFeedback.kind === 'ok' ? '✓' : '✕'} {importFeedback.text}</span>
+          <button
+            onClick={() => setImportFeedback(null)}
+            style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: 14, lineHeight: 1, opacity: .7 }}
+          >×</button>
+        </div>
+      )}
+
+      {/* Import preview modal */}
+      {importParsed && (
+        <ImportOrchestrationsModal
+          parsed={importParsed}
+          existing={orchs}
+          fileName={importFileName}
+          currentConnection={connection}
+          onConfirm={handleImportConfirm}
+          onCancel={handleImportCancel}
         />
       )}
 
