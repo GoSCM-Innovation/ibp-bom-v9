@@ -125,9 +125,7 @@ export default function Tasks({ connection, sessionId, onSessionExpired, onTaskR
   }
 
   async function loadTaskMeta(taskList) {
-    console.log('[loadTaskMeta] tasks:', taskList.map(t => ({ taskName: t.taskName, taskGuid: t.taskGuid })))
     const pending = taskList.filter(t => t.taskGuid && !taskMetaRef.current[t.taskGuid])
-    console.log('[loadTaskMeta] pending:', pending.length)
     if (pending.length === 0) return
     setMetaLoading(p => {
       const next = { ...p }
@@ -137,9 +135,11 @@ export default function Tasks({ connection, sessionId, onSessionExpired, onTaskR
     await runWithConcurrency(pending, async (t) => {
       try {
         const info = await soapCall(connection, sessionId, 'getTaskInfo', { taskGuid: t.taskGuid })
+        console.log('[getTaskInfo] properties for', t.taskName, ':', info?.properties)
         const meta = extractTaskMetadata(info?.properties)
         setTaskMeta(p => ({ ...p, [t.taskGuid]: meta }))
       } catch (e) {
+        console.error('[getTaskInfo] error for', t.taskName, ':', e.message)
         if (e.isSessionExpired) { onSessionExpired?.(); throw e }
         setTaskMeta(p => ({ ...p, [t.taskGuid]: { sourceSystem: null, targetSystem: null, raw: [], _error: e.message } }))
       } finally {
