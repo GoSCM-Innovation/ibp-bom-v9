@@ -198,6 +198,11 @@ function CanvasInner({
   }
 
   function handleNodesChange(changes) {
+    if (isRunning) {
+      const safe = changes.filter(c => c.type === 'select' || c.type === 'dimensions')
+      if (safe.length) onNodesChange(safe)
+      return
+    }
     onNodesChange(changes)
     if (changes.some(c => c.type !== 'select')) {
       setNodes(nds => { debounced_save(nds, edges); return nds })
@@ -205,6 +210,11 @@ function CanvasInner({
   }
 
   function handleEdgesChange(changes) {
+    if (isRunning) {
+      const safe = changes.filter(c => c.type === 'select')
+      if (safe.length) onEdgesChange(safe)
+      return
+    }
     onEdgesChange(changes)
     setEdges(eds => { debounced_save(nodes, eds); return eds })
   }
@@ -241,12 +251,13 @@ function CanvasInner({
   }
 
   const onConnect = useCallback((params) => {
+    if (isRunning) return
     const newEdge = { ...params, id: crypto.randomUUID(), ...EDGE_DEFAULTS }
     const newEdges = addEdge(newEdge, edges)
     if (hasCycle(nodes, newEdges)) { setCycleErr(true); setTimeout(() => setCycleErr(false), 2500); return }
     setEdges(newEdges)
     debounced_save(nodes, newEdges)
-  }, [edges, nodes])
+  }, [edges, nodes, isRunning])
 
   const isValidConnection = useCallback((connection) => {
     if (connection.source === connection.target) return false
@@ -258,11 +269,12 @@ function CanvasInner({
   // ── Drop handler ──────────────────────────────────────────────────────────
   const onDragOver = useCallback((e) => {
     e.preventDefault()
-    e.dataTransfer.dropEffect = 'copy'
-  }, [])
+    e.dataTransfer.dropEffect = isRunning ? 'none' : 'copy'
+  }, [isRunning])
 
   const onDrop = useCallback((e) => {
     e.preventDefault()
+    if (isRunning) return
     const raw = e.dataTransfer.getData('application/x-orch-task')
     if (!raw) return
     const { taskName, taskGuid, type } = JSON.parse(raw)
@@ -309,10 +321,11 @@ function CanvasInner({
     setNodes(newNodes)
     if (newEdges !== edges) setEdges(newEdges)
     debounced_save(newNodes, newEdges)
-  }, [nodes, edges, rfInstance, autoConnect])
+  }, [nodes, edges, rfInstance, autoConnect, isRunning])
 
   // ── Add group ────────────────────────────────────────────────────────────
   function addGroup() {
+    if (isRunning) return
     const center = rfInstance.screenToFlowPosition({
       x: window.innerWidth / 2, y: window.innerHeight / 2,
     })
@@ -366,7 +379,7 @@ function CanvasInner({
         nodes={nodes}
         edges={edges}
         onNodesChange={handleNodesChange}
-        onNodesDelete={handleNodesDelete}
+        onNodesDelete={isRunning ? undefined : handleNodesDelete}
         onEdgesChange={handleEdgesChange}
         onConnect={onConnect}
         isValidConnection={isValidConnection}
@@ -374,7 +387,9 @@ function CanvasInner({
         defaultEdgeOptions={EDGE_DEFAULTS}
         fitView
         fitViewOptions={{ padding: 0.2 }}
-        deleteKeyCode="Delete"
+        nodesDraggable={!isRunning}
+        nodesConnectable={!isRunning}
+        deleteKeyCode={isRunning ? null : 'Delete'}
         style={{ background: 'var(--bg)' }}
       >
         <Background color="#243350" gap={20} size={1} />
@@ -389,6 +404,17 @@ function CanvasInner({
           <button onClick={handleAutoLayout} style={toolbarBtn}>⊞ Auto Layout</button>
         </Panel>
 
+        {isRunning && (
+          <Panel position="top-center" style={{ margin: 8 }}>
+            <div style={{
+              background: 'rgba(251,191,36,.08)', border: '1px solid rgba(251,191,36,.35)',
+              borderRadius: 6, padding: '5px 12px', fontSize: 11, color: '#fbbf24',
+              display: 'flex', alignItems: 'center', gap: 6, userSelect: 'none',
+            }}>
+              <span style={{ fontSize: 13 }}>⬡</span> Canvas bloqueado — orquestacion en ejecucion
+            </div>
+          </Panel>
+        )}
         {cycleErr && (
           <Panel position="top-center" style={{ margin: 8 }}>
             <div style={{

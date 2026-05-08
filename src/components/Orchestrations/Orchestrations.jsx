@@ -257,9 +257,9 @@ export default function Orchestrations({ connection, sessionId, onSessionExpired
             />
           ) : (
             <span
-              onClick={() => { setEditingName(true); setNameValue(selected.name) }}
-              style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', cursor: 'text' }}
-              title="Click para editar"
+              onClick={() => { if (!isRunning) { setEditingName(true); setNameValue(selected.name) } }}
+              style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', cursor: isRunning ? 'default' : 'text' }}
+              title={isRunning ? undefined : 'Click para editar'}
             >
               {selected.name}
             </span>
@@ -379,7 +379,7 @@ export default function Orchestrations({ connection, sessionId, onSessionExpired
             autoConnect={autoConnect}
           />
 
-          {selectedNode && (
+          {selectedNode && !isRunning && (
             <NodeConfigPanel
               node={selectedNode}
               connection={connection}

@@ -1,21 +1,6 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import ProgressBar from '../ui/ProgressBar'
 import TechLogs, { useTechLogs } from '../TechLogs'
-import { extractTaskMetadata } from '../../utils/taskMetadata'
-
-const META_CONCURRENCY = 5
-
-async function runWithConcurrency(items, worker, limit) {
-  const queue = items.slice()
-  const workers = Array(Math.min(limit, queue.length)).fill(0).map(async () => {
-    while (queue.length) {
-      const item = queue.shift()
-      if (!item) continue
-      try { await worker(item) } catch { /* swallow per-item errors */ }
-    }
-  })
-  await Promise.all(workers)
-}
 
 async function soapCall(connection, sessionId, operation, params = {}) {
   const debugSoap = typeof window !== 'undefined'
@@ -61,10 +46,6 @@ export default function Tasks({ connection, sessionId, onSessionExpired, onTaskR
     catch { return new Set() }
   })
   const [filterPinned, setFilterPinned] = useState(false)
-  const [taskMeta, setTaskMeta]         = useState({})  // taskGuid → { sourceSystem, targetSystem, raw }
-  const [metaLoading, setMetaLoading]   = useState({})  // taskGuid → boolean
-  const taskMetaRef = useRef(taskMeta)
-  taskMetaRef.current = taskMeta
 
   function togglePin(e, guid) {
     e.stopPropagation()
@@ -113,8 +94,6 @@ export default function Tasks({ connection, sessionId, onSessionExpired, onTaskR
       addLog({ method: 'POST', path: 'getProjectTasks', status: 200, duration: Math.round(performance.now() - start), detail: `${data.length} tasks` })
       const list = Array.isArray(data) ? data : []
       setTasks(p => ({ ...p, [guid]: list }))
-      // Fire-and-forget: load per-task metadata in background, with concurrency cap
-      loadTaskMeta(list)
     } catch (e) {
       if (e.isSessionExpired) { onSessionExpired?.(); return }
       addLog({ method: 'POST', path: 'getProjectTasks', status: 0, duration: Math.round(performance.now() - start), detail: e.message })
@@ -122,34 +101,6 @@ export default function Tasks({ connection, sessionId, onSessionExpired, onTaskR
     } finally {
       setLoadingT(p => ({ ...p, [guid]: false }))
     }
-  }
-
-  async function loadTaskMeta(taskList) {
-    const pending = taskList.filter(t => t.taskGuid && !taskMetaRef.current[t.taskGuid])
-    if (pending.length === 0) return
-    setMetaLoading(p => {
-      const next = { ...p }
-      pending.forEach(t => { next[t.taskGuid] = true })
-      return next
-    })
-    await runWithConcurrency(pending, async (t) => {
-      try {
-        const info = await soapCall(connection, sessionId, 'getTaskInfo', { taskGuid: t.taskGuid })
-        console.log('[getTaskInfo] properties for', t.taskName, ':', info?.properties)
-        const meta = extractTaskMetadata(info?.properties)
-        setTaskMeta(p => ({ ...p, [t.taskGuid]: meta }))
-      } catch (e) {
-        console.error('[getTaskInfo] error for', t.taskName, ':', e.message)
-        if (e.isSessionExpired) { onSessionExpired?.(); throw e }
-        setTaskMeta(p => ({ ...p, [t.taskGuid]: { sourceSystem: null, targetSystem: null, raw: [], _error: e.message } }))
-      } finally {
-        setMetaLoading(p => {
-          const next = { ...p }
-          delete next[t.taskGuid]
-          return next
-        })
-      }
-    }, META_CONCURRENCY)
   }
 
   const searchFiltered = search.trim()
@@ -297,8 +248,6 @@ export default function Tasks({ connection, sessionId, onSessionExpired, onTaskR
                     <TaskRow
                       key={task.taskGuid || ti}
                       task={task}
-                      meta={taskMeta[task.taskGuid]}
-                      metaLoading={!!metaLoading[task.taskGuid]}
                       onRun={() => setRunModal(task)}
                       isLast={ti === filteredTasks.length - 1}
                     />
@@ -328,7 +277,7 @@ export default function Tasks({ connection, sessionId, onSessionExpired, onTaskR
   )
 }
 
-function TaskRow({ task, meta, metaLoading, onRun, isLast }) {
+function TaskRow({ task, onRun, isLast }) {
   const typeColor = task.type === 'PROCESS' ? 'var(--purple)' : 'var(--cyan)'
   return (
     <div style={{
@@ -351,34 +300,11 @@ function TaskRow({ task, meta, metaLoading, onRun, isLast }) {
           </div>
         )}
       </div>
-      <MetaCell label="Source" value={meta?.sourceSystem} loading={metaLoading} />
-      <MetaCell label="Target" value={meta?.targetSystem} loading={metaLoading} />
       <button onClick={e => { e.stopPropagation(); onRun() }} style={{
         padding: '4px 12px', borderRadius: 5, border: '1px solid rgba(34,197,94,.35)',
         background: 'rgba(34,197,94,.08)', color: '#22c55e',
         fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
       }}>▶ Ejecutar</button>
-    </div>
-  )
-}
-
-function MetaCell({ label, value, loading }) {
-  return (
-    <div style={{ width: 130, flexShrink: 0, fontSize: 10, lineHeight: 1.2 }}>
-      <div style={{ color: 'var(--text3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', fontSize: 9 }}>
-        {label}
-      </div>
-      <div
-        title={value || ''}
-        style={{
-          color: value ? 'var(--text)' : 'var(--text3)',
-          fontFamily: 'var(--mono)',
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          marginTop: 1,
-        }}
-      >
-        {loading ? '…' : (value || '—')}
-      </div>
     </div>
   )
 }
