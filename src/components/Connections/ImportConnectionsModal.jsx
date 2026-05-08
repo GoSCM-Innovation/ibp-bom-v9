@@ -4,7 +4,8 @@ function sameConn(a, b) {
   return (
     (a.name    || '').trim().toLowerCase() === (b.name    || '').trim().toLowerCase() &&
     (a.hciUrl  || '').trim().toLowerCase() === (b.hciUrl  || '').trim().toLowerCase() &&
-    (a.orgName || '').trim().toLowerCase() === (b.orgName || '').trim().toLowerCase()
+    (a.orgName || '').trim().toLowerCase() === (b.orgName || '').trim().toLowerCase() &&
+    (a.isProduction !== false) === (b.isProduction !== false)
   )
 }
 
