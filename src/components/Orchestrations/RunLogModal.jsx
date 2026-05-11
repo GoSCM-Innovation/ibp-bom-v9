@@ -83,7 +83,7 @@ function SapLogsButton({ connection, sessionId, sapRunId }) {
                 const section = logs[key]
                 if (!section?.messageLines?.length) return null
                 const text = section.messageLines.map(l => {
-                  try { return new TextDecoder().decode(Uint8Array.from(atob(l), c => c.charCodeAt(0))) } catch { return l }
+                  try { return new TextDecoder().decode(Uint8Array.from(atob(l.replace(/\s+/g, '')), c => c.charCodeAt(0))) } catch { return l }
                 }).join('\n')
                 return (
                   <div key={key} style={{ marginBottom: 4 }}>

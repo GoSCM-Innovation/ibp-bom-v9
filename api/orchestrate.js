@@ -179,10 +179,10 @@ function initNodeState(node, allNodes) {
 
 function mergeVariables(taskVars = [], globalVars = []) {
   if (!globalVars || globalVars.length === 0) return taskVars
-  return taskVars.map(v => {
-    const override = globalVars.find(g => g.name === v.name)
-    return override ? { ...v, value: override.value } : v
-  })
+  const map = new Map()
+  for (const v of taskVars) map.set(v.name, v)
+  for (const v of globalVars) map.set(v.name, { ...(map.get(v.name) || {}), value: v.value })
+  return [...map.values()]
 }
 
 async function launchTask(connection, sessionId, nodeDef, defaults = {}) {
