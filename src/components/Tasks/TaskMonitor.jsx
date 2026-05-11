@@ -430,7 +430,7 @@ function LogsModal({ runId, connection, sessionId, onClose }) {
             <div style={{ color: 'var(--text3)', fontSize: 12 }}>Sin contenido en este log</div>
           ) : (
             <pre style={{ margin: 0, fontSize: 11, color: 'var(--text)', fontFamily: 'var(--mono)', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
-              {lines.join('\n')}
+              {lines.map(l => { try { return new TextDecoder().decode(Uint8Array.from(atob(l), c => c.charCodeAt(0))) } catch { return l } }).join('\n')}
             </pre>
           )}
         </div>

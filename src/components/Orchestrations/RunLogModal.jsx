@@ -76,14 +76,29 @@ function SapLogsButton({ connection, sessionId, sapRunId }) {
         {loading ? '…' : open ? 'ocultar logs' : '📄 Logs SAP'}
       </button>
       {open && logs && (
-        <pre style={{
-          marginTop: 5, padding: '6px 8px', borderRadius: 4, fontSize: 9,
-          background: 'var(--bg)', color: 'var(--text2)', overflow: 'auto',
-          maxHeight: 180, border: '1px solid var(--border)', fontFamily: 'var(--mono)',
-          whiteSpace: 'pre-wrap', wordBreak: 'break-all',
-        }}>
-          {logs._error ? `Error: ${logs._error}` : JSON.stringify(logs, null, 2)}
-        </pre>
+        <div style={{ marginTop: 5 }}>
+          {logs._error
+            ? <div style={{ fontSize: 9, color: 'var(--red)', fontFamily: 'var(--mono)' }}>Error: {logs._error}</div>
+            : ['monitorLog', 'errorLog', 'traceLog'].map(key => {
+                const section = logs[key]
+                if (!section?.messageLines?.length) return null
+                const text = section.messageLines.map(l => {
+                  try { return new TextDecoder().decode(Uint8Array.from(atob(l), c => c.charCodeAt(0))) } catch { return l }
+                }).join('\n')
+                return (
+                  <div key={key} style={{ marginBottom: 4 }}>
+                    <div style={{ fontSize: 8, color: 'var(--text3)', fontFamily: 'var(--mono)', marginBottom: 2, textTransform: 'uppercase' }}>{key}</div>
+                    <pre style={{
+                      margin: 0, padding: '6px 8px', borderRadius: 4, fontSize: 9,
+                      background: 'var(--bg)', color: 'var(--text2)', overflow: 'auto',
+                      maxHeight: 180, border: '1px solid var(--border)', fontFamily: 'var(--mono)',
+                      whiteSpace: 'pre', lineHeight: 1.4,
+                    }}>{text}</pre>
+                  </div>
+                )
+              })
+          }
+        </div>
       )}
     </div>
   )
