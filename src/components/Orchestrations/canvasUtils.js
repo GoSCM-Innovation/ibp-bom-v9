@@ -18,9 +18,12 @@ export function migrateStepsToGraph(orch) {
   return { ...orch, nodes, edges, _migrated: true }
 }
 
-// ─── Graph layout (left→right Sugiyama-lite) ──────────────────────────────────
-
-export function autoLayout(nodes, edges) {
+// ─── Topological waves (Kahn) ─────────────────────────────────────────────────
+// Returns column index per top-level node and a grouping by column.
+// Top-level nodes without incoming edges form column 0; subsequent waves
+// follow the DAG. Useful for both auto-layout and rendering of "waves"
+// in mobile/alternative editors.
+export function computeWaves(nodes, edges) {
   const topLevel = nodes.filter(n => !n.parentId)
   const inDegree = {}
   const adjList  = {}
@@ -31,7 +34,6 @@ export function autoLayout(nodes, edges) {
       inDegree[e.target]++
     }
   }
-  // Kahn waves → columns
   const colOf = {}
   let ready = topLevel.filter(n => inDegree[n.id] === 0).map(n => n.id)
   let col = 0
@@ -45,12 +47,18 @@ export function autoLayout(nodes, edges) {
     }
     ready = next; col++
   }
-  // Group by column, distribute vertically
   const byCol = {}
   for (const [id, c] of Object.entries(colOf)) {
     byCol[c] = byCol[c] || []
     byCol[c].push(id)
   }
+  return { colOf, byCol, cols: col }
+}
+
+// ─── Graph layout (left→right Sugiyama-lite) ──────────────────────────────────
+
+export function autoLayout(nodes, edges) {
+  const { byCol } = computeWaves(nodes, edges)
   const COL_W = 260, ROW_H = 160, PAD_Y = 60
   const positioned = { ...Object.fromEntries(nodes.map(n => [n.id, n])) }
   for (const [c, ids] of Object.entries(byCol)) {

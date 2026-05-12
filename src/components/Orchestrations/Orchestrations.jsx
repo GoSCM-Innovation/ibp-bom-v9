@@ -7,8 +7,10 @@ import RunModal                    from './RunModal'
 import RunSingleModal              from './RunSingleModal'
 import RunLogModal                 from './RunLogModal'
 import ImportOrchestrationsModal   from './ImportOrchestrationsModal'
+import WizardEditor                from './mobile/WizardEditor'
 import { useOrchestration }        from './useOrchestration'
 import { STATUS_COLORS }           from './canvasUtils'
+import { useIsMobile }             from '../../hooks/useViewport'
 
 function parseOrchImportText(text) {
   let raw
@@ -75,6 +77,8 @@ export default function Orchestrations({ connection, sessionId, onSessionExpired
     handleStart, handleResume, handleCancel,
     exportOrchestrations, bulkImportOrchestrations,
   } = useOrchestration(connection, sessionId, onSessionExpired)
+
+  const isMobile = useIsMobile()
 
   const [selectedNodeId, setSelectedNodeId]   = useState(null)
   const [editingName, setEditingName]         = useState(false)
@@ -197,6 +201,149 @@ export default function Orchestrations({ connection, sessionId, onSessionExpired
 
   if (loading) return <div style={{ padding: 40, color: 'var(--text2)', fontSize: 12 }}>Cargando orquestaciones…</div>
   if (error)   return <div style={{ padding: 40, color: 'var(--red)', fontSize: 12 }}>{error}</div>
+
+  // ─── Mobile rendering ────────────────────────────────────────────────────────
+  if (isMobile) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+        {/* Feedback toast for export/import */}
+        {importFeedback && (
+          <div style={{
+            position: 'fixed', bottom: 16, left: 16, right: 16, zIndex: 1100,
+            padding: '10px 14px', borderRadius: 8, fontSize: 12,
+            background: importFeedback.kind === 'ok' ? 'rgba(52,211,153,.15)' : 'rgba(255,107,107,.15)',
+            border:     `1px solid ${importFeedback.kind === 'ok' ? 'rgba(52,211,153,.40)' : 'rgba(255,107,107,.40)'}`,
+            color:      importFeedback.kind === 'ok' ? 'var(--green)' : 'var(--red)',
+            display: 'flex', gap: 12, alignItems: 'center',
+            boxShadow: '0 6px 20px rgba(0,0,0,.35)',
+          }}>
+            <span style={{ flex: 1 }}>{importFeedback.kind === 'ok' ? '✓' : '✕'} {importFeedback.text}</span>
+            <button onClick={() => setImportFeedback(null)} style={{
+              background: 'none', border: 'none', color: 'inherit',
+              cursor: 'pointer', fontSize: 18, lineHeight: 1, opacity: .7,
+            }}>×</button>
+          </div>
+        )}
+
+        {orphanWarning && (
+          <div style={{
+            position: 'fixed', bottom: 16, left: 16, right: 16, zIndex: 1100,
+            padding: '10px 14px', borderRadius: 8, fontSize: 12,
+            background: 'rgba(251,191,36,.15)',
+            border: '1px solid rgba(251,191,36,.4)', color: '#fbbf24',
+            boxShadow: '0 6px 20px rgba(0,0,0,.35)',
+          }}>
+            ⚠ Tasks fuera de grupo: <strong>{orphanWarning}</strong>
+          </div>
+        )}
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="application/json,.json"
+          onChange={handleFileChange}
+          style={{ display: 'none' }}
+        />
+
+        {importParsed && (
+          <ImportOrchestrationsModal
+            parsed={importParsed}
+            existing={orchs}
+            fileName={importFileName}
+            currentConnection={connection}
+            onConfirm={handleImportConfirm}
+            onCancel={handleImportCancel}
+          />
+        )}
+
+        {!selected ? (
+          <OrchList
+            orchs={orchs}
+            selectedId={selectedId}
+            onSelect={id => { setSelectedId(id); setSelectedNodeId(null) }}
+            onCreate={createOrch}
+            onDuplicate={duplicateOrch}
+            onDelete={deleteOrch}
+            onExport={handleExportClick}
+            onImportClick={handleImportClick}
+            connectionId={connection.id}
+            mobile
+          />
+        ) : (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+            <div style={{
+              padding: '6px 10px', background: 'var(--bg3)',
+              borderBottom: '1px solid var(--border)', flexShrink: 0,
+            }}>
+              <button
+                onClick={() => { setSelectedId(null); setSelectedNodeId(null) }}
+                style={{
+                  background: 'none', border: 'none', color: 'var(--text2)',
+                  fontSize: 12, cursor: 'pointer', padding: '6px 4px',
+                  minHeight: 'var(--tap-min)',
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                }}
+              >← Orquestaciones</button>
+            </div>
+            <div style={{ flex: 1, minHeight: 0 }}>
+              <WizardEditor
+                orchestration={selected}
+                connection={connection}
+                sessionId={sessionId}
+                run={run}
+                isRunning={isRunning}
+                saving={saving}
+                starting={starting}
+                cancelling={cancelling}
+                onSaveGraph={saveGraph}
+                onCancel={handleCancel}
+                onEditName={() => {
+                  const next = window.prompt('Nuevo nombre de la orquestación:', selected.name)
+                  if (next?.trim()) commitName(next.trim())
+                }}
+                onShowLog={() => setShowLogModal(true)}
+                onShowRunModal={() => { if (checkBeforeRun()) setShowRunModal(true) }}
+              />
+            </div>
+          </div>
+        )}
+
+        {showRunModal && (
+          <RunModal
+            connection={connection}
+            sessionId={sessionId}
+            orchNodes={selected?.nodes || []}
+            onConfirm={(agentName, profileName, globalVariables) => {
+              setShowRunModal(false)
+              setLastRunParams({ agentName, profileName, globalVariables })
+              handleStart({ agentName, profileName, globalVariables })
+            }}
+            onClose={() => setShowRunModal(false)}
+          />
+        )}
+
+        {runSingleNode && (
+          <RunSingleModal
+            connection={connection}
+            sessionId={sessionId}
+            node={runSingleNode}
+            onClose={() => setRunSingleNode(null)}
+          />
+        )}
+
+        {showLogModal && run && (
+          <RunLogModal
+            run={run}
+            connection={connection}
+            sessionId={sessionId}
+            nodes={selected?.nodes || []}
+            onClose={() => setShowLogModal(false)}
+          />
+        )}
+      </div>
+    )
+  }
+  // ──────────────────────────────────────────────────────────────────────────────
 
   const hasNodes = (selected?.nodes?.filter(n => !n.parentId).length || 0) > 0
   const doneSteps = run ? Object.values(run.nodes || {}).filter(ns => !['pending','running'].includes(ns.status)).length : 0

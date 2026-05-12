@@ -4,17 +4,8 @@ import Sidebar from './components/Sidebar/Sidebar'
 import Connections from './components/Connections/Connections'
 import SystemView from './components/System/SystemView'
 import GlobalResumen from './components/Resumen/GlobalResumen'
+import { useIsMobile } from './hooks/useViewport'
 import './App.css'
-
-function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 640)
-  useEffect(() => {
-    const fn = () => setIsMobile(window.innerWidth <= 640)
-    window.addEventListener('resize', fn)
-    return () => window.removeEventListener('resize', fn)
-  }, [])
-  return isMobile
-}
 
 const LS_KEY = 'ibp_connections'
 
@@ -50,7 +41,29 @@ export default function App() {
       const sapChanged = existing.hciUrl !== conn.hciUrl
         || existing.orgName !== conn.orgName
         || existing.isProduction !== conn.isProduction
-      if (sapChanged) sessionStorage.removeItem(`sap_${conn.id}`)
+      if (sapChanged) {
+        const oldSid = sessionStorage.getItem(`sap_${conn.id}`)
+        if (oldSid) {
+          // Invalidate the old SAP session server-side so any cached
+          // per-session metadata (agents, system configurations) is released
+          // before the next login binds a new sessionId to the new env.
+          fetch('/api/soap', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              connection: {
+                hciUrl:       existing.hciUrl,
+                orgName:      existing.orgName,
+                isProduction: existing.isProduction,
+              },
+              sessionId: oldSid,
+              operation: 'logout',
+              params: { sessionId: oldSid },
+            }),
+          }).catch(() => {})
+        }
+        sessionStorage.removeItem(`sap_${conn.id}`)
+      }
     }
     const updated = connections.map(c => c.id === conn.id ? conn : c)
     setConnections(updated)

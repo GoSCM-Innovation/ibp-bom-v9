@@ -22,6 +22,10 @@
   --sidebar-w: 220px;
   --sidebar-w-min: 52px;
   --header-h: 52px;
+  --pad-mobile: 12px;
+  --pad-desktop: 24px;
+  --tap-min: 44px;
+  --header-h-mobile: 56px;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -72,6 +76,7 @@ input, select, textarea { font-family: var(--font); }
 }
 
 @media (max-width: 640px) {
+  :root  { --header-h: var(--header-h-mobile); }
   body   { overflow: auto; }
   #root  { height: auto; min-height: 100vh; }
 

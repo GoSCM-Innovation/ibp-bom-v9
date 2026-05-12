@@ -16,7 +16,9 @@ async function soapCall(connection, sessionId, operation, params = {}) {
   return data
 }
 
-function DragChip({ task, style, fullscreen }) {
+function DragChip({ task, style, fullscreen, onPick }) {
+  const tapMode = typeof onPick === 'function'
+
   function onDragStart(e) {
     e.dataTransfer.effectAllowed = 'copy'
     e.dataTransfer.setData('application/x-orch-task', JSON.stringify({
@@ -26,25 +28,34 @@ function DragChip({ task, style, fullscreen }) {
     }))
   }
 
+  function handlePick() {
+    onPick?.({ taskName: task.taskName, taskGuid: task.taskGuid, type: task.type })
+  }
+
   const desc = task.description?.trim() || ''
   const hoverTitle = desc ? `${task.taskName}\n\n${desc}` : task.taskName
-  const showInlineDesc = fullscreen && desc
+  const showInlineDesc = (fullscreen || tapMode) && desc
 
   return (
     <div
-      draggable
-      onDragStart={onDragStart}
+      draggable={!tapMode}
+      onDragStart={tapMode ? undefined : onDragStart}
+      onClick={tapMode ? handlePick : undefined}
       title={hoverTitle}
       style={{
         display: 'flex', alignItems: showInlineDesc ? 'flex-start' : 'center', gap: 6,
-        padding: '5px 8px 5px 14px', cursor: 'grab',
+        padding: tapMode ? '10px 12px 10px 14px' : '5px 8px 5px 14px',
+        minHeight: tapMode ? 'var(--tap-min)' : undefined,
+        cursor: tapMode ? 'pointer' : 'grab',
         userSelect: 'none', transition: 'background .1s',
         ...style,
       }}
       onMouseEnter={e => e.currentTarget.style.background = 'var(--bg3)'}
       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
     >
-      <span style={{ fontSize: 9, color: 'var(--text3)', flexShrink: 0, marginTop: showInlineDesc ? 3 : 0 }}>⠿</span>
+      {!tapMode && (
+        <span style={{ fontSize: 9, color: 'var(--text3)', flexShrink: 0, marginTop: showInlineDesc ? 3 : 0 }}>⠿</span>
+      )}
       <span style={{
         fontSize: 8, fontWeight: 700, padding: '1px 5px', borderRadius: 8, flexShrink: 0,
         marginTop: showInlineDesc ? 2 : 0,
@@ -69,7 +80,16 @@ function DragChip({ task, style, fullscreen }) {
   )
 }
 
-export default function TaskPalette({ connection, sessionId, onAddGroup, collapsed = false, onToggle, fullscreen = false }) {
+export default function TaskPalette({
+  connection,
+  sessionId,
+  onAddGroup,
+  collapsed = false,
+  onToggle,
+  fullscreen = false,
+  mobile = false,
+  onPick = null,
+}) {
   const PINS_KEY = `ibp-palette-pins-${connection.id}`
 
   const [projects, setProjects]     = useState([])
@@ -160,6 +180,107 @@ export default function TaskPalette({ connection, sessionId, onAddGroup, collaps
     }
     return list
   })()
+
+  if (mobile) {
+    return (
+      <div style={{
+        display: 'flex', flexDirection: 'column', height: '100%',
+        background: 'var(--bg2)', color: 'var(--text)',
+      }}>
+        {/* Header */}
+        <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+          <input
+            type="text"
+            placeholder="Buscar proyectos o tasks…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            style={{
+              width: '100%', boxSizing: 'border-box',
+              background: 'var(--bg3)', border: '1px solid var(--border)',
+              borderRadius: 6, color: 'var(--text)', fontSize: 13,
+              padding: '9px 10px', outline: 'none',
+              minHeight: 'var(--tap-min)',
+            }}
+          />
+          {hasPins && (
+            <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+              <button
+                onClick={toggleFilterPinned}
+                style={{
+                  flex: 1, padding: '8px 10px', borderRadius: 6,
+                  background: filterPinned ? 'rgba(247,168,0,.15)' : 'var(--bg3)',
+                  border: filterPinned ? '1px solid rgba(247,168,0,.4)' : '1px solid var(--border)',
+                  color: filterPinned ? '#f7a800' : 'var(--text2)',
+                  cursor: 'pointer', fontSize: 12, minHeight: 'var(--tap-min)',
+                }}
+              >📌 {filterPinned ? 'Solo fijados' : `Filtrar (${pinnedGuids.size})`}</button>
+            </div>
+          )}
+        </div>
+
+        {/* Project tree */}
+        <div style={{ flex: 1, overflowY: 'auto' }}>
+          {loadingP ? (
+            <div style={{ padding: '16px 14px', fontSize: 13, color: 'var(--text2)' }}>Cargando proyectos…</div>
+          ) : visibleProjects.length === 0 ? (
+            <div style={{ padding: '16px 14px', fontSize: 13, color: 'var(--text3)' }}>
+              {filterPinned && hasPins ? 'Sin proyectos fijados coincidentes' : 'Sin proyectos'}
+            </div>
+          ) : visibleProjects.map(proj => {
+            const isExp        = !!expanded[proj.guid]
+            const isPinned     = pinnedGuids.has(proj.guid)
+            const projTasks    = tasks[proj.guid] || []
+            const isLoadingT   = !!loadingT[proj.guid]
+            const filteredTasks = search.trim()
+              ? projTasks.filter(t => t.taskName?.toLowerCase().includes(search.toLowerCase()))
+              : projTasks
+
+            return (
+              <div key={proj.guid} style={{ borderBottom: '1px solid var(--border)' }}>
+                <div
+                  onClick={() => toggleProject(proj)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    padding: '12px 14px', cursor: 'pointer',
+                    minHeight: 'var(--tap-min)',
+                    background: isExp ? 'rgba(247,168,0,.05)' : 'transparent',
+                  }}
+                >
+                  <span style={{ color: 'var(--text2)', fontSize: 18, width: 18, textAlign: 'center', flexShrink: 0 }}>
+                    {isLoadingT ? '…' : isExp ? '▾' : '▸'}
+                  </span>
+                  <span style={{
+                    fontSize: 13, fontWeight: 600, color: isExp ? 'var(--accent)' : 'var(--text)',
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
+                  }} title={proj.name}>{proj.name}</span>
+                  <button
+                    onClick={e => togglePin(e, proj.guid)}
+                    style={{
+                      background: 'none', border: 'none',
+                      color: isPinned ? '#f7a800' : 'var(--text3)',
+                      cursor: 'pointer', fontSize: 16, padding: 8,
+                      flexShrink: 0,
+                    }}
+                  >📌</button>
+                </div>
+
+                {isExp && (
+                  <div>
+                    {filteredTasks.length === 0 && !isLoadingT
+                      ? <div style={{ padding: '10px 22px', fontSize: 12, color: 'var(--text3)' }}>Sin tasks</div>
+                      : filteredTasks.map(t => (
+                        <DragChip key={t.taskGuid || t.taskName} task={t} style={{}} fullscreen={false} onPick={onPick} />
+                      ))
+                    }
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
 
   if (collapsed) {
     return (

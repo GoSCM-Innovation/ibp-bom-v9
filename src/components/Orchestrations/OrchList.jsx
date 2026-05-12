@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-export default function OrchList({ orchs, selectedId, onSelect, onCreate, onDuplicate, onDelete, onExport, onImportClick, connectionId, collapsed = false, onToggle }) {
+export default function OrchList({ orchs, selectedId, onSelect, onCreate, onDuplicate, onDelete, onExport, onImportClick, connectionId, collapsed = false, onToggle, mobile = false }) {
   const FAVS_KEY = `ibp-favs-${connectionId}`
   const [favs, setFavs] = useState(() => {
     try { return new Set(JSON.parse(localStorage.getItem(FAVS_KEY) || '[]')) } catch { return new Set() }
@@ -20,7 +20,7 @@ export default function OrchList({ orchs, selectedId, onSelect, onCreate, onDupl
     return af - bf
   })
 
-  if (collapsed) {
+  if (collapsed && !mobile) {
     return (
       <div
         onClick={onToggle}
@@ -41,23 +41,32 @@ export default function OrchList({ orchs, selectedId, onSelect, onCreate, onDupl
   }
 
   return (
-    <div style={{
+    <div style={mobile ? {
+      flex: 1, width: '100%',
+      display: 'flex', flexDirection: 'column', background: 'var(--bg)',
+    } : {
       width: 220, flexShrink: 0, borderRight: '1px solid var(--border)',
       display: 'flex', flexDirection: 'column', background: 'var(--bg2)',
     }}>
       <div style={{
-        padding: '12px 14px', borderBottom: '1px solid var(--border)',
+        padding: mobile ? '10px 14px' : '12px 14px',
+        borderBottom: '1px solid var(--border)',
+        background: 'var(--bg2)',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        flexShrink: 0,
       }}>
-        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+        <span style={{
+          fontSize: mobile ? 13 : 11, fontWeight: 700, color: mobile ? 'var(--text)' : 'var(--text2)',
+          textTransform: mobile ? 'none' : 'uppercase', letterSpacing: '0.06em',
+        }}>
           Orquestaciones
         </span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: mobile ? 4 : 2 }}>
           {onImportClick && (
             <button
               onClick={onImportClick}
               title="Importar orquestaciones desde archivo"
-              style={iconBtnStyle}
+              style={mobile ? mobileIconBtnStyle : iconBtnStyle}
             >↑</button>
           )}
           {onExport && (
@@ -65,17 +74,21 @@ export default function OrchList({ orchs, selectedId, onSelect, onCreate, onDupl
               onClick={onExport}
               disabled={orchs.length === 0}
               title={orchs.length === 0 ? 'No hay orquestaciones para exportar' : 'Exportar todas a archivo'}
-              style={{ ...iconBtnStyle, opacity: orchs.length === 0 ? 0.4 : 1, cursor: orchs.length === 0 ? 'not-allowed' : 'pointer' }}
+              style={{ ...(mobile ? mobileIconBtnStyle : iconBtnStyle), opacity: orchs.length === 0 ? 0.4 : 1, cursor: orchs.length === 0 ? 'not-allowed' : 'pointer' }}
             >↓</button>
           )}
-          <button onClick={onCreate} title="Nueva orquestación" style={{
+          <button onClick={onCreate} title="Nueva orquestación" style={mobile ? {
+            ...mobileIconBtnStyle, color: 'var(--accent)', fontSize: 22,
+          } : {
             background: 'none', border: 'none', color: 'var(--accent)',
             fontSize: 20, cursor: 'pointer', lineHeight: 1, padding: '0 2px',
           }}>+</button>
-          <button onClick={onToggle} title="Contraer panel" style={{
-            background: 'none', border: 'none', color: 'var(--text2)',
-            fontSize: 20, cursor: 'pointer', lineHeight: 1, padding: '0 2px',
-          }}>‹</button>
+          {!mobile && (
+            <button onClick={onToggle} title="Contraer panel" style={{
+              background: 'none', border: 'none', color: 'var(--text2)',
+              fontSize: 20, cursor: 'pointer', lineHeight: 1, padding: '0 2px',
+            }}>‹</button>
+          )}
         </div>
       </div>
 
@@ -93,11 +106,14 @@ export default function OrchList({ orchs, selectedId, onSelect, onCreate, onDupl
               key={o.id}
               onClick={() => onSelect(o.id)}
               style={{
-                padding: '9px 14px', cursor: 'pointer', fontSize: 12,
+                padding: mobile ? '14px 14px' : '9px 14px',
+                minHeight: mobile ? 'var(--tap-min)' : undefined,
+                cursor: 'pointer', fontSize: mobile ? 14 : 12,
                 background: selectedId === o.id ? 'var(--bg3)' : 'transparent',
                 borderLeft: selectedId === o.id ? '2px solid var(--accent)' : isFav ? '2px solid #f7a80066' : '2px solid transparent',
+                borderBottom: mobile ? '1px solid var(--border)' : undefined,
                 color: selectedId === o.id ? 'var(--text)' : 'var(--text2)',
-                display: 'flex', alignItems: 'center', gap: 4,
+                display: 'flex', alignItems: 'center', gap: mobile ? 8 : 4,
                 transition: 'all .1s',
               }}
             >
@@ -139,4 +155,13 @@ const iconBtnStyle = {
   background: 'none', border: 'none', color: 'var(--text2)',
   fontSize: 14, fontWeight: 700, cursor: 'pointer', lineHeight: 1,
   padding: '2px 6px', borderRadius: 4,
+}
+
+const mobileIconBtnStyle = {
+  background: 'var(--bg3)', border: '1px solid var(--border)',
+  color: 'var(--text2)', fontSize: 16, fontWeight: 700, cursor: 'pointer',
+  lineHeight: 1, padding: 0,
+  width: 'var(--tap-min)', height: 'var(--tap-min)',
+  borderRadius: 8,
+  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
 }

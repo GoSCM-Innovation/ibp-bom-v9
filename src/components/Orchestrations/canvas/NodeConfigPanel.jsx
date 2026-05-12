@@ -49,9 +49,10 @@ function initForm(data) {
   }
 }
 
-export default function NodeConfigPanel({ node, connection, sessionId, onUpdate, onClose }) {
+export default function NodeConfigPanel({ node, connection, sessionId, onUpdate, onClose, presentation = 'sidebar' }) {
   if (!node) return null
   const isGroup = node.type === 'orchGroup' || node.type === 'group'
+  const asSheet = presentation === 'sheet'
 
   const [form, setForm]             = useState(() => initForm(node.data))
   const [dirty, setDirty]           = useState(false)
@@ -176,27 +177,32 @@ export default function NodeConfigPanel({ node, connection, sessionId, onUpdate,
   const canAddVars = varsStatus === 'loaded' && taskVars.length > 0
 
   return (
-    <div style={{
+    <div style={asSheet ? {
+      width: '100%', display: 'flex', flexDirection: 'column',
+      background: 'transparent', color: 'var(--text)', height: '100%',
+    } : {
       width: 290, flexShrink: 0, borderLeft: '1px solid var(--border)',
       display: 'flex', flexDirection: 'column', background: 'var(--bg2)', overflow: 'hidden',
     }}>
-      {/* Header */}
-      <div style={{
-        padding: '12px 14px', borderBottom: '1px solid var(--border)',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0,
-      }}>
-        <div>
-          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>
-            {isGroup ? '⊞ Grupo' : '⬡ Task'}
+      {/* Header (hidden in sheet mode — the Sheet wrapper supplies it) */}
+      {!asSheet && (
+        <div style={{
+          padding: '12px 14px', borderBottom: '1px solid var(--border)',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0,
+        }}>
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>
+              {isGroup ? '⊞ Grupo' : '⬡ Task'}
+            </div>
+            <div style={{ fontSize: 10, color: 'var(--text3)', marginTop: 1, fontFamily: 'var(--mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 180 }}>
+              {node.data.taskName || node.data.label}
+            </div>
           </div>
-          <div style={{ fontSize: 10, color: 'var(--text3)', marginTop: 1, fontFamily: 'var(--mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 180 }}>
-            {node.data.taskName || node.data.label}
-          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text2)', fontSize: 18, cursor: 'pointer', lineHeight: 1 }}>×</button>
         </div>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text2)', fontSize: 18, cursor: 'pointer', lineHeight: 1 }}>×</button>
-      </div>
+      )}
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: 14 }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: asSheet ? 16 : 14 }}>
         {/* Label */}
         <Field label="Nombre visible">
           <input
