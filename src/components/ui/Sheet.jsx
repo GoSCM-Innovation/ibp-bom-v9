@@ -22,8 +22,6 @@ export default function Sheet({
     }
   }, [open, onClose])
 
-  // eslint-disable-next-line no-console
-  console.log('[ibp-picker] Sheet render', { open, mobile, title })
   if (!open) return null
   if (typeof document === 'undefined') return null
 

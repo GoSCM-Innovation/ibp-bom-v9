@@ -10,8 +10,6 @@ export default function MobileTaskPicker({
   onAddGroup,
   showGroupOption = true,
 }) {
-  // eslint-disable-next-line no-console
-  console.log('[ibp-picker] MobileTaskPicker render', { open, hasConnection: !!connection, sessionId })
   return (
     <Sheet open={open} onClose={onClose} title="Añadir paso" mobile>
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
