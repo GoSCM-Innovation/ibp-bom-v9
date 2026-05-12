@@ -85,6 +85,9 @@ export default function WizardEditor({
   const [selectedNodeId, setSelectedNodeId] = useState(null)
   const [picker, setPicker] = useState(null) // 'sequential' | 'parallel' | null
 
+  // eslint-disable-next-line no-console
+  console.log('[ibp-picker] WizardEditor render', { picker, isMobilePath: true, connId: connection?.id, sessionId })
+
   const rows = buildSteps(nodes, edges)
   const selectedNode = selectedNodeId ? nodes.find(n => n.id === selectedNodeId) : null
 
@@ -288,8 +291,16 @@ export default function WizardEditor({
             canUndo={cursor.canUndo}
             canClose={cursor.canClose}
             hasHead={hasHeadInCtx}
-            onAddSequential={() => setPicker('sequential')}
-            onAddParallel={() => setPicker('parallel')}
+            onAddSequential={() => {
+              // eslint-disable-next-line no-console
+              console.log('[ibp-picker] onAddSequential clicked, opening picker')
+              setPicker('sequential')
+            }}
+            onAddParallel={() => {
+              // eslint-disable-next-line no-console
+              console.log('[ibp-picker] onAddParallel clicked, opening picker')
+              setPicker('parallel')
+            }}
             onOpenBranch={() => cursor.openParallelBranch()}
             onCloseBranch={() => cursor.closeBranch()}
             onUndo={() => cursor.undo()}

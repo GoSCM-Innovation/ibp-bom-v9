@@ -182,9 +182,11 @@ export default function TaskPalette({
   })()
 
   if (mobile) {
+    // eslint-disable-next-line no-console
+    console.log('[ibp-picker] TaskPalette mobile render', { loadingP, projectsCount: projects.length, hasError: false })
     return (
       <div style={{
-        display: 'flex', flexDirection: 'column', height: '100%',
+        display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0,
         background: 'var(--bg2)', color: 'var(--text)',
       }}>
         {/* Header */}
