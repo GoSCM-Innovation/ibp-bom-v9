@@ -174,7 +174,7 @@ export default function Connections({ connections, onAdd, onUpdate, onDelete, on
   }
 
   return (
-    <div style={{ padding: 28, maxWidth: 900 }}>
+    <div style={{ padding: 'clamp(14px, 4vw, 28px)', maxWidth: 900 }}>
       {/* Title */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, gap: 12, flexWrap: 'wrap' }}>
         <div>
@@ -274,13 +274,15 @@ export default function Connections({ connections, onAdd, onUpdate, onDelete, on
         {connections.map(conn => (
           <div key={conn.id} style={{
             background: 'var(--bg2)', border: '1px solid var(--border)',
-            borderRadius: 10, padding: '16px 20px',
-            display: 'flex', alignItems: 'center', gap: 16,
+            borderRadius: 10, padding: '14px 16px',
+            display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap',
           }}>
             <ConnectionAvatar name={conn.name} logoUrl={conn.logoUrl} size={40} />
 
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 700, color: '#fff', fontSize: 14 }}>{conn.name} ({conn.isProduction ? 'Productivo' : 'Sandbox'})</div>
+            <div style={{ flex: '1 1 200px', minWidth: 0 }}>
+              <div style={{ fontWeight: 700, color: '#fff', fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {conn.name} <span style={{ color: 'var(--text2)', fontWeight: 500 }}>({conn.isProduction ? 'Productivo' : 'Sandbox'})</span>
+              </div>
               {conn.hciUrl && <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{conn.hciUrl}</div>}
             </div>
 
@@ -290,12 +292,17 @@ export default function Connections({ connections, onAdd, onUpdate, onDelete, on
                 background: testResult[conn.id] === 'ok' ? 'rgba(52,211,153,.15)' : 'rgba(255,107,107,.15)',
                 color: testResult[conn.id] === 'ok' ? 'var(--green)' : 'var(--red)',
                 border: `1px solid ${testResult[conn.id] === 'ok' ? 'rgba(52,211,153,.3)' : 'rgba(255,107,107,.3)'}`,
+                flexShrink: 0,
               }}>
                 {testResult[conn.id] === 'ok' ? '✓ Conectado' : '✕ Error'}
               </div>
             )}
 
-            <div style={{ display: 'flex', gap: 8, flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            <div style={{
+              display: 'flex', gap: 6, flexWrap: 'wrap',
+              justifyContent: 'flex-end',
+              flex: '1 1 auto',
+            }}>
               <button onClick={() => onSelect(conn.id)} style={btnStyle('var(--cyan)')}>Abrir</button>
               <button onClick={() => handleTest(conn)} style={btnStyle('var(--text2)')}>Probar</button>
               <button onClick={() => handleEdit(conn)} style={btnStyle('var(--text2)')}>Editar</button>

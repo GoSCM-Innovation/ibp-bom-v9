@@ -77,8 +77,8 @@ input, select, textarea { font-family: var(--font); }
 
 @media (max-width: 640px) {
   :root  { --header-h: var(--header-h-mobile); }
-  body   { overflow: auto; }
-  #root  { height: auto; min-height: 100vh; }
+  body   { overflow: hidden; }
+  #root  { height: 100vh; height: 100dvh; }
 
   .grid-kpi   { grid-template-columns: repeat(2, 1fr); }
   .grid-stats { grid-template-columns: 1fr; }
