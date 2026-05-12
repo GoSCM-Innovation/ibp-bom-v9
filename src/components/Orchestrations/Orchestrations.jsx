@@ -310,6 +310,7 @@ export default function Orchestrations({ connection, sessionId, onSessionExpired
 
         {showRunModal && (
           <RunModal
+            key={`run-${connection.id}-${sessionId || 'nosess'}`}
             connection={connection}
             sessionId={sessionId}
             orchNodes={selected?.nodes || []}
@@ -324,6 +325,7 @@ export default function Orchestrations({ connection, sessionId, onSessionExpired
 
         {runSingleNode && (
           <RunSingleModal
+            key={`single-${connection.id}-${sessionId || 'nosess'}-${runSingleNode.id}`}
             connection={connection}
             sessionId={sessionId}
             node={runSingleNode}
@@ -624,6 +626,7 @@ export default function Orchestrations({ connection, sessionId, onSessionExpired
 
       {showRunModal && (
         <RunModal
+          key={`run-${connection.id}-${sessionId || 'nosess'}`}
           connection={connection}
           sessionId={sessionId}
           orchNodes={selected?.nodes || []}
@@ -638,6 +641,7 @@ export default function Orchestrations({ connection, sessionId, onSessionExpired
 
       {runSingleNode && (
         <RunSingleModal
+          key={`single-${connection.id}-${sessionId || 'nosess'}-${runSingleNode.id}`}
           connection={connection}
           sessionId={sessionId}
           node={runSingleNode}

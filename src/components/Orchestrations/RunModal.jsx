@@ -107,11 +107,28 @@ export default function RunModal({ connection, sessionId, orchNodes = [], onConf
   // Load agents + system configs
   useEffect(() => {
     async function load() {
+      // eslint-disable-next-line no-console
+      console.log('[ibp-runmodal-debug] mount/load', {
+        connId: connection?.id,
+        hciUrl: connection?.hciUrl,
+        orgName: connection?.orgName,
+        isProduction: connection?.isProduction,
+        sessionId,
+      })
       try {
         const [agentGroups, profs] = await Promise.all([
           soapCall(connection, sessionId, 'getAgents', { activeOnly: false }),
           soapCall(connection, sessionId, 'getSystemConfigurations'),
         ])
+        // eslint-disable-next-line no-console
+        console.log('[ibp-runmodal-debug] response', {
+          isProduction: connection?.isProduction,
+          sessionId,
+          agentGroupsCount: Array.isArray(agentGroups) ? agentGroups.length : 'not-array',
+          configsCount:     Array.isArray(profs) ? profs.length : 'not-array',
+          firstAgent:       Array.isArray(agentGroups) && agentGroups[0]?.agents?.[0]?.name,
+          firstConfig:      Array.isArray(profs) && profs[0]?.name,
+        })
         setRawAgents(agentGroups)
         setRawConfigs(profs)
         const flat = (Array.isArray(agentGroups) ? agentGroups : [])
@@ -120,6 +137,8 @@ export default function RunModal({ connection, sessionId, orchNodes = [], onConf
         setConfigs(Array.isArray(profs) ? profs : [])
         if (flat.length === 0) setUseManual(true)
       } catch (e) {
+        // eslint-disable-next-line no-console
+        console.log('[ibp-runmodal-debug] error', e.message)
         setError(e.message)
         setUseManual(true)
       } finally {
