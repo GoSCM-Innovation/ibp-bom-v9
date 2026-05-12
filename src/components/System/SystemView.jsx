@@ -26,7 +26,7 @@ export default function SystemView({ connection, onLoginCancel }) {
     setSessionId(sid)
     setShowLogin(!sid)
     setSessionExpired(false)
-  }, [connection.id])
+  }, [connection.id, connection.hciUrl, connection.orgName, connection.isProduction])
 
   function handleLoginSuccess(sid) {
     sessionStorage.setItem(`sap_${connection.id}`, sid)

@@ -45,6 +45,13 @@ export default function App() {
   }
 
   function updateConnection(conn) {
+    const existing = connections.find(c => c.id === conn.id)
+    if (existing) {
+      const sapChanged = existing.hciUrl !== conn.hciUrl
+        || existing.orgName !== conn.orgName
+        || existing.isProduction !== conn.isProduction
+      if (sapChanged) sessionStorage.removeItem(`sap_${conn.id}`)
+    }
     const updated = connections.map(c => c.id === conn.id ? conn : c)
     setConnections(updated)
     persistConnections(updated)
