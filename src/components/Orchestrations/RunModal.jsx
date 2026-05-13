@@ -96,10 +96,7 @@ export default function RunModal({ connection, sessionId, orchNodes = [], onConf
     setGlobalVariables(v => v.map((row, j) => {
       if (j !== i) return row
       const next = { ...row, [field]: val }
-      if (field === 'name') {
-        const av = availableVars.find(a => a.name === val)
-        next.value = av?.defaultValue ?? ''
-      }
+      if (field === 'name') next.value = ''
       return next
     }))
   }
@@ -169,8 +166,10 @@ export default function RunModal({ connection, sessionId, orchNodes = [], onConf
         }
         const merged = [...seen.values()]
         setAvailableVars(merged)
-        // Pre-populate all known vars with their SAP default values
-        setGlobalVariables(merged.map(v => ({ name: v.name, value: v.defaultValue ?? '' })))
+        // Pre-populate variable NAMES with empty values: an empty value means
+        // "don't override" — each node falls back to its own configured value,
+        // and if the node has none, SAP uses the system default.
+        setGlobalVariables(merged.map(v => ({ name: v.name, value: '' })))
         setVarsStatus(merged.length > 0 ? 'loaded' : 'loaded')
       })
       .catch(() => { if (!cancelled) setVarsStatus('error') })
@@ -183,7 +182,7 @@ export default function RunModal({ connection, sessionId, orchNodes = [], onConf
     if (!label) return
     const agent  = useManual ? manualAgent.trim()  : selectedAgent
     const config = useManual ? manualConfig.trim() : selectedConfig
-    const vars   = globalVariables.filter(v => v.name.trim())
+    const vars   = globalVariables.filter(v => v.name.trim() && v.value !== '')
     const next = [...presets, { id: crypto.randomUUID(), label, agentName: agent || null, profileName: config || null, globalVariables: vars }]
     setPresets(next)
     localStorage.setItem(PRESETS_KEY, JSON.stringify(next))
@@ -199,7 +198,9 @@ export default function RunModal({ connection, sessionId, orchNodes = [], onConf
   function handleConfirm() {
     const agent  = useManual ? (manualAgent.trim() || null)  : (selectedAgent  || null)
     const config = useManual ? (manualConfig.trim() || null) : (selectedConfig || null)
-    const vars   = globalVariables.filter(v => v.name.trim())
+    // Only send variables with a non-empty value. Empty rows mean
+    // "no override" — node value or SAP default will be used.
+    const vars   = globalVariables.filter(v => v.name.trim() && v.value !== '')
     onConfirm(agent, config, vars)
   }
 
@@ -390,7 +391,7 @@ export default function RunModal({ connection, sessionId, orchNodes = [], onConf
                       style={{ ...inputStyle, flex: 1, padding: '6px 8px' }}
                       value={v.value}
                       onChange={e => patchGlobalVar(i, 'value', e.target.value)}
-                      placeholder={availableVars.find(a => a.name === v.name)?.defaultValue || 'valor'}
+                      placeholder="vacío = usar valor del nodo"
                       disabled={varsStatus === 'loading'}
                     />
                     <button onClick={() => removeGlobalVar(i)} style={{
@@ -402,7 +403,8 @@ export default function RunModal({ connection, sessionId, orchNodes = [], onConf
 
                 {globalVariables.length > 0 && (
                   <div style={{ fontSize: 9, color: 'var(--text3)', lineHeight: 1.5, marginTop: 4 }}>
-                    Variables definidas aquí tienen prioridad sobre las del task individual (merge por nombre).
+                    Si escribes un valor, se aplica a TODOS los nodos que usen esa variable (pisa lo del nodo).
+                    Si lo dejas vacío, cada nodo usa el valor configurado en su panel; si tampoco tiene, SAP usa el default del sistema.
                   </div>
                 )}
               </div>
