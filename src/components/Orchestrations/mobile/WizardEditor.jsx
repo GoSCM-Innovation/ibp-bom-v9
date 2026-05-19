@@ -6,6 +6,7 @@ import WizardStep from './WizardStep'
 import MobileTaskPicker from './MobileTaskPicker'
 import NodeConfigPanel from '../canvas/NodeConfigPanel'
 import Sheet from '../../ui/Sheet'
+import { createPortal } from 'react-dom'
 
 function buildSteps(nodes, edges) {
   function buildContext(parentId, depth, parentBadge) {
@@ -84,6 +85,7 @@ export default function WizardEditor({
 
   const [selectedNodeId, setSelectedNodeId] = useState(null)
   const [picker, setPicker] = useState(null) // 'sequential' | 'parallel' | null
+  const [actionsOpen, setActionsOpen] = useState(false)
 
   const rows = buildSteps(nodes, edges)
   const selectedNode = selectedNodeId ? nodes.find(n => n.id === selectedNodeId) : null
@@ -218,7 +220,7 @@ export default function WizardEditor({
       )}
 
       {/* Steps list */}
-      <div style={{ flex: 1, overflowY: 'auto' }}>
+      <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 96 }}>
         {rows.length === 0 ? (
           <div style={{
             padding: '40px 20px', textAlign: 'center',
@@ -226,7 +228,7 @@ export default function WizardEditor({
           }}>
             <div style={{ fontSize: 36, opacity: .35, marginBottom: 10 }}>⚙</div>
             Sin pasos todavía.<br />
-            Tocá <b>Añadir task siguiente</b> abajo para empezar.
+            Tocá el botón <b>+</b> para empezar.
           </div>
         ) : (
           <>
@@ -259,7 +261,6 @@ export default function WizardEditor({
                   badge={r.badge}
                   isParallel={r.isParallel}
                   depth={r.depth}
-                  groupMode={node.data?.groupMode}
                   statusColor={statusColor}
                   cursorAfter={i === cursorRowIndex}
                   onTap={isRunning ? undefined : () => {
@@ -277,36 +278,54 @@ export default function WizardEditor({
         )}
       </div>
 
-      {/* Actions */}
-      {!isRunning && (
-        <div style={{
-          padding: 14, borderTop: '1px solid var(--border)',
-          background: 'var(--bg2)', flexShrink: 0,
-          maxHeight: '52vh', overflowY: 'auto',
-        }}>
-          <WizardActions
-            canUndo={cursor.canUndo}
-            canClose={cursor.canClose}
-            hasHead={hasHeadInCtx}
-            onAddSequential={() => setPicker('sequential')}
-            onAddParallel={() => setPicker('parallel')}
-            onOpenBranch={() => cursor.openParallelBranch()}
-            onCloseBranch={() => cursor.closeBranch()}
-            onUndo={() => cursor.undo()}
-          />
-        </div>
+      {/* Floating Action Button (FAB) — open actions menu */}
+      {!isRunning && createPortal(
+        <button
+          onClick={() => setActionsOpen(true)}
+          aria-label="Añadir paso"
+          style={{
+            position: 'fixed', right: 18, bottom: 22, zIndex: 900,
+            width: 56, height: 56, borderRadius: '50%',
+            border: 'none', background: 'var(--accent)', color: 'var(--bg)',
+            fontSize: 30, fontWeight: 300, lineHeight: 1, cursor: 'pointer',
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 8px 24px rgba(247,168,0,.45), 0 2px 8px rgba(0,0,0,.35)',
+            transition: 'transform .12s',
+          }}
+          onTouchStart={e => e.currentTarget.style.transform = 'scale(.94)'}
+          onTouchEnd={e => e.currentTarget.style.transform = 'scale(1)'}
+        >+</button>,
+        document.body
       )}
+
+      {/* Actions bottom sheet */}
+      <Sheet
+        open={actionsOpen}
+        onClose={() => setActionsOpen(false)}
+        title="Añadir paso"
+        mobile
+      >
+        <WizardActions
+          canUndo={cursor.canUndo}
+          canClose={cursor.canClose}
+          hasHead={hasHeadInCtx}
+          onAddSequential={() => { setActionsOpen(false); setPicker('sequential') }}
+          onAddParallel={()  => { setActionsOpen(false); setPicker('parallel') }}
+          onAddGroup={()     => { setActionsOpen(false); cursor.openGroup() }}
+          onCloseBranch={()  => { setActionsOpen(false); cursor.closeBranch() }}
+          onUndo={()         => { setActionsOpen(false); cursor.undo() }}
+        />
+      </Sheet>
 
       <MobileTaskPicker
         open={!!picker}
         onClose={() => setPicker(null)}
         connection={connection}
         sessionId={sessionId}
-        showGroupOption={picker === 'sequential'}
-        onAddGroup={() => cursor.openParallelBranch()}
-        onPickTask={(t) => {
-          if (picker === 'parallel') cursor.addTaskParallel(t)
-          else cursor.addTaskSequential(t)
+        mode={picker === 'parallel' ? 'parallel' : 'sequential'}
+        onConfirm={(tasks) => {
+          if (picker === 'parallel') cursor.addTasksParallel(tasks)
+          else cursor.addTasksSequential(tasks)
         }}
       />
 

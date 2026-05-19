@@ -71,15 +71,14 @@ function makeTaskNode(parentCtx, taskData) {
   }
 }
 
-function makeGroupNode(parentCtx, mode = 'parallel') {
+function makeGroupNode(parentCtx) {
   return {
     id: makeId('group'),
     type: 'group',
     position: { x: 0, y: 0 },
     ...(parentCtx ? { parentId: parentCtx, extent: 'parent' } : {}),
     data: {
-      label: mode === 'parallel' ? 'Grupo paralelo' : 'Grupo',
-      groupMode: mode,
+      label: 'Grupo',
     },
     style: { width: 320, height: 200 },
   }
@@ -112,30 +111,35 @@ export function useBuildCursor({ nodes, edges, onChange }) {
     lastLeafRef.current = reconstructLastLeaf(newNodes, newEdges)
   }
 
-  function addTaskSequential(taskData) {
+  function addTasksSequential(taskList) {
+    const list = Array.isArray(taskList) ? taskList : [taskList]
+    if (list.length === 0) return
     pushUndo()
     const ctx = currentContext
-    const node = makeTaskNode(ctx, taskData)
-    const prev = lastLeafRef.current.get(ctx)
-    const newNodes = [...nodes, node]
-    const newEdges = prev
-      ? [...edges, { id: `e_${prev}_${node.id}`, source: prev, target: node.id }]
-      : edges.slice()
+    const newTaskNodes = list.map(t => makeTaskNode(ctx, t))
+    const newNodes = [...nodes, ...newTaskNodes]
+    const newEdges = edges.slice()
+    let prev = lastLeafRef.current.get(ctx)
+    for (const node of newTaskNodes) {
+      if (prev) newEdges.push({ id: `e_${prev}_${node.id}`, source: prev, target: node.id })
+      prev = node.id
+    }
     commit(newNodes, newEdges)
   }
 
-  function addTaskParallel(taskData) {
+  function addTasksParallel(taskList) {
+    const list = Array.isArray(taskList) ? taskList : [taskList]
+    if (list.length === 0) return
     pushUndo()
     const ctx = currentContext
-    const node = makeTaskNode(ctx, taskData)
-    const newNodes = [...nodes, node]
-    commit(newNodes, edges.slice())
+    const newTaskNodes = list.map(t => makeTaskNode(ctx, t))
+    commit([...nodes, ...newTaskNodes], edges.slice())
   }
 
-  function openParallelBranch() {
+  function openGroup() {
     pushUndo()
     const ctx = currentContext
-    const group = makeGroupNode(ctx, 'parallel')
+    const group = makeGroupNode(ctx)
     const prev = lastLeafRef.current.get(ctx)
     const newNodes = [...nodes, group]
     const newEdges = prev
@@ -175,9 +179,9 @@ export function useBuildCursor({ nodes, edges, onChange }) {
   return {
     cursorPath,
     currentContext,
-    addTaskSequential,
-    addTaskParallel,
-    openParallelBranch,
+    addTasksSequential,
+    addTasksParallel,
+    openGroup,
     closeBranch,
     undo,
     canUndo: undoCount > 0,

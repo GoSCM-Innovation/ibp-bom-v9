@@ -4,74 +4,75 @@ export default function WizardActions({
   hasHead,
   onAddSequential,
   onAddParallel,
-  onOpenBranch,
+  onAddGroup,
   onCloseBranch,
   onUndo,
 }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <div style={{
-        fontSize: 11, fontWeight: 700, color: 'var(--text2)',
-        textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 2,
-      }}>
-        ¿Qué hacés ahora?
-      </div>
-
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
       <ActionButton
         icon="➕" iconColor="var(--accent)"
-        label="Añadir task siguiente"
+        label="Añadir task"
+        sublabel="Sigue después del último paso"
         onClick={onAddSequential}
       />
       <ActionButton
         icon="∥" iconColor="var(--cyan)"
         label="Añadir task en paralelo"
+        sublabel={hasHead ? 'Corre junto al paso anterior' : 'Primero agregá un paso secuencial'}
         disabled={!hasHead}
-        title={hasHead ? 'Se ejecuta en paralelo con el paso anterior' : 'Primero agregá un paso secuencial'}
         onClick={onAddParallel}
       />
       <ActionButton
         icon="⊞" iconColor="var(--purple)"
-        label="Abrir rama paralela (grupo)"
-        onClick={onOpenBranch}
+        label="Nuevo grupo"
+        sublabel="Contenedor para organizar tasks"
+        onClick={onAddGroup}
       />
-      <ActionButton
-        icon="↗" iconColor="var(--text2)"
-        label="Cerrar rama actual"
-        disabled={!canClose}
-        onClick={onCloseBranch}
-      />
-      <ActionButton
-        icon="↺" iconColor="var(--text2)"
-        label="Deshacer último paso"
-        disabled={!canUndo}
-        onClick={onUndo}
-      />
+      {canClose && (
+        <ActionButton
+          icon="↗" iconColor="var(--text2)"
+          label="Cerrar grupo actual"
+          sublabel="Vuelve al contexto superior"
+          onClick={onCloseBranch}
+        />
+      )}
+      {canUndo && (
+        <ActionButton
+          icon="↺" iconColor="var(--text2)"
+          label="Deshacer último paso"
+          onClick={onUndo}
+        />
+      )}
     </div>
   )
 }
 
-function ActionButton({ icon, iconColor, label, onClick, disabled = false, title }) {
+function ActionButton({ icon, iconColor, label, sublabel, onClick, disabled = false }) {
   return (
     <button
       onClick={onClick}
       disabled={disabled}
-      title={title}
       style={{
-        display: 'flex', alignItems: 'center', gap: 12,
-        width: '100%', padding: '14px 16px', borderRadius: 10,
+        display: 'flex', alignItems: 'center', gap: 14,
+        width: '100%', padding: '14px 16px',
         fontSize: 14, fontWeight: 600, textAlign: 'left',
         minHeight: 'var(--tap-min)',
-        border: '1px solid var(--border)',
-        background: 'var(--bg3)', color: 'var(--text)',
+        border: 'none', borderBottom: '1px solid var(--border)',
+        background: 'transparent', color: 'var(--text)',
         cursor: disabled ? 'default' : 'pointer',
-        opacity: disabled ? 0.4 : 1,
-        transition: 'background .12s',
+        opacity: disabled ? 0.45 : 1,
       }}
     >
       <span style={{
-        fontSize: 18, color: iconColor, width: 22, textAlign: 'center', flexShrink: 0,
+        fontSize: 20, color: iconColor, width: 28, textAlign: 'center', flexShrink: 0,
       }}>{icon}</span>
-      <span style={{ flex: 1 }}>{label}</span>
+      <span style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <span>{label}</span>
+        {sublabel && (
+          <span style={{ fontSize: 11, color: 'var(--text2)', fontWeight: 400 }}>{sublabel}</span>
+        )}
+      </span>
     </button>
   )
 }

@@ -16,8 +16,8 @@ async function soapCall(connection, sessionId, operation, params = {}) {
   return data
 }
 
-function DragChip({ task, style, fullscreen, onPick }) {
-  const tapMode = typeof onPick === 'function'
+function DragChip({ task, style, fullscreen, onPick, selectable = false, selected = false, onToggleSelect }) {
+  const tapMode = typeof onPick === 'function' || selectable
 
   function onDragStart(e) {
     e.dataTransfer.effectAllowed = 'copy'
@@ -28,8 +28,10 @@ function DragChip({ task, style, fullscreen, onPick }) {
     }))
   }
 
-  function handlePick() {
-    onPick?.({ taskName: task.taskName, taskGuid: task.taskGuid, type: task.type })
+  function handleTap() {
+    const payload = { taskName: task.taskName, taskGuid: task.taskGuid, type: task.type }
+    if (selectable) onToggleSelect?.(payload)
+    else onPick?.(payload)
   }
 
   const desc = task.description?.trim() || ''
@@ -40,19 +42,30 @@ function DragChip({ task, style, fullscreen, onPick }) {
     <div
       draggable={!tapMode}
       onDragStart={tapMode ? undefined : onDragStart}
-      onClick={tapMode ? handlePick : undefined}
+      onClick={tapMode ? handleTap : undefined}
       title={hoverTitle}
       style={{
-        display: 'flex', alignItems: showInlineDesc ? 'flex-start' : 'center', gap: 6,
+        display: 'flex', alignItems: showInlineDesc ? 'flex-start' : 'center', gap: 8,
         padding: tapMode ? '10px 12px 10px 14px' : '5px 8px 5px 14px',
         minHeight: tapMode ? 'var(--tap-min)' : undefined,
         cursor: tapMode ? 'pointer' : 'grab',
         userSelect: 'none', transition: 'background .1s',
+        background: selected ? 'rgba(247,168,0,.10)' : 'transparent',
         ...style,
       }}
-      onMouseEnter={e => e.currentTarget.style.background = 'var(--bg3)'}
-      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+      onMouseEnter={e => { if (!selected) e.currentTarget.style.background = 'var(--bg3)' }}
+      onMouseLeave={e => { if (!selected) e.currentTarget.style.background = 'transparent' }}
     >
+      {selectable && (
+        <span style={{
+          width: 18, height: 18, borderRadius: 4, flexShrink: 0,
+          marginTop: showInlineDesc ? 2 : 0,
+          border: `1.5px solid ${selected ? 'var(--accent)' : 'var(--text3)'}`,
+          background: selected ? 'var(--accent)' : 'transparent',
+          color: 'var(--bg)', fontSize: 13, fontWeight: 700, lineHeight: '15px',
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        }}>{selected ? '✓' : ''}</span>
+      )}
       {!tapMode && (
         <span style={{ fontSize: 9, color: 'var(--text3)', flexShrink: 0, marginTop: showInlineDesc ? 3 : 0 }}>⠿</span>
       )}
@@ -89,6 +102,9 @@ export default function TaskPalette({
   fullscreen = false,
   mobile = false,
   onPick = null,
+  selectable = false,
+  selectedKeys = null,
+  onToggleSelect = null,
 }) {
   const PINS_KEY = `ibp-palette-pins-${connection.id}`
 
@@ -270,9 +286,22 @@ export default function TaskPalette({
                   <div>
                     {filteredTasks.length === 0 && !isLoadingT
                       ? <div style={{ padding: '10px 22px', fontSize: 12, color: 'var(--text3)' }}>Sin tasks</div>
-                      : filteredTasks.map(t => (
-                        <DragChip key={t.taskGuid || t.taskName} task={t} style={{}} fullscreen={false} onPick={onPick} />
-                      ))
+                      : filteredTasks.map(t => {
+                        const key = t.taskGuid || t.taskName
+                        const isSelected = selectable && selectedKeys ? selectedKeys.has(key) : false
+                        return (
+                          <DragChip
+                            key={key}
+                            task={t}
+                            style={{}}
+                            fullscreen={false}
+                            onPick={selectable ? null : onPick}
+                            selectable={selectable}
+                            selected={isSelected}
+                            onToggleSelect={onToggleSelect}
+                          />
+                        )
+                      })
                     }
                   </div>
                 )}

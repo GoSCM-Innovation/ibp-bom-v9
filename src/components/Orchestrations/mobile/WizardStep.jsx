@@ -11,7 +11,6 @@ export default function WizardStep({
   badge,
   isParallel = false,
   depth = 0,
-  groupMode,
   statusColor = null,
   cursorAfter = false,
   onTap,
@@ -110,19 +109,19 @@ export default function WizardStep({
 
         {isGroupOpen ? (
           <>
-            <span style={{ fontSize: 16, color: 'var(--cyan)' }}>⊞</span>
+            {isParallel && (
+              <span style={{
+                fontSize: 13, color: 'var(--cyan)', fontWeight: 700,
+                fontFamily: 'var(--mono)', flexShrink: 0,
+              }} title="Paralelo con el paso anterior">∥</span>
+            )}
+            <span style={{ fontSize: 16, color: 'var(--purple)' }}>⊞</span>
             <span style={{
               flex: 1, fontSize: 14, color: 'var(--text)', fontWeight: 600,
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             }}>
               {label} <span style={{ color: 'var(--text3)', fontFamily: 'var(--mono)' }}>{'{'}</span>
             </span>
-            <span style={{
-              fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 8,
-              background: 'rgba(139,92,246,.15)', color: 'var(--purple)',
-              border: '1px solid rgba(139,92,246,.3)',
-              textTransform: 'uppercase', flexShrink: 0,
-            }}>{groupMode || 'parallel'}</span>
             <span style={{ fontSize: 16, color: 'var(--text3)' }}>›</span>
           </>
         ) : (
