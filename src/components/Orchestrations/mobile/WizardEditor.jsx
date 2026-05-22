@@ -220,7 +220,7 @@ export default function WizardEditor({
       )}
 
       {/* Steps list */}
-      <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 96 }}>
+      <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 12 }}>
         {rows.length === 0 ? (
           <div style={{
             padding: '40px 20px', textAlign: 'center',
@@ -278,23 +278,42 @@ export default function WizardEditor({
         )}
       </div>
 
-      {/* Floating Action Button (FAB) — open actions menu */}
+      {/* Floating Action Buttons — undo + main "+" */}
       {!isRunning && createPortal(
-        <button
-          onClick={() => setActionsOpen(true)}
-          aria-label="Añadir paso"
-          style={{
-            position: 'fixed', right: 18, bottom: 22, zIndex: 900,
-            width: 56, height: 56, borderRadius: '50%',
-            border: 'none', background: 'var(--accent)', color: 'var(--bg)',
-            fontSize: 30, fontWeight: 300, lineHeight: 1, cursor: 'pointer',
-            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 8px 24px rgba(247,168,0,.45), 0 2px 8px rgba(0,0,0,.35)',
-            transition: 'transform .12s',
-          }}
-          onTouchStart={e => e.currentTarget.style.transform = 'scale(.94)'}
-          onTouchEnd={e => e.currentTarget.style.transform = 'scale(1)'}
-        >+</button>,
+        <div style={{
+          position: 'fixed', right: 16, bottom: 18, zIndex: 900,
+          display: 'flex', alignItems: 'center', gap: 10,
+        }}>
+          {cursor.canUndo && (
+            <button
+              onClick={() => cursor.undo()}
+              aria-label="Deshacer"
+              title="Deshacer último paso"
+              style={{
+                width: 44, height: 44, borderRadius: '50%',
+                border: '1px solid var(--border)',
+                background: 'var(--bg2)', color: 'var(--text)',
+                fontSize: 18, lineHeight: 1, cursor: 'pointer',
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 4px 12px rgba(0,0,0,.35)',
+              }}
+            >↺</button>
+          )}
+          <button
+            onClick={() => setActionsOpen(true)}
+            aria-label="Añadir paso"
+            style={{
+              width: 56, height: 56, borderRadius: '50%',
+              border: 'none', background: 'var(--accent)', color: 'var(--bg)',
+              fontSize: 30, fontWeight: 300, lineHeight: 1, cursor: 'pointer',
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 8px 24px rgba(247,168,0,.45), 0 2px 8px rgba(0,0,0,.35)',
+              transition: 'transform .12s',
+            }}
+            onTouchStart={e => e.currentTarget.style.transform = 'scale(.94)'}
+            onTouchEnd={e => e.currentTarget.style.transform = 'scale(1)'}
+          >+</button>
+        </div>,
         document.body
       )}
 

@@ -86,6 +86,7 @@ export default function SystemView({ connection, onLoginCancel }) {
       <div style={{
         display: 'flex', gap: 0, borderBottom: '1px solid var(--border)',
         background: 'var(--bg2)', padding: '0 16px', flexShrink: 0, alignItems: 'center',
+        overflowX: 'auto', maxWidth: '100%',
       }}>
         {headerCollapsed && (
           <button

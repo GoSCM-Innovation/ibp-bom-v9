@@ -1,6 +1,32 @@
 const W = 220
 const W_MIN = 52
 
+const AVATAR_COLORS = [
+  '#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B',
+  '#10B981', '#EF4444', '#06B6D4', '#F97316',
+]
+function colorFor(name = '') {
+  let hash = 0
+  for (const c of name) hash = (hash * 31 + c.charCodeAt(0)) & 0xffffffff
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]
+}
+function initials(name = '') {
+  const base = name.trim().replace(/\s*\([^)]*\)\s*$/, '').trim()
+  const words = base.split(/\s+/).filter(Boolean)
+  if (words.length === 0) return name.slice(0, 2).toUpperCase()
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase()
+  return words.slice(0, 2).map(w => w[0]?.toUpperCase() || '').join('')
+}
+function envDotColor(name = '') {
+  const match = name.trim().match(/\(([^)]+)\)\s*$/)
+  if (!match) return null
+  const env = match[1].trim()
+  if (/calidad/i.test(env)) return '#F59E0B'
+  if (/producci[oó]n/i.test(env)) return '#3B82F6'
+  if (/desarrollo/i.test(env)) return '#8B5CF6'
+  return '#6B7280'
+}
+
 export default function Sidebar({ connections, activeId, onSelect, expanded, onToggle, loading, isMobile = false, mobileOpen = false }) {
   const w = expanded ? W : W_MIN
 
@@ -69,18 +95,39 @@ export default function Sidebar({ connections, activeId, onSelect, expanded, onT
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {loading
           ? expanded && <div style={{ padding: '10px 14px', fontSize: 11, color: 'var(--text3)' }}>Cargando...</div>
-          : connections.map((c, idx) => (
-            <SidebarItem
-              key={c.id}
-              id={c.id}
-              label={`${c.name} (${c.isProduction ? 'Productivo' : 'Sandbox'})`}
-              icon={String(idx + 1)}
-              numberIcon
-              active={activeId === c.id}
-              expanded={expanded}
-              onClick={() => onSelect(c.id)}
-            />
-          ))
+          : connections.map((c, idx) => {
+            if (isMobile) {
+              const hasSession = !!sessionStorage.getItem(`sap_${c.id}`)
+              return (
+                <SidebarItem
+                  key={c.id}
+                  id={c.id}
+                  label={c.name}
+                  icon={initials(c.name)}
+                  iconColor={colorFor(c.name)}
+                  envColor={envDotColor(c.name)}
+                  numberIcon
+                  avatarStyle
+                  active={activeId === c.id}
+                  expanded={expanded}
+                  onClick={() => onSelect(c.id)}
+                  sessionStatus={hasSession ? 'online' : 'offline'}
+                />
+              )
+            }
+            return (
+              <SidebarItem
+                key={c.id}
+                id={c.id}
+                label={`${c.name} (${c.isProduction ? 'Productivo' : 'Sandbox'})`}
+                icon={String(idx + 1)}
+                numberIcon
+                active={activeId === c.id}
+                expanded={expanded}
+                onClick={() => onSelect(c.id)}
+              />
+            )
+          })
         }
       </div>
 
@@ -100,7 +147,7 @@ export default function Sidebar({ connections, activeId, onSelect, expanded, onT
   )
 }
 
-function SidebarItem({ label, icon, numberIcon, active, expanded, onClick, accent }) {
+function SidebarItem({ label, icon, iconColor, envColor, sessionStatus, numberIcon, avatarStyle, active, expanded, onClick }) {
   return (
     <button onClick={onClick} style={{
       width: '100%', display: 'flex', alignItems: 'center',
@@ -119,7 +166,35 @@ function SidebarItem({ label, icon, numberIcon, active, expanded, onClick, accen
       title={!expanded ? label : undefined}
     >
       {/* Icon */}
-      {numberIcon ? (
+      {numberIcon && avatarStyle ? (
+        <span style={{
+          width: 26, height: 26, borderRadius: 6, flexShrink: 0,
+          background: active ? iconColor : `${iconColor}33`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 10, fontWeight: 700,
+          color: active ? '#fff' : iconColor,
+          position: 'relative',
+          transition: 'background .15s',
+        }}>
+          {icon}
+          {envColor && (
+            <span style={{
+              position: 'absolute', top: -2, right: -2,
+              width: 7, height: 7, borderRadius: '50%',
+              background: envColor,
+              border: '1.5px solid var(--bg2)',
+            }} />
+          )}
+          {sessionStatus && (
+            <span style={{
+              position: 'absolute', bottom: -2, right: -2,
+              width: 7, height: 7, borderRadius: '50%',
+              background: sessionStatus === 'online' ? '#34d399' : 'var(--text3)',
+              border: '1.5px solid var(--bg2)',
+            }} />
+          )}
+        </span>
+      ) : numberIcon ? (
         <span style={{
           width: 22, height: 22, borderRadius: '50%',
           background: active ? 'rgba(247,168,0,.2)' : 'rgba(255,255,255,.08)',
@@ -132,7 +207,10 @@ function SidebarItem({ label, icon, numberIcon, active, expanded, onClick, accen
         <span style={{ fontSize: 14, flexShrink: 0, width: 22, textAlign: 'center' }}>{icon}</span>
       )}
       {expanded && (
-        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{label}</span>
+      )}
+      {expanded && sessionStatus === 'offline' && (
+        <span style={{ fontSize: 9, color: 'var(--text3)', flexShrink: 0 }}>🔒</span>
       )}
     </button>
   )
