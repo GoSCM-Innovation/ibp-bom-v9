@@ -207,7 +207,20 @@ function SidebarItem({ label, icon, iconColor, envColor, sessionStatus, numberIc
         <span style={{ fontSize: 14, flexShrink: 0, width: 22, textAlign: 'center' }}>{icon}</span>
       )}
       {expanded && (
-        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{label}</span>
+        <span style={avatarStyle ? {
+          flex: 1,
+          overflow: 'hidden',
+          display: '-webkit-box',
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: 'vertical',
+          wordBreak: 'break-word',
+          lineHeight: 1.3,
+        } : {
+          flex: 1,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}>{label}</span>
       )}
       {expanded && sessionStatus === 'offline' && (
         <span style={{ fontSize: 9, color: 'var(--text3)', flexShrink: 0 }}>🔒</span>
