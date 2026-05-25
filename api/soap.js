@@ -327,14 +327,28 @@ function parseResponse(operation, xml) {
     }
 
     case 'getTaskLogs': {
+      // SAP returns each messageLine base64-encoded when base64Encode=true. Buffer.from is
+      // lenient (ignores invalid chars), so plaintext header lines round-trip safely if the
+      // sniff says they're not base64.
+      const decodeLine = (raw) => {
+        const text = raw.replace(/<!\[CDATA\[|\]\]>/g, '').replace(/<[^>]+>/g, '').trim()
+        const clean = text.replace(/\s+/g, '')
+        if (clean && /^[A-Za-z0-9+/]+=*$/.test(clean) && clean.length % 4 === 0) {
+          try {
+            const decoded = Buffer.from(clean, 'base64').toString('utf-8')
+            if (decoded && !/�/.test(decoded)) return decoded
+          } catch {}
+        }
+        return text
+      }
       const parseLog = (name) => {
         const block = xmlVal(xml, name)
         if (!block) return null
         return {
-          maxPage:       xmlVal(xml, 'maxPage'),
-          pageNum:       xmlVal(xml, 'pageNum'),
-          jobRunStatus:  xmlVal(xml, 'JobRunStatus'),
-          messageLines:  xmlAll(xml, 'messageLines').map(l => l.replace(/<[^>]+>/g, '').trim()),
+          maxPage:       xmlVal(block, 'maxPage'),
+          pageNum:       xmlVal(block, 'pageNum'),
+          jobRunStatus:  xmlVal(block, 'JobRunStatus'),
+          messageLines:  xmlAll(block, 'messageLines').map(decodeLine),
         }
       }
       return {
