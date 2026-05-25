@@ -41,7 +41,7 @@ export default function Header({ onMenuToggle }) {
   }, [showReqs])
 
   return (
-    <header style={{
+    <header className="app-header" style={{
       background: 'linear-gradient(135deg, #080f1e 0%, #0d1829 60%, #080f1e 100%)',
       borderBottom: '2px solid rgba(247,168,0,.25)',
       padding: '0 24px',
@@ -76,8 +76,8 @@ export default function Header({ onMenuToggle }) {
           alt="GoSCM"
           style={{ height: 32, width: 'auto', objectFit: 'contain', flexShrink: 0 }}
         />
-        <div style={{ width: 1, height: 28, background: 'rgba(255,255,255,.12)' }} />
-        <div>
+        <div className="header-sep" style={{ width: 1, height: 28, background: 'rgba(255,255,255,.12)' }} />
+        <div className="header-title">
           <div style={{ fontSize: 14, fontWeight: 700, color: '#fff', letterSpacing: '.01em', lineHeight: 1.2 }}>
             Orquestador de integraciones
           </div>
@@ -96,7 +96,7 @@ export default function Header({ onMenuToggle }) {
             cursor: 'pointer', transition: 'all .15s', display: 'flex', alignItems: 'center', gap: 6,
           }}
         >
-          <span style={{ fontSize: 14 }}>📋</span> Requisitos Técnicos
+          <span style={{ fontSize: 14 }}>📋</span><span className="header-btn-label"> Requisitos Técnicos</span>
         </button>
 
         {showReqs && (

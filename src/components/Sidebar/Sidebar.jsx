@@ -209,14 +209,18 @@ function SidebarItem({ label, icon, iconColor, envColor, sessionStatus, numberIc
       {expanded && (
         <span style={avatarStyle ? {
           flex: 1,
+          minWidth: 0,
           overflow: 'hidden',
           display: '-webkit-box',
           WebkitLineClamp: 2,
           WebkitBoxOrient: 'vertical',
+          whiteSpace: 'normal',
+          overflowWrap: 'anywhere',
           wordBreak: 'break-word',
           lineHeight: 1.3,
         } : {
           flex: 1,
+          minWidth: 0,
           overflow: 'hidden',
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',

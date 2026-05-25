@@ -97,4 +97,12 @@ input, select, textarea { font-family: var(--font); }
   .sidebar-backdrop.open { display: block; }
 
   .hamburger-btn { display: flex !important; }
+
+  .app-header { padding: 0 12px !important; gap: 10px !important; }
+  .header-btn-label { display: none !important; }
+}
+
+@media (max-width: 480px) {
+  .header-title { display: none !important; }
+  .header-sep   { display: none !important; }
 }
