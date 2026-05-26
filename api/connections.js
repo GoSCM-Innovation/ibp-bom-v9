@@ -1,4 +1,6 @@
 import crypto from 'crypto'
+import { applyCors } from './_cors.js'
+import { requireAuth } from './_auth.js'
 
 const REDIS_URL   = process.env.KV_REST_API_URL
 const REDIS_TOKEN = process.env.KV_REST_API_TOKEN
@@ -16,7 +18,10 @@ async function redisGet(key) {
   try {
     const parsed = JSON.parse(result)
     return Array.isArray(parsed) ? parsed : []
-  } catch { return [] }
+  } catch (e) {
+    console.error('[connections] redis JSON parse failed for', key, e.message, 'raw:', String(result).slice(0, 200))
+    return []
+  }
 }
 
 async function redisSet(key, value) {
@@ -31,23 +36,9 @@ async function redisSet(key, value) {
   }
 }
 
-function encrypt(text) {
-  const secret = process.env.ENCRYPTION_SECRET || 'default-secret-change-me'
-  const iv = crypto.randomBytes(16)
-  const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(secret.padEnd(32).slice(0, 32)), iv)
-  return iv.toString('hex') + ':' + cipher.update(text, 'utf8', 'hex') + cipher.final('hex')
-}
-
-function stripPassword(conn) {
-  const { password, ...rest } = conn
-  return rest
-}
-
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
-  if (req.method === 'OPTIONS') return res.status(200).end()
+  if (applyCors(req, res)) return
+  if (!requireAuth(req, res)) return
 
   if (!REDIS_URL || !REDIS_TOKEN) {
     return res.status(500).json({ error: 'Redis no configurado: faltan KV_REST_API_URL o KV_REST_API_TOKEN' })
@@ -57,16 +48,15 @@ export default async function handler(req, res) {
     const connections = await redisGet(KEY)
 
     if (req.method === 'GET') {
-      return res.json(connections.map(stripPassword))
+      return res.json(connections)
     }
 
     if (req.method === 'POST') {
-      const { name, serviceUrl, orgName, user, password, isProduction, logoUrl } = req.body
+      const { name, serviceUrl, orgName, user, isProduction, logoUrl } = req.body
       if (!name)       return res.status(400).json({ error: 'El nombre es obligatorio' })
       if (!serviceUrl) return res.status(400).json({ error: 'La URL del servicio es obligatoria' })
       if (!orgName)    return res.status(400).json({ error: 'El nombre de organización es obligatorio' })
       if (!user)       return res.status(400).json({ error: 'El usuario es obligatorio' })
-      if (!password)   return res.status(400).json({ error: 'La contraseña es obligatoria para conexiones nuevas' })
 
       const newConn = {
         id:           crypto.randomUUID(),
@@ -74,13 +64,12 @@ export default async function handler(req, res) {
         serviceUrl:   serviceUrl.replace(/\/$/, ''),
         orgName,
         user,
-        password:     encrypt(password),
         isProduction: !!isProduction,
         logoUrl:      logoUrl || '',
       }
       connections.push(newConn)
       await redisSet(KEY, connections)
-      return res.status(201).json(stripPassword(newConn))
+      return res.status(201).json(newConn)
     }
 
     const id = req.body?.id
@@ -90,7 +79,7 @@ export default async function handler(req, res) {
       const idx = connections.findIndex(c => c.id === id)
       if (idx === -1) return res.status(404).json({ error: 'No encontrado' })
       const existing = connections[idx]
-      const { name, serviceUrl, orgName, user, password, isProduction, logoUrl } = req.body
+      const { name, serviceUrl, orgName, user, isProduction, logoUrl } = req.body
 
       connections[idx] = {
         ...existing,
@@ -98,13 +87,13 @@ export default async function handler(req, res) {
         ...(serviceUrl  !== undefined && { serviceUrl: serviceUrl.replace(/\/$/, '') }),
         ...(orgName     !== undefined && { orgName }),
         ...(user        !== undefined && { user }),
-        // Only update password if a new one was provided
-        ...(password    ? { password: encrypt(password) } : {}),
         ...(isProduction !== undefined && { isProduction: !!isProduction }),
         ...(logoUrl     !== undefined && { logoUrl }),
       }
+      // Drop any legacy password field on update so it doesn't linger in Redis
+      delete connections[idx].password
       await redisSet(KEY, connections)
-      return res.json(stripPassword(connections[idx]))
+      return res.json(connections[idx])
     }
 
     if (req.method === 'DELETE') {

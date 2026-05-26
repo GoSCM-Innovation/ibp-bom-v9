@@ -1,5 +1,7 @@
 import crypto from 'crypto'
 import { buildBody, buildEnvelope, soapCall as rawSoapCall, parseResponse, parseFault } from './soap.js'
+import { applyCors } from './_cors.js'
+import { requireAuth } from './_auth.js'
 
 const REDIS_URL   = process.env.KV_REST_API_URL
 const REDIS_TOKEN = process.env.KV_REST_API_TOKEN
@@ -28,7 +30,10 @@ async function redisGetObj(key) {
   const data = await resp.json()
   const result = data[0]?.result
   if (!result) return null
-  try { return JSON.parse(result) } catch { return null }
+  try { return JSON.parse(result) } catch (e) {
+    console.error('[orchestrate] redis JSON.parse failed for', key, e.message, 'raw:', String(result).slice(0, 200))
+    return null
+  }
 }
 
 async function redisGetRaw(key) {
@@ -576,10 +581,8 @@ export { tick }
 // ─── Handler ──────────────────────────────────────────────────────────────────
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
-  if (req.method === 'OPTIONS') return res.status(200).end()
+  if (applyCors(req, res, 'GET,POST,DELETE,OPTIONS')) return
+  if (!requireAuth(req, res)) return
   if (!REDIS_URL || !REDIS_TOKEN) return res.status(500).json({ error: 'Redis no configurado' })
 
   try {

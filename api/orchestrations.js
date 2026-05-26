@@ -1,4 +1,6 @@
 import crypto from 'crypto'
+import { applyCors } from './_cors.js'
+import { requireAuth } from './_auth.js'
 
 const REDIS_URL   = process.env.KV_REST_API_URL
 const REDIS_TOKEN = process.env.KV_REST_API_TOKEN
@@ -18,7 +20,10 @@ async function redisGetArr(key) {
   try {
     const parsed = JSON.parse(result)
     return Array.isArray(parsed) ? parsed : []
-  } catch { return [] }
+  } catch (e) {
+    console.error('[orchestrations] redis JSON.parse array failed for', key, e.message, 'raw:', String(result).slice(0, 200))
+    return []
+  }
 }
 
 async function redisGetObj(key) {
@@ -30,7 +35,10 @@ async function redisGetObj(key) {
   const data = await resp.json()
   const result = data[0]?.result
   if (!result) return null
-  try { return JSON.parse(result) } catch { return null }
+  try { return JSON.parse(result) } catch (e) {
+    console.error('[orchestrations] redis JSON.parse obj failed for', key, e.message, 'raw:', String(result).slice(0, 200))
+    return null
+  }
 }
 
 async function redisSet(key, value) {
@@ -108,10 +116,8 @@ function validateEdge(e) {
 // ─── Handler ──────────────────────────────────────────────────────────────────
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
-  if (req.method === 'OPTIONS') return res.status(200).end()
+  if (applyCors(req, res)) return
+  if (!requireAuth(req, res)) return
   if (!REDIS_URL || !REDIS_TOKEN) return res.status(500).json({ error: 'Redis no configurado' })
 
   try {

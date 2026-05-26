@@ -13,7 +13,10 @@ async function redisGetArr(key) {
   const data = await resp.json()
   const result = data[0]?.result
   if (!result) return []
-  try { const p = JSON.parse(result); return Array.isArray(p) ? p : [] } catch { return [] }
+  try { const p = JSON.parse(result); return Array.isArray(p) ? p : [] } catch (e) {
+    console.error('[cron-tick] redis JSON.parse array failed for', key, e.message, 'raw:', String(result).slice(0, 200))
+    return []
+  }
 }
 
 async function redisGetMany(keys) {
@@ -24,14 +27,20 @@ async function redisGetMany(keys) {
     body: JSON.stringify(keys.map(k => ['GET', k])),
   })
   const data = await resp.json()
-  return data.map(d => {
+  return data.map((d, i) => {
     if (!d?.result) return null
-    try { return JSON.parse(d.result) } catch { return null }
+    try { return JSON.parse(d.result) } catch (e) {
+      console.error('[cron-tick] redis JSON.parse failed for', keys[i], e.message, 'raw:', String(d.result).slice(0, 200))
+      return null
+    }
   })
 }
 
 export default async function handler(req, res) {
-  if (CRON_SECRET && req.headers.authorization !== `Bearer ${CRON_SECRET}`) {
+  if (!CRON_SECRET || CRON_SECRET.length < 16) {
+    return res.status(500).json({ error: 'CRON_SECRET no configurado o demasiado corto (min 16 chars)' })
+  }
+  if (req.headers.authorization !== `Bearer ${CRON_SECRET}`) {
     return res.status(401).json({ error: 'Unauthorized' })
   }
 
