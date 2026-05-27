@@ -4,10 +4,12 @@ import Sidebar from './components/Sidebar/Sidebar'
 import Connections from './components/Connections/Connections'
 import SystemView from './components/System/SystemView'
 import GlobalResumen from './components/Resumen/GlobalResumen'
+import ConnectionTabs from './components/ConnectionTabs'
 import { useIsMobile } from './hooks/useViewport'
 import './App.css'
 
 const LS_KEY = 'ibp_connections'
+const LS_TABS_KEY = 'ibp_open_tabs'
 
 function loadConnections() {
   try { return JSON.parse(localStorage.getItem(LS_KEY) || '[]') } catch { return [] }
@@ -15,10 +17,26 @@ function loadConnections() {
 function persistConnections(conns) {
   localStorage.setItem(LS_KEY, JSON.stringify(conns))
 }
+function loadOpenTabs() {
+  try { return JSON.parse(localStorage.getItem(LS_TABS_KEY) || '[]') } catch { return [] }
+}
+function persistOpenTabs(ids) {
+  localStorage.setItem(LS_TABS_KEY, JSON.stringify(ids))
+}
 
 export default function App() {
   const [connections, setConnections] = useState(() => loadConnections())
-  const [activeId, setActiveId] = useState('connections')
+  const [openConnIds, setOpenConnIds] = useState(() => {
+    const ids = loadOpenTabs()
+    const valid = new Set(loadConnections().map(c => c.id))
+    return ids.filter(id => valid.has(id))
+  })
+  const [activeId, setActiveId] = useState(() => {
+    const tabs = loadOpenTabs()
+    const valid = new Set(loadConnections().map(c => c.id))
+    const firstOpen = tabs.find(id => valid.has(id))
+    return firstOpen || 'connections'
+  })
   const [sidebarExpanded, setSidebarExpanded] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(false) // mobile drawer
   const isMobile = useIsMobile()
@@ -35,6 +53,23 @@ export default function App() {
     persistConnections(updated)
   }
 
+  function logoutSession(conn, sid) {
+    fetch('/api/soap', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        connection: {
+          hciUrl:       conn.hciUrl,
+          orgName:      conn.orgName,
+          isProduction: conn.isProduction,
+        },
+        sessionId: sid,
+        operation: 'logout',
+        params: { sessionId: sid },
+      }),
+    }).catch(() => {})
+  }
+
   function updateConnection(conn) {
     const existing = connections.find(c => c.id === conn.id)
     if (existing) {
@@ -47,22 +82,13 @@ export default function App() {
           // Invalidate the old SAP session server-side so any cached
           // per-session metadata (agents, system configurations) is released
           // before the next login binds a new sessionId to the new env.
-          fetch('/api/soap', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              connection: {
-                hciUrl:       existing.hciUrl,
-                orgName:      existing.orgName,
-                isProduction: existing.isProduction,
-              },
-              sessionId: oldSid,
-              operation: 'logout',
-              params: { sessionId: oldSid },
-            }),
-          }).catch(() => {})
+          logoutSession(existing, oldSid)
         }
         sessionStorage.removeItem(`sap_${conn.id}`)
+        // Close the tab so the next open shows a fresh login against the new env
+        if (openConnIds.includes(conn.id)) {
+          closeTab(conn.id, { skipLogout: true })
+        }
       }
     }
     const updated = connections.map(c => c.id === conn.id ? conn : c)
@@ -71,7 +97,17 @@ export default function App() {
   }
 
   function deleteConnection(id) {
-    if (activeId === id) setActiveId('connections')
+    if (openConnIds.includes(id)) {
+      const next = openConnIds.filter(x => x !== id)
+      setOpenConnIds(next)
+      persistOpenTabs(next)
+      if (activeId === id) {
+        setActiveId(next.length > 0 ? next[next.length - 1] : 'connections')
+      }
+    } else if (activeId === id) {
+      setActiveId('connections')
+    }
+    sessionStorage.removeItem(`sap_${id}`)
     const updated = connections.filter(c => c.id !== id)
     setConnections(updated)
     persistConnections(updated)
@@ -119,32 +155,30 @@ export default function App() {
   }
 
   function handleSelect(id) {
+    if (id !== 'connections' && id !== 'resumen-general') {
+      if (!openConnIds.includes(id)) {
+        const next = [...openConnIds, id]
+        setOpenConnIds(next)
+        persistOpenTabs(next)
+      }
+    }
     setActiveId(id)
     if (isMobile) setSidebarOpen(false)
   }
 
-  const activeConn = connections.find(c => c.id === activeId)
-
-  function renderMain() {
-    if (activeId === 'connections') {
-      return (
-        <Connections
-          connections={connections}
-          onAdd={addConnection}
-          onUpdate={updateConnection}
-          onDelete={deleteConnection}
-          onSelect={handleSelect}
-          onBulkImport={bulkImportConnections}
-        />
-      )
+  function closeTab(id, { skipLogout = false } = {}) {
+    if (!skipLogout) {
+      const sid = sessionStorage.getItem(`sap_${id}`)
+      const conn = connections.find(c => c.id === id)
+      if (sid && conn) logoutSession(conn, sid)
+      sessionStorage.removeItem(`sap_${id}`)
     }
-    if (activeId === 'resumen-general') {
-      return <GlobalResumen connections={connections} />
+    const next = openConnIds.filter(x => x !== id)
+    setOpenConnIds(next)
+    persistOpenTabs(next)
+    if (activeId === id) {
+      setActiveId(next.length > 0 ? next[next.length - 1] : 'connections')
     }
-    if (activeConn) {
-      return <SystemView connection={activeConn} onLoginCancel={() => setActiveId('connections')} />
-    }
-    return null
   }
 
   return (
@@ -161,6 +195,7 @@ export default function App() {
         <Sidebar
           connections={connections}
           activeId={activeId}
+          openConnIds={openConnIds}
           onSelect={handleSelect}
           expanded={sidebarExpanded}
           onToggle={() => setSidebarExpanded(p => !p)}
@@ -169,8 +204,46 @@ export default function App() {
           mobileOpen={sidebarOpen}
         />
 
-        <main style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', minWidth: 0, background: 'var(--bg)' }}>
-          {renderMain()}
+        <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0, background: 'var(--bg)' }}>
+          <ConnectionTabs
+            connections={connections}
+            openConnIds={openConnIds}
+            activeId={activeId}
+            onSelect={handleSelect}
+            onClose={closeTab}
+          />
+          <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', minWidth: 0, minHeight: 0 }}>
+            {activeId === 'connections' && (
+              <Connections
+                connections={connections}
+                onAdd={addConnection}
+                onUpdate={updateConnection}
+                onDelete={deleteConnection}
+                onSelect={handleSelect}
+                onBulkImport={bulkImportConnections}
+              />
+            )}
+            {activeId === 'resumen-general' && (
+              <GlobalResumen connections={connections} />
+            )}
+            {openConnIds.map(id => {
+              const conn = connections.find(c => c.id === id)
+              if (!conn) return null
+              const hidden = activeId !== id
+              return (
+                <div
+                  key={id}
+                  style={{
+                    display: hidden ? 'none' : 'flex',
+                    flexDirection: 'column',
+                    height: '100%',
+                  }}
+                >
+                  <SystemView connection={conn} onLoginCancel={() => closeTab(id)} />
+                </div>
+              )
+            })}
+          </div>
         </main>
       </div>
 

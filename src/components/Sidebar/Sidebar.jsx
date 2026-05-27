@@ -27,8 +27,9 @@ function envDotColor(name = '') {
   return '#6B7280'
 }
 
-export default function Sidebar({ connections, activeId, onSelect, expanded, onToggle, loading, isMobile = false, mobileOpen = false }) {
+export default function Sidebar({ connections, activeId, openConnIds = [], onSelect, expanded, onToggle, loading, isMobile = false, mobileOpen = false }) {
   const w = expanded ? W : W_MIN
+  const openSet = new Set(openConnIds)
 
   return (
     <aside
@@ -96,6 +97,7 @@ export default function Sidebar({ connections, activeId, onSelect, expanded, onT
         {loading
           ? expanded && <div style={{ padding: '10px 14px', fontSize: 11, color: 'var(--text3)' }}>Cargando...</div>
           : connections.map((c, idx) => {
+            const isOpen = openSet.has(c.id)
             if (isMobile) {
               const hasSession = !!sessionStorage.getItem(`sap_${c.id}`)
               return (
@@ -109,6 +111,7 @@ export default function Sidebar({ connections, activeId, onSelect, expanded, onT
                   numberIcon
                   avatarStyle
                   active={activeId === c.id}
+                  isOpen={isOpen}
                   expanded={expanded}
                   onClick={() => onSelect(c.id)}
                   sessionStatus={hasSession ? 'online' : 'offline'}
@@ -123,6 +126,7 @@ export default function Sidebar({ connections, activeId, onSelect, expanded, onT
                 icon={String(idx + 1)}
                 numberIcon
                 active={activeId === c.id}
+                isOpen={isOpen}
                 expanded={expanded}
                 onClick={() => onSelect(c.id)}
               />
@@ -147,18 +151,21 @@ export default function Sidebar({ connections, activeId, onSelect, expanded, onT
   )
 }
 
-function SidebarItem({ label, icon, iconColor, envColor, sessionStatus, numberIcon, avatarStyle, active, expanded, onClick }) {
+function SidebarItem({ label, icon, iconColor, envColor, sessionStatus, numberIcon, avatarStyle, active, isOpen, expanded, onClick }) {
+  const showOpenIndicator = isOpen && !active
   return (
     <button onClick={onClick} style={{
       width: '100%', display: 'flex', alignItems: 'center',
       padding: '9px 14px',
       justifyContent: 'flex-start',
       gap: 10,
-      background: active ? 'rgba(247,168,0,.1)' : 'none',
+      background: active ? 'rgba(247,168,0,.1)' : (showOpenIndicator ? 'rgba(52,211,153,.05)' : 'none'),
       border: 'none',
-      borderLeft: active ? '3px solid var(--accent)' : '3px solid transparent',
+      borderLeft: active
+        ? '3px solid var(--accent)'
+        : (showOpenIndicator ? '3px solid #34d399' : '3px solid transparent'),
       color: active ? 'var(--accent)' : 'var(--text2)',
-      fontSize: 12, fontWeight: active ? 600 : 400,
+      fontSize: 12, fontWeight: active || isOpen ? 600 : 400,
       transition: 'all .15s', textAlign: 'left',
     }}
       onMouseEnter={e => { if (!active) e.currentTarget.style.background = 'rgba(255,255,255,.04)' }}
