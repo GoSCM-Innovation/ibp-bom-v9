@@ -77,6 +77,7 @@ export default function Connections({ connections, onAdd, onUpdate, onDelete, on
   const [importParsed, setImportParsed]   = useState(null)
   const [importFileName, setImportFileName] = useState('')
   const [feedback, setFeedback] = useState(null) // { kind: 'ok'|'error', text }
+  const [showHelp, setShowHelp] = useState(false)
   const fileInputRef = useRef(null)
 
   function handleEdit(conn) {
@@ -185,6 +186,18 @@ export default function Connections({ connections, onAdd, onUpdate, onDelete, on
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <button
+            onClick={() => setShowHelp(v => !v)}
+            title="Ver guía paso a paso para crear una conexión"
+            style={{
+              ...secondaryBtnStyle,
+              background: showHelp ? 'rgba(96,165,250,.12)' : 'var(--bg2)',
+              borderColor: showHelp ? 'rgba(96,165,250,.45)' : 'var(--border2)',
+              color: showHelp ? 'var(--cyan)' : 'var(--text2)',
+            }}
+          >
+            {showHelp ? '× Ocultar guía' : '? Cómo crear una conexión'}
+          </button>
+          <button
             onClick={handleImportClick}
             title="Importar conexiones desde un archivo JSON"
             style={secondaryBtnStyle}
@@ -236,6 +249,13 @@ export default function Connections({ connections, onAdd, onUpdate, onDelete, on
         </div>
       )}
 
+      {/* Help / tutorial panel */}
+      {showHelp && (
+        <div style={{ marginBottom: 18 }}>
+          <HelpPanel onClose={() => setShowHelp(false)} />
+        </div>
+      )}
+
       {/* Form */}
       {showForm && (
         <div style={{ marginBottom: 24 }}>
@@ -260,12 +280,20 @@ export default function Connections({ connections, onAdd, onUpdate, onDelete, on
           <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 20 }}>
             Agrega un sistema SAP CI-DS para empezar a gestionar tasks
           </div>
-          <button onClick={handleNew} style={{
-            background: 'var(--accent)', border: 'none', borderRadius: 7,
-            color: '#000', fontWeight: 700, fontSize: 12, padding: '8px 18px',
-          }}>
-            + Nueva conexión
-          </button>
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <button onClick={handleNew} style={{
+              background: 'var(--accent)', border: 'none', borderRadius: 7,
+              color: '#000', fontWeight: 700, fontSize: 12, padding: '8px 18px', cursor: 'pointer',
+            }}>
+              + Nueva conexión
+            </button>
+            <button onClick={() => setShowHelp(true)} style={{
+              background: 'transparent', border: '1px solid var(--border2)', borderRadius: 7,
+              color: 'var(--cyan)', fontWeight: 600, fontSize: 12, padding: '8px 18px', cursor: 'pointer',
+            }}>
+              ? Ver guía paso a paso
+            </button>
+          </div>
         </div>
       )}
 
@@ -347,3 +375,105 @@ function btnStyle(color) {
     padding: '5px 12px', transition: 'all .15s',
   }
 }
+
+function HelpPanel({ onClose }) {
+  return (
+    <div style={{
+      background: 'var(--bg2)', border: '1px solid rgba(96,165,250,.35)', borderRadius: 10,
+      padding: '18px 20px', position: 'relative',
+    }}>
+      <button
+        onClick={onClose}
+        title="Cerrar guía"
+        style={{
+          position: 'absolute', top: 10, right: 12, background: 'none', border: 'none',
+          color: 'var(--text2)', cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: 4,
+        }}
+      >×</button>
+
+      <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 4 }}>
+        Cómo crear una conexión a SAP CI-DS
+      </div>
+      <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 14 }}>
+        Guía rápida. Las conexiones se guardan cifradas; la contraseña se pide al iniciar sesión, no se almacena en el formulario.
+      </div>
+
+      <HelpStep n="1" title="Abrir el formulario">
+        Pulsa <b style={{ color: 'var(--accent)' }}>+ Nueva conexión</b> arriba a la derecha.
+      </HelpStep>
+
+      <HelpStep n="2" title="Rellena los campos">
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, marginTop: 6 }}>
+          <thead>
+            <tr style={{ color: 'var(--text2)', textAlign: 'left', fontSize: 10, textTransform: 'uppercase', letterSpacing: '.06em' }}>
+              <th style={thStyle}>Campo</th>
+              <th style={thStyle}>Qué poner</th>
+              <th style={thStyle}>De dónde sacarlo</th>
+            </tr>
+          </thead>
+          <tbody style={{ color: 'var(--text)' }}>
+            <tr><td style={tdStyle}><b>Nombre conexión</b></td><td style={tdStyle}>Etiqueta libre</td><td style={tdStyle}>Lo que quieras (ej. <code style={codeStyle}>CI-DS Producción EMEA</code>)</td></tr>
+            <tr><td style={tdStyle}><b>Organización</b></td><td style={tdStyle}>Nombre técnico de la org CI-DS (case-sensitive)</td><td style={tdStyle}>Consola CI-DS → arriba a la derecha, bajo tu usuario aparece la organización activa</td></tr>
+            <tr><td style={tdStyle}><b>URL del servicio</b></td><td style={tdStyle}>Endpoint SOAP del WebService</td><td style={tdStyle}>Ver paso 3</td></tr>
+            <tr><td style={tdStyle}><b>Usuario SAP</b> <span style={{ color: 'var(--text3)' }}>(opcional)</span></td><td style={tdStyle}>Usuario tipo WebService</td><td style={tdStyle}>Lo crea el admin en <b>Administrator → Users</b> con permiso de WebServices (un usuario normal de UI no sirve)</td></tr>
+            <tr><td style={tdStyle}><b>Repositorio</b></td><td style={tdStyle}>Producción o Sandbox</td><td style={tdStyle}>Según el repositorio contra el que vayas a ejecutar tasks</td></tr>
+            <tr><td style={tdStyle}><b>URL del logo</b> <span style={{ color: 'var(--text3)' }}>(opcional)</span></td><td style={tdStyle}>Imagen para identificar la conexión</td><td style={tdStyle}>Cualquier URL pública de imagen</td></tr>
+          </tbody>
+        </table>
+      </HelpStep>
+
+      <HelpStep n="3" title="Cómo formar la URL del servicio">
+        <div style={{ fontSize: 12, color: 'var(--text)', lineHeight: 1.55 }}>
+          Depende de la plataforma donde corre tu tenant:
+          <ul style={{ margin: '8px 0 8px 18px', padding: 0 }}>
+            <li><b>Kyma</b> (lo más común): <code style={codeStyle}>https://&lt;host&gt;/webservices</code><br/>
+              <span style={{ color: 'var(--text2)' }}>Ej.: <code style={codeStyle}>https://us.cids.cloud.sap/webservices</code>, <code style={codeStyle}>https://eu.cids.cloud.sap/webservices</code></span>
+            </li>
+            <li style={{ marginTop: 6 }}><b>Neo</b> (legacy): <code style={codeStyle}>https://&lt;host&gt;/DSoD/webservices</code></li>
+          </ul>
+          <div style={{ color: 'var(--text2)', marginTop: 6 }}>
+            Para obtener tu <code style={codeStyle}>&lt;host&gt;</code>: abre el portal CI-DS en el navegador y copia el dominio antes de <code style={codeStyle}>/ui/...</code> o <code style={codeStyle}>/app/...</code>. Luego reemplaza la ruta por <code style={codeStyle}>/webservices</code>.
+          </div>
+        </div>
+      </HelpStep>
+
+      <HelpStep n="4" title="Probar la conexión">
+        <div style={{ fontSize: 12, color: 'var(--text)', lineHeight: 1.55 }}>
+          Tras guardar, pulsa <b style={{ color: 'var(--cyan)' }}>Probar</b> en la fila de la conexión. Se abrirá un modal pidiendo usuario y contraseña. Si las credenciales y la URL son correctas, verás <b style={{ color: 'var(--green)' }}>✓ Conectado</b> y podrás pulsar <b>Abrir</b> para entrar al sistema.
+        </div>
+      </HelpStep>
+
+      <div style={{
+        marginTop: 14, padding: '10px 12px', borderRadius: 8,
+        background: 'rgba(255,107,107,.06)', border: '1px solid rgba(255,107,107,.20)',
+        fontSize: 11, color: 'var(--text2)', lineHeight: 1.5,
+      }}>
+        <b style={{ color: 'var(--red)' }}>Errores típicos:</b>
+        &nbsp;Organización mal escrita (mayúsculas/minúsculas) ·
+        URL apuntando a la UI en vez de <code style={codeStyle}>/webservices</code> ·
+        Usuario sin permiso de WebService ·
+        Repositorio equivocado (Producción vs Sandbox).
+      </div>
+    </div>
+  )
+}
+
+function HelpStep({ n, title, children }) {
+  return (
+    <div style={{ display: 'flex', gap: 12, marginBottom: 14 }}>
+      <div style={{
+        flexShrink: 0, width: 22, height: 22, borderRadius: '50%',
+        background: 'var(--accent)', color: '#000', fontWeight: 700, fontSize: 11,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>{n}</div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: '#fff', marginBottom: 4 }}>{title}</div>
+        <div style={{ fontSize: 12, color: 'var(--text)', lineHeight: 1.55 }}>{children}</div>
+      </div>
+    </div>
+  )
+}
+
+const thStyle = { padding: '6px 8px', borderBottom: '1px solid var(--border)', fontWeight: 600 }
+const tdStyle = { padding: '6px 8px', borderBottom: '1px solid var(--border)', verticalAlign: 'top' }
+const codeStyle = { fontFamily: 'var(--mono)', fontSize: 11, background: 'var(--bg)', padding: '1px 5px', borderRadius: 4, border: '1px solid var(--border)' }
