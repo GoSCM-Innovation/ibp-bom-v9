@@ -96,6 +96,18 @@ export default function App() {
     persistConnections(updated)
   }
 
+  function reorderConnections(fromId, toId) {
+    if (fromId === toId) return
+    const from = connections.findIndex(c => c.id === fromId)
+    const to   = connections.findIndex(c => c.id === toId)
+    if (from < 0 || to < 0) return
+    const next = connections.slice()
+    const [moved] = next.splice(from, 1)
+    next.splice(to, 0, moved)
+    setConnections(next)
+    persistConnections(next)
+  }
+
   function deleteConnection(id) {
     if (openConnIds.includes(id)) {
       const next = openConnIds.filter(x => x !== id)
@@ -197,6 +209,7 @@ export default function App() {
           activeId={activeId}
           openConnIds={openConnIds}
           onSelect={handleSelect}
+          onReorder={reorderConnections}
           expanded={sidebarExpanded}
           onToggle={() => setSidebarExpanded(p => !p)}
           loading={false}
@@ -224,7 +237,7 @@ export default function App() {
               />
             )}
             {activeId === 'resumen-general' && (
-              <GlobalResumen connections={connections} />
+              <GlobalResumen connections={connections} onOpenConnection={handleSelect} />
             )}
             {openConnIds.map(id => {
               const conn = connections.find(c => c.id === id)

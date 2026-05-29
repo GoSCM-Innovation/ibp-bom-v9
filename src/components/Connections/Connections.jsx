@@ -256,11 +256,11 @@ export default function Connections({ connections, onAdd, onUpdate, onDelete, on
         </div>
       )}
 
-      {/* Form */}
-      {showForm && (
+      {/* Form — only at the top when creating a new connection. Editing renders inline below. */}
+      {showForm && !editing && (
         <div style={{ marginBottom: 24 }}>
           <ConnectionForm
-            initial={editing}
+            initial={null}
             onSave={handleSave}
             onCancel={() => { setShowForm(false); setEditing(null) }}
           />
@@ -299,45 +299,59 @@ export default function Connections({ connections, onAdd, onUpdate, onDelete, on
 
       {/* Connection cards */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {connections.map(conn => (
-          <div key={conn.id} style={{
-            background: 'var(--bg2)', border: '1px solid var(--border)',
-            borderRadius: 10, padding: '14px 16px',
-            display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap',
-          }}>
-            <ConnectionAvatar name={conn.name} logoUrl={conn.logoUrl} size={40} />
-
-            <div style={{ flex: '1 1 200px', minWidth: 0 }}>
-              <div style={{ fontWeight: 700, color: '#fff', fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {conn.name} <span style={{ color: 'var(--text2)', fontWeight: 500 }}>({conn.isProduction ? 'Productivo' : 'Sandbox'})</span>
+        {connections.map(conn => {
+          const isEditing = showForm && editing?.id === conn.id
+          if (isEditing) {
+            return (
+              <div key={conn.id}>
+                <ConnectionForm
+                  initial={editing}
+                  onSave={handleSave}
+                  onCancel={() => { setShowForm(false); setEditing(null) }}
+                />
               </div>
-              {conn.hciUrl && <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{conn.hciUrl}</div>}
-            </div>
-
-            {testResult[conn.id] && (
-              <div style={{
-                fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 20,
-                background: testResult[conn.id] === 'ok' ? 'rgba(52,211,153,.15)' : 'rgba(255,107,107,.15)',
-                color: testResult[conn.id] === 'ok' ? 'var(--green)' : 'var(--red)',
-                border: `1px solid ${testResult[conn.id] === 'ok' ? 'rgba(52,211,153,.3)' : 'rgba(255,107,107,.3)'}`,
-                flexShrink: 0,
-              }}>
-                {testResult[conn.id] === 'ok' ? '✓ Conectado' : '✕ Error'}
-              </div>
-            )}
-
-            <div style={{
-              display: 'flex', gap: 6, flexWrap: 'wrap',
-              justifyContent: 'flex-end',
-              flex: '1 1 auto',
+            )
+          }
+          return (
+            <div key={conn.id} style={{
+              background: 'var(--bg2)', border: '1px solid var(--border)',
+              borderRadius: 10, padding: '14px 16px',
+              display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap',
             }}>
-              <button onClick={() => onSelect(conn.id)} style={btnStyle('var(--cyan)')}>Abrir</button>
-              <button onClick={() => handleTest(conn)} style={btnStyle('var(--text2)')}>Probar</button>
-              <button onClick={() => handleEdit(conn)} style={btnStyle('var(--text2)')}>Editar</button>
-              <button onClick={() => handleDelete(conn.id, conn.name)} style={btnStyle('var(--red)')}>Eliminar</button>
+              <ConnectionAvatar name={conn.name} logoUrl={conn.logoUrl} size={40} />
+
+              <div style={{ flex: '1 1 200px', minWidth: 0 }}>
+                <div style={{ fontWeight: 700, color: '#fff', fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {conn.name} <span style={{ color: 'var(--text2)', fontWeight: 500 }}>({conn.isProduction ? 'Productivo' : 'Sandbox'})</span>
+                </div>
+                {conn.hciUrl && <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{conn.hciUrl}</div>}
+              </div>
+
+              {testResult[conn.id] && (
+                <div style={{
+                  fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 20,
+                  background: testResult[conn.id] === 'ok' ? 'rgba(52,211,153,.15)' : 'rgba(255,107,107,.15)',
+                  color: testResult[conn.id] === 'ok' ? 'var(--green)' : 'var(--red)',
+                  border: `1px solid ${testResult[conn.id] === 'ok' ? 'rgba(52,211,153,.3)' : 'rgba(255,107,107,.3)'}`,
+                  flexShrink: 0,
+                }}>
+                  {testResult[conn.id] === 'ok' ? '✓ Conectado' : '✕ Error'}
+                </div>
+              )}
+
+              <div style={{
+                display: 'flex', gap: 6, flexWrap: 'wrap',
+                justifyContent: 'flex-end',
+                flex: '1 1 auto',
+              }}>
+                <button onClick={() => onSelect(conn.id)} style={btnStyle('var(--cyan)')}>Abrir</button>
+                <button onClick={() => handleTest(conn)} style={btnStyle('var(--text2)')}>Probar</button>
+                <button onClick={() => handleEdit(conn)} style={btnStyle('var(--text2)')}>Editar</button>
+                <button onClick={() => handleDelete(conn.id, conn.name)} style={btnStyle('var(--red)')}>Eliminar</button>
+              </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
 
       {testTarget && (

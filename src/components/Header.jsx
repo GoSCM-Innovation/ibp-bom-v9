@@ -79,7 +79,7 @@ export default function Header({ onMenuToggle }) {
         <div className="header-sep" style={{ width: 1, height: 28, background: 'rgba(255,255,255,.12)' }} />
         <div className="header-title">
           <div style={{ fontSize: 14, fontWeight: 700, color: '#fff', letterSpacing: '.01em', lineHeight: 1.2 }}>
-            Orquestador de integraciones
+            CI-DS Studio
           </div>
         </div>
       </div>

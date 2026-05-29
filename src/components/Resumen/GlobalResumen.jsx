@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import ProgressBar from '../ui/ProgressBar'
 import ConnectionAvatar from '../Connections/ConnectionAvatar'
 import { getTzMode, setTzMode, toInputDate, inputDateToDate, dayLabelEpoch, TZ_OPTIONS } from '../../utils/dateUtils'
@@ -53,13 +53,23 @@ async function soapCall(connection, sessionId, operation, params = {}) {
   return data
 }
 
+function computeRate(success, warnings, total) {
+  if (total <= 0) return null
+  const ok = success + warnings
+  if (ok === total) return 100
+  if (ok === 0) return 0
+  // Never round to 100 when there's at least one non-success row, never to 0 when there's at least one success
+  const raw = (ok / total) * 100
+  return Math.min(99, Math.max(1, Math.round(raw)))
+}
+
 function connMiniStats(rows) {
   const total    = rows.length
   const running  = rows.filter(r => r.statusCode === 'RUNNING').length
   const success  = rows.filter(r => r.statusCode === 'SUCCESS').length
   const failed   = rows.filter(r => ['ERROR', 'TERMINATION_FAILED'].includes(r.statusCode)).length
   const warnings = rows.filter(r => ['SUCCESS_WITH_ERRORS_D', 'SUCCESS_WITH_ERRORS_E'].includes(r.statusCode)).length
-  const rate     = total > 0 ? Math.round(((success + warnings) / total) * 100) : null
+  const rate     = computeRate(success, warnings, total)
   return { total, running, success, failed, warnings, rate }
 }
 
@@ -83,7 +93,7 @@ function buildChartData(rows, tzMode) {
   return { donutData, barData }
 }
 
-export default function GlobalResumen({ connections }) {
+export default function GlobalResumen({ connections, onOpenConnection }) {
   const [connData, setConnData]         = useState({})
   const [tzMode, setTzModeState]        = useState(() => getTzMode())
   const [fromDate, setFromDate]         = useState(() => toInputDate(new Date(Date.now() - 7 * 86400000), getTzMode()))
@@ -93,6 +103,28 @@ export default function GlobalResumen({ connections }) {
   const [activeChartIdx, setActiveChartIdx] = useState(0)
   const [selectedIds, setSelectedIds]   = useState(() => new Set())
   const timerRef = useRef(null)
+  const connectionsRef = useRef(connections)
+  useEffect(() => { connectionsRef.current = connections }, [connections])
+
+  // Stable key: only changes when the set of connection IDs changes (not when reordering or editing metadata)
+  const connIdsKey = useMemo(
+    () => [...connections.map(c => c.id)].sort().join('|'),
+    [connections]
+  )
+
+  // Prune stale connData entries for connections that were deleted
+  useEffect(() => {
+    setConnData(prev => {
+      const validIds = new Set(connections.map(c => c.id))
+      const next = {}
+      let changed = false
+      for (const [id, v] of Object.entries(prev)) {
+        if (validIds.has(id)) next[id] = v
+        else changed = true
+      }
+      return changed ? next : prev
+    })
+  }, [connIdsKey, connections])
 
   // Empty set = no filter (everything visible). Non-empty = filter to those.
   const isFiltered = selectedIds.size > 0
@@ -123,6 +155,12 @@ export default function GlobalResumen({ connections }) {
   }
 
   const loadAll = useCallback(async () => {
+    const conns = connectionsRef.current
+    if (conns.length === 0) {
+      setLoadingAll(false)
+      setLastRefresh(new Date())
+      return
+    }
     setLoadingAll(true)
 
     async function loadOne(conn) {
@@ -150,15 +188,18 @@ export default function GlobalResumen({ connections }) {
           [conn.id]: { status: 'ok', rows: Array.isArray(tasks) ? tasks : [], agents: flatAgents, error: null },
         }))
       } catch (e) {
+        // Expired tokens stay in sessionStorage and waste a request on every refresh.
+        // Drop them so the next tick recognizes the conn as "no-session" immediately.
+        if (e.isSessionExpired) sessionStorage.removeItem(`sap_${conn.id}`)
         const status = e.isSessionExpired ? 'session-expired' : 'error'
         setConnData(prev => ({ ...prev, [conn.id]: { status, rows: [], agents: [], error: e.isSessionExpired ? null : e.message } }))
       }
     }
 
-    await Promise.allSettled(connections.map(loadOne))
+    await Promise.allSettled(conns.map(loadOne))
     setLoadingAll(false)
     setLastRefresh(new Date())
-  }, [connections, fromDate, toDate, tzMode])
+  }, [connIdsKey, fromDate, toDate, tzMode])
 
   useEffect(() => {
     loadAll()
@@ -182,9 +223,9 @@ export default function GlobalResumen({ connections }) {
   const running       = allRows.filter(r => r.statusCode === 'RUNNING').length
   const queued        = allRows.filter(r => ['QUEUEING', 'IMPORTED', 'FETCHED'].includes(r.statusCode)).length
   const success       = allRows.filter(r => r.statusCode === 'SUCCESS').length
-  const failed        = allRows.filter(r => r.statusCode === 'ERROR').length
+  const failed        = allRows.filter(r => ['ERROR', 'TERMINATION_FAILED'].includes(r.statusCode)).length
   const warningsCount = allRows.filter(r => ['SUCCESS_WITH_ERRORS_D', 'SUCCESS_WITH_ERRORS_E'].includes(r.statusCode)).length
-  const successRate   = total > 0 ? Math.round(((success + warningsCount) / total) * 100) : 0
+  const successRate   = computeRate(success, warningsCount, total) ?? 0
   const rateColor     = total === 0 ? 'var(--text2)' : successRate >= 90 ? 'var(--green)' : successRate >= 70 ? 'var(--accent)' : 'var(--red)'
 
   // Chart slide: 0 = global, 1..N = okConns index
@@ -192,23 +233,40 @@ export default function GlobalResumen({ connections }) {
   const chartRows = safeIdx === 0 ? allRows : (connData[okConns[safeIdx - 1]?.id]?.rows || [])
   const { donutData, barData } = buildChartData(chartRows, tzMode)
 
-  // Stats (always global)
+  // Stats (always global) — key by (connId, taskName) so the same task on prod+sandbox is shown as two rows
   const taskMap = {}
-  allRows.forEach(r => { const k = r.taskName || '—'; taskMap[k] = (taskMap[k] || 0) + 1 })
-  const topTasks = Object.entries(taskMap).sort((a, b) => b[1] - a[1]).slice(0, 5)
+  okConns.forEach(c => {
+    connData[c.id].rows.forEach(r => {
+      const taskName = r.taskName || '—'
+      const k = `${c.id}|${taskName}`
+      if (!taskMap[k]) taskMap[k] = { taskName, conn: c, count: 0 }
+      taskMap[k].count++
+    })
+  })
+  const topTasks = Object.values(taskMap).sort((a, b) => b.count - a.count).slice(0, 5)
 
   const recentFailed = okConns
     .flatMap(c => connData[c.id].rows
       .filter(r => r.statusCode === 'ERROR' || r.statusCode === 'TERMINATION_FAILED')
-      .map(r => ({ ...r, _connName: c.name }))
+      .map(r => ({ ...r, _connName: c.name, _isProduction: c.isProduction }))
     )
     .sort((a, b) => (parseInt(b.startDate) || 0) - (parseInt(a.startDate) || 0))
     .slice(0, 5)
 
-  const allNoSession = !loadingAll && visibleConns.length > 0 && visibleConns.every(c => {
+  // Validation breakdown across the visible set
+  const counts = { ok: 0, loading: 0, noSession: 0, expired: 0, error: 0, idle: 0 }
+  visibleConns.forEach(c => {
     const s = connData[c.id]?.status
-    return !s || s === 'no-session' || s === 'session-expired'
+    if      (s === 'ok')              counts.ok++
+    else if (s === 'loading')         counts.loading++
+    else if (s === 'no-session')      counts.noSession++
+    else if (s === 'session-expired') counts.expired++
+    else if (s === 'error')           counts.error++
+    else                              counts.idle++
   })
+  const needLogin    = counts.noSession + counts.expired + counts.idle
+  const hasErrors    = counts.error > 0
+  const allNoSession = !loadingAll && visibleConns.length > 0 && (counts.ok + counts.loading) === 0
 
   return (
     <div style={{ padding: 28, overflowY: 'auto', height: '100%', boxSizing: 'border-box', position: 'relative' }}>
@@ -277,6 +335,7 @@ export default function GlobalResumen({ connections }) {
                 >
                   <ConnectionAvatar name={conn.name} logoUrl={conn.logoUrl} size={16} />
                   {conn.name}
+                  <EnvBadge isProduction={conn.isProduction} inverted={active} />
                 </button>
               )
             })}
@@ -296,10 +355,24 @@ export default function GlobalResumen({ connections }) {
         </div>
       )}
 
-      {/* No-session banner */}
-      {allNoSession && (
-        <div style={{ background: 'rgba(247,168,0,.08)', border: '1px solid rgba(247,168,0,.25)', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: 'var(--accent)', marginBottom: 20 }}>
-          Ninguna conexión tiene sesión activa. Accede a cada conexión para iniciar sesión SAP.
+      {/* Validation banner — shows refresh result for the visible set */}
+      {visibleConns.length > 0 && !loadingAll && lastRefresh && (counts.ok < visibleConns.length) && (
+        <div style={{
+          background: allNoSession ? 'rgba(247,168,0,.08)' : 'rgba(255,255,255,.03)',
+          border: `1px solid ${allNoSession ? 'rgba(247,168,0,.25)' : 'var(--border)'}`,
+          borderRadius: 8, padding: '10px 14px', fontSize: 12, color: 'var(--text2)', marginBottom: 20,
+          display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+        }}>
+          <span style={{ color: 'var(--text)' }}>
+            Refresh: <strong style={{ color: 'var(--green)' }}>{counts.ok} OK</strong>
+            {needLogin > 0   && <> · <strong style={{ color: 'var(--accent)' }}>{needLogin} requieren login</strong></>}
+            {hasErrors       && <> · <strong style={{ color: 'var(--red)' }}>{counts.error} con error</strong></>}
+          </span>
+          {allNoSession && (
+            <span style={{ color: 'var(--text2)' }}>
+              · Abre cada conexión para iniciar sesión SAP
+            </span>
+          )}
         </div>
       )}
 
@@ -324,6 +397,7 @@ export default function GlobalResumen({ connections }) {
         ) : visibleConns.map((conn, i) => {
           const state = connData[conn.id] || { status: 'idle', rows: [], agents: [], error: null }
           const stats = state.status === 'ok' ? connMiniStats(state.rows) : null
+          const needsLogin = state.status === 'no-session' || state.status === 'session-expired' || state.status === 'idle'
           return (
             <div key={conn.id} style={{
               display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0',
@@ -332,10 +406,26 @@ export default function GlobalResumen({ connections }) {
               <ConnectionAvatar name={conn.name} logoUrl={conn.logoUrl} size={28} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{conn.name}</div>
-                <div style={{ fontSize: 10, color: 'var(--text3)' }}>{conn.isProduction ? 'Producción' : 'Sandbox'}</div>
+                <div style={{ fontSize: 10, color: 'var(--text3)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <span>{conn.isProduction ? 'Producción' : 'Sandbox'}</span>
+                  <EnvBadge isProduction={conn.isProduction} />
+                </div>
               </div>
               <StatusBadge status={state.status} error={state.error} />
               {stats && <MiniStats stats={stats} />}
+              {needsLogin && onOpenConnection && (
+                <button
+                  onClick={() => onOpenConnection(conn.id)}
+                  title="Abrir conexión para iniciar sesión SAP"
+                  style={{
+                    background: 'rgba(247,168,0,.12)', border: '1px solid rgba(247,168,0,.35)',
+                    borderRadius: 5, color: 'var(--accent)', fontSize: 10, fontWeight: 700,
+                    padding: '4px 9px', cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap',
+                  }}
+                >
+                  Iniciar sesión
+                </button>
+              )}
             </div>
           )
         })}
@@ -445,8 +535,16 @@ export default function GlobalResumen({ connections }) {
         <div className="grid-stats">
           <div style={cardStyle}>
             <div style={cardTitle}>Top tasks ejecutadas</div>
-            {topTasks.length === 0 ? <Empty /> : topTasks.map(([name, count], i) => (
-              <RankRow key={i} rank={i + 1} label={name} count={count} max={topTasks[0][1]} color="var(--cyan)" />
+            {topTasks.length === 0 ? <Empty /> : topTasks.map((t, i) => (
+              <RankRow
+                key={`${t.conn.id}|${t.taskName}`}
+                rank={i + 1}
+                label={t.taskName}
+                count={t.count}
+                max={topTasks[0].count}
+                color="var(--cyan)"
+                conn={t.conn}
+              />
             ))}
           </div>
 
@@ -457,7 +555,10 @@ export default function GlobalResumen({ connections }) {
               : recentFailed.map((r, i) => (
                 <div key={i} style={{ padding: '7px 0', borderBottom: i < recentFailed.length - 1 ? '1px solid var(--border)' : 'none' }}>
                   <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--red)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.taskName || '—'}</div>
-                  <div style={{ fontSize: 10, color: 'var(--text3)', marginTop: 2 }}>{r._connName}</div>
+                  <div style={{ fontSize: 10, color: 'var(--text3)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <span>{r._connName}</span>
+                    <EnvBadge isProduction={r._isProduction} />
+                  </div>
                 </div>
               ))
             }
@@ -480,8 +581,28 @@ function ChartPill({ active, onClick, label, count, conn }) {
     }}>
       {conn && <ConnectionAvatar name={conn.name} logoUrl={conn.logoUrl} size={16} />}
       {label}
+      {conn && <EnvBadge isProduction={conn.isProduction} inverted={active} />}
       <span style={{ opacity: .65, fontSize: 10 }}>{count}</span>
     </button>
+  )
+}
+
+function EnvBadge({ isProduction, inverted = false }) {
+  const prod = !!isProduction
+  const bg   = prod ? 'rgba(52,211,153,.18)' : 'rgba(247,168,0,.18)'
+  const fg   = prod ? '#34d399' : '#f7a800'
+  // When sitting on an accent (yellow) background, swap to a darker readable style
+  const style = inverted
+    ? { background: 'rgba(0,0,0,.18)', color: '#000', border: '1px solid rgba(0,0,0,.25)' }
+    : { background: bg, color: fg, border: `1px solid ${fg}33` }
+  return (
+    <span style={{
+      ...style,
+      fontSize: 9, fontWeight: 700, letterSpacing: '.04em',
+      padding: '1px 5px', borderRadius: 4, lineHeight: 1.4, flexShrink: 0,
+    }}>
+      {prod ? 'PROD' : 'SAND'}
+    </span>
   )
 }
 
@@ -533,17 +654,24 @@ function KpiCard({ label, value, color }) {
   )
 }
 
-function RankRow({ rank, label, count, max, color }) {
+function RankRow({ rank, label, count, max, color, conn }) {
   const pct = max > 0 ? (count / max) * 100 : 0
   return (
-    <div style={{ marginBottom: 8 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
-        <div style={{ fontSize: 11, color: 'var(--text)', display: 'flex', gap: 6, alignItems: 'center', minWidth: 0 }}>
+    <div style={{ marginBottom: 10 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3, gap: 8 }}>
+        <div style={{ fontSize: 11, color: 'var(--text)', display: 'flex', gap: 6, alignItems: 'center', minWidth: 0, flex: 1 }}>
           <span style={{ color: 'var(--text3)', fontWeight: 700, flexShrink: 0 }}>#{rank}</span>
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
         </div>
-        <span style={{ fontSize: 11, fontWeight: 700, color, flexShrink: 0, marginLeft: 8 }}>{count}</span>
+        <span style={{ fontSize: 11, fontWeight: 700, color, flexShrink: 0 }}>{count}</span>
       </div>
+      {conn && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 4, fontSize: 10, color: 'var(--text3)' }}>
+          <ConnectionAvatar name={conn.name} logoUrl={conn.logoUrl} size={12} />
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{conn.name}</span>
+          <EnvBadge isProduction={conn.isProduction} />
+        </div>
+      )}
       <div style={{ height: 3, background: 'var(--border)', borderRadius: 2 }}>
         <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: 2, transition: 'width .4s' }} />
       </div>

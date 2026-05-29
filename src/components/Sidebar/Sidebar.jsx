@@ -1,3 +1,5 @@
+import { useState } from 'react'
+
 const W = 220
 const W_MIN = 52
 
@@ -27,9 +29,38 @@ function envDotColor(name = '') {
   return '#6B7280'
 }
 
-export default function Sidebar({ connections, activeId, openConnIds = [], onSelect, expanded, onToggle, loading, isMobile = false, mobileOpen = false }) {
+export default function Sidebar({ connections, activeId, openConnIds = [], onSelect, onReorder, expanded, onToggle, loading, isMobile = false, mobileOpen = false }) {
   const w = expanded ? W : W_MIN
   const openSet = new Set(openConnIds)
+  const [dragId, setDragId]       = useState(null)
+  const [dragOverId, setDragOverId] = useState(null)
+
+  // Drag-drop is desktop-only; on touch/mobile devices native HTML5 DnD is unreliable
+  const dndEnabled = !isMobile && typeof onReorder === 'function'
+
+  function handleDragStart(e, id) {
+    if (!dndEnabled) return
+    setDragId(id)
+    e.dataTransfer.effectAllowed = 'move'
+    try { e.dataTransfer.setData('text/plain', id) } catch {}
+  }
+  function handleDragOver(e, id) {
+    if (!dndEnabled || dragId === null) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    if (dragOverId !== id) setDragOverId(id)
+  }
+  function handleDrop(e, id) {
+    if (!dndEnabled || dragId === null) return
+    e.preventDefault()
+    if (dragId !== id) onReorder(dragId, id)
+    setDragId(null)
+    setDragOverId(null)
+  }
+  function handleDragEnd() {
+    setDragId(null)
+    setDragOverId(null)
+  }
 
   return (
     <aside
@@ -118,6 +149,8 @@ export default function Sidebar({ connections, activeId, openConnIds = [], onSel
                 />
               )
             }
+            const dragging = dragId === c.id
+            const dropTarget = dndEnabled && dragId && dragOverId === c.id && dragOverId !== dragId
             return (
               <SidebarItem
                 key={c.id}
@@ -129,6 +162,14 @@ export default function Sidebar({ connections, activeId, openConnIds = [], onSel
                 isOpen={isOpen}
                 expanded={expanded}
                 onClick={() => onSelect(c.id)}
+                draggable={dndEnabled}
+                dragging={dragging}
+                dropTarget={dropTarget}
+                onDragStart={e => handleDragStart(e, c.id)}
+                onDragOver={e => handleDragOver(e, c.id)}
+                onDrop={e => handleDrop(e, c.id)}
+                onDragLeave={() => { if (dragOverId === c.id) setDragOverId(null) }}
+                onDragEnd={handleDragEnd}
               />
             )
           })
@@ -151,26 +192,48 @@ export default function Sidebar({ connections, activeId, openConnIds = [], onSel
   )
 }
 
-function SidebarItem({ label, icon, iconColor, envColor, sessionStatus, numberIcon, avatarStyle, active, isOpen, expanded, onClick }) {
+function SidebarItem({
+  label, icon, iconColor, envColor, sessionStatus, numberIcon, avatarStyle,
+  active, isOpen, expanded, onClick,
+  draggable = false, dragging = false, dropTarget = false,
+  onDragStart, onDragOver, onDrop, onDragLeave, onDragEnd,
+}) {
   const showOpenIndicator = isOpen && !active
+  const leftBorder = dropTarget
+    ? '3px solid var(--accent)'
+    : active ? '3px solid var(--accent)'
+    : showOpenIndicator ? '3px solid #34d399'
+    : '3px solid transparent'
+  const baseBg = active
+    ? 'rgba(247,168,0,.1)'
+    : showOpenIndicator ? 'rgba(52,211,153,.05)' : 'none'
   return (
-    <button onClick={onClick} style={{
-      width: '100%', display: 'flex', alignItems: 'center',
-      padding: '9px 14px',
-      justifyContent: 'flex-start',
-      gap: 10,
-      background: active ? 'rgba(247,168,0,.1)' : (showOpenIndicator ? 'rgba(52,211,153,.05)' : 'none'),
-      border: 'none',
-      borderLeft: active
-        ? '3px solid var(--accent)'
-        : (showOpenIndicator ? '3px solid #34d399' : '3px solid transparent'),
-      color: active ? 'var(--accent)' : 'var(--text2)',
-      fontSize: 12, fontWeight: active || isOpen ? 600 : 400,
-      transition: 'all .15s', textAlign: 'left',
-    }}
-      onMouseEnter={e => { if (!active) e.currentTarget.style.background = 'rgba(255,255,255,.04)' }}
-      onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'none' }}
-      title={!expanded ? label : undefined}
+    <button
+      onClick={onClick}
+      draggable={draggable}
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+      onDragLeave={onDragLeave}
+      onDragEnd={onDragEnd}
+      style={{
+        width: '100%', display: 'flex', alignItems: 'center',
+        padding: '9px 14px',
+        justifyContent: 'flex-start',
+        gap: 10,
+        background: dropTarget ? 'rgba(247,168,0,.18)' : baseBg,
+        border: 'none',
+        borderLeft: leftBorder,
+        color: active ? 'var(--accent)' : 'var(--text2)',
+        fontSize: 12, fontWeight: active || isOpen ? 600 : 400,
+        transition: 'background .15s, color .15s, border-color .15s, opacity .15s',
+        textAlign: 'left',
+        cursor: draggable ? (dragging ? 'grabbing' : 'grab') : 'pointer',
+        opacity: dragging ? 0.4 : 1,
+      }}
+      onMouseEnter={e => { if (!active && !dropTarget) e.currentTarget.style.background = 'rgba(255,255,255,.04)' }}
+      onMouseLeave={e => { if (!active && !dropTarget) e.currentTarget.style.background = 'none' }}
+      title={!expanded ? label : (draggable ? `${label} · arrastra para reordenar` : undefined)}
     >
       {/* Icon */}
       {numberIcon && avatarStyle ? (
