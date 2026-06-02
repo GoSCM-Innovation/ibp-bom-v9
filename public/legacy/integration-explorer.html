@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Integration Explorer</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=DM+Sans:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet">
+
+  <!-- Bootstrap: receive the API token from the parent app and patch fetch to
+       authorize same-origin /api/ calls (mirrors src/apiFetch.js). -->
+  <script>
+    (function () {
+      var API_TOKEN = '';
+      var origFetch = window.fetch.bind(window);
+      function isInternalApi(input) {
+        try {
+          if (typeof input === 'string') return input.indexOf('/api/') === 0;
+          if (input instanceof URL) return input.pathname.indexOf('/api/') === 0;
+          if (input && typeof input.url === 'string') return new URL(input.url, location.origin).pathname.indexOf('/api/') === 0;
+        } catch (e) {}
+        return false;
+      }
+      window.fetch = function (input, init) {
+        init = init || {};
+        if (!isInternalApi(input)) return origFetch(input, init);
+        var headers = new Headers(init.headers || (input && input.headers) || {});
+        if (API_TOKEN && !headers.has('Authorization')) headers.set('Authorization', 'Bearer ' + API_TOKEN);
+        return origFetch(input, Object.assign({}, init, { headers: headers }));
+      };
+      window.addEventListener('message', function (e) {
+        if (e.origin !== location.origin) return;
+        if (e.data && e.data.type === 'ibp-api-token' && typeof e.data.token === 'string') API_TOKEN = e.data.token;
+      });
+      try { if (window.parent !== window) window.parent.postMessage({ type: 'ibp-iframe-ready' }, location.origin); } catch (e) {}
+    })();
+  </script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/vis-network/10.0.2/standalone/umd/vis-network.min.js"
+    integrity="sha512-9YVQZyV2hlSqEXZDwSEVia7u4T+qBkLE7KYG24LalL3J1zoQJXAiWpobprig/vGhV1VCfPIxF4EvHDYCSrSpmw=="
+    crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"
+    integrity="sha512-XMVd28F1oH/O71fzwBnV7HucLxVwtxf26XV8P4wPk26EDxuGZ91N8bsOttmnomcCD3CS5ZMRL50H0GgOHvegtg=="
+    crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    .tab-panel { display: block !important; }
+    body { padding: 16px 20px 40px; }
+  </style>
+</head>
+
+<body>
+  <!-- Hidden stub: docs.js binds to these IDs at load time (it provides the
+       parseBatchCsv/parseIntegration parser the Explorer reuses). Keeping them
+       present lets docs.js initialise cleanly without touching the Explorer UI. -->
+  <div style="display:none" aria-hidden="true">
+    <div class="drop-zone" id="dz"><input type="file" id="fi" accept=".zip" multiple></div>
+    <div class="docs-stepper" id="docsStepper"></div>
+    <div id="docs-log"></div>
+    <p id="docs-log-hint"></p>
+  </div>
+
+  <!-- ═══ TAB: INTEGRATION EXPLORER ═══ -->
+  <div class="tab-panel active" id="tab-explorer">
+    <div class="tab-info-banner visible" id="infoBannerExplorer">
+      <span class="tab-info-icon">🔎</span>
+      <div class="tab-info-content">
+        <div class="tab-info-desc" data-i18n="banner.explorer">Explora visualmente las integraciones CI-DS. Sube ZIPs, navega mappings/filtros/lookups y detecta cadenas consecutivas entre dataflows.</div>
+      </div>
+    </div>
+
+    <!-- Upload -->
+    <div class="panel" id="ex-upload-panel">
+      <div class="panel-title collapsible" onclick="Explorer.toggleUploadPanel()" data-i18n="ex.panelTitle">📦 ZIPs de integraciones CI-DS</div>
+      <div class="drop-zone" id="ex-dz">
+        <input type="file" id="ex-fi" accept=".zip" multiple style="display:none">
+        <span class="drop-icon">🗂️</span>
+        <p class="drop-title" data-i18n="ex.dropTitle">Arrastra los ZIP aquí o haz click para seleccionar</p>
+        <p class="drop-hint" data-i18n="ex.dropHint">Múltiples archivos permitidos · Se reutiliza el parser de Doc Generator</p>
+      </div>
+      <div id="ex-file-list"></div>
+      <div class="btn-row ex-upload-actions">
+        <button class="btn btn-primary" id="ex-analyze-btn" disabled onclick="Explorer.analyze()" data-i18n="ex.analyzeBtn">🔬 Explorar integraciones</button>
+        <div id="ex-cids-bar"></div>
+      </div>
+    </div>
+
+    <!-- Resultados -->
+    <div class="panel" id="ex-results" style="display:none">
+      <div class="ex-toolbar">
+        <div class="ex-dim-toggle">
+          <button class="dim-btn active" id="ex-dim-integration"   onclick="Explorer.switchDimension('integration')" data-i18n="ex.dim.integration">🔗 Integración</button>
+          <button class="dim-btn" id="ex-dim-dst-table"            onclick="Explorer.switchDimension('dst-table')" data-i18n="ex.dim.dstTable">📤 Tabla Destino</button>
+          <button class="dim-btn" id="ex-dim-src-table"            onclick="Explorer.switchDimension('src-table')" data-i18n="ex.dim.srcTable">📥 Tabla Origen</button>
+          <button class="dim-btn" id="ex-dim-dst-field"            onclick="Explorer.switchDimension('dst-field')" data-i18n="ex.dim.dstField">📋 Campo Destino</button>
+          <button class="dim-btn" id="ex-dim-src-field"            onclick="Explorer.switchDimension('src-field')" data-i18n="ex.dim.srcField">📋 Campo Origen</button>
+          <button class="dim-btn" id="ex-dim-filter-table"         onclick="Explorer.switchDimension('filter-table')" data-i18n="ex.dim.filterTable">🔍 Tabla Filtro/Join</button>
+          <button class="dim-btn" id="ex-dim-filter-field"         onclick="Explorer.switchDimension('filter-field')" data-i18n="ex.dim.filterField">🎯 Campo Filtro/Join</button>
+        </div>
+        <div class="ex-toolbar-row2">
+          <input class="sel-search" id="ex-search" placeholder="🔍 Buscar..." data-i18n-placeholder="ex.searchPh" oninput="Explorer.applySearch(this.value)">
+          <div class="ex-view-toggle" id="ex-view-toggle">
+            <button class="mode-btn active" id="ex-view-list" onclick="Explorer.switchView('list')" data-i18n="ex.view.list">📋 Lista</button>
+            <button class="mode-btn" id="ex-view-graph" onclick="Explorer.switchView('graph')" data-i18n="ex.view.graph">🕸️ Grafo</button>
+          </div>
+          <span class="sel-counter" id="ex-counter"></span>
+        </div>
+        <div id="ex-cids-toggle" style="display:none"></div>
+        <div class="ex-pa-filter" id="ex-pa-filter" style="display:none"></div>
+        <div class="ex-ds-filter" id="ex-ds-filter" style="display:none"></div>
+      </div>
+
+      <!-- Vista LISTA -->
+      <div class="ex-split" id="ex-list-view">
+        <div class="ex-master" id="ex-master"></div>
+        <div id="ex-resizer" class="ex-resizer"></div>
+        <div class="ex-detail" id="ex-detail">
+          <p class="docs-hint" data-i18n="ex.master.hint">Selecciona una integración a la izquierda para explorar sus campos</p>
+        </div>
+      </div>
+
+      <!-- Vista GRAFO -->
+      <div id="ex-graph-wrap" style="display:none; position:relative;">
+        <div id="ex-graph-view" style="height:640px; border:1px solid var(--border); border-radius:8px;"></div>
+        <div id="ex-graph-legend" class="ex-graph-legend">
+          <div class="ex-legend-title" data-i18n="ex.legend.title">Leyenda</div>
+          <div class="ex-legend-section-label" data-i18n="ex.legend.conn">Conexiones</div>
+          <div class="ex-legend-item"><svg width="32" height="10"><line x1="0" y1="5" x2="26" y2="5" stroke="#34d399" stroke-width="2.5"/><polygon points="20,1 26,5 20,9" fill="#34d399"/></svg> <span data-i18n="ex.legend.tableDb">Tabla (DB)</span></div>
+          <div class="ex-legend-item"><svg width="32" height="10"><line x1="0" y1="5" x2="26" y2="5" stroke="#E8622A" stroke-width="2" stroke-dasharray="6 4"/><polygon points="20,1 26,5 20,9" fill="#E8622A"/></svg> <span data-i18n="ex.legend.file">Archivo</span></div>
+          <div class="ex-legend-item"><svg width="32" height="10"><line x1="0" y1="5" x2="26" y2="5" stroke="#a78bfa" stroke-width="2" stroke-dasharray="2 3 8 3"/><polygon points="20,1 26,5 20,9" fill="#a78bfa"/></svg> <span data-i18n="ex.legend.lookup">Lookup</span></div>
+          <div class="ex-legend-sep"></div>
+          <div class="ex-legend-section-label" data-i18n="ex.legend.nodes">Nodos</div>
+          <div class="ex-legend-item"><span class="ex-legend-node" style="background:#F7A800;color:#000;">MD</span> <span data-i18n="ex.legend.md">Master data</span></div>
+          <div class="ex-legend-item"><span class="ex-legend-node" style="background:#29ABE2;color:#000;">KF</span> <span data-i18n="ex.legend.kf">Key figure</span></div>
+          <div class="ex-legend-item"><span class="ex-legend-node" style="background:#E8622A;color:#fff;">FILE</span> <span data-i18n="ex.legend.fileNode">Archivo</span></div>
+        </div>
+      </div>
+    </div>
+  </div><!-- /tab-explorer -->
+
+  <!-- ═══ CI-DS CONNECTION MODAL ═══ -->
+  <div id="cids-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:2000;align-items:center;justify-content:center;">
+    <div class="cids-modal-box" onclick="event.stopPropagation()">
+      <div class="cids-modal-title" data-i18n="cids.title">Conectar SAP CI-DS</div>
+      <div class="cids-modal-subtitle" data-i18n="cids.subtitle">Las credenciales solo se usan durante esta sesión y no se almacenan.</div>
+
+      <div class="cids-field-group">
+        <label class="cids-label" data-i18n="cids.lbl.soapUrl">URL del servicio SOAP</label>
+        <input class="cids-input" id="cids-hciUrl" type="url" placeholder="https://host/webservices" autocomplete="off"
+          onkeydown="if(event.key==='Enter')Explorer.submitCidsConnect()">
+        <div class="cids-hint" data-i18n-html="cids.hint.soapUrl">Kyma: https://&lt;host&gt;/webservices &nbsp;·&nbsp; Neo: https://&lt;host&gt;/DSoD/webservices</div>
+      </div>
+      <div class="cids-field-row">
+        <div class="cids-field-group">
+          <label class="cids-label" data-i18n="cids.lbl.org">Organización (orgName)</label>
+          <input class="cids-input mono" id="cids-orgName" type="text" placeholder="miOrganización" data-i18n-placeholder="cids.ph.org" autocomplete="off"
+            onkeydown="if(event.key==='Enter')Explorer.submitCidsConnect()">
+        </div>
+        <div class="cids-field-group">
+          <label class="cids-label" data-i18n="cids.lbl.repo">Repositorio</label>
+          <div class="cids-radio-row">
+            <label class="cids-radio-lbl"><input type="radio" name="cids-repo" id="cids-isProd" checked> <span data-i18n="cids.opt.prod">Productivo</span></label>
+            <label class="cids-radio-lbl"><input type="radio" name="cids-repo"> <span data-i18n="cids.opt.sandbox">Sandbox</span></label>
+          </div>
+        </div>
+      </div>
+      <div class="cids-field-row">
+        <div class="cids-field-group">
+          <label class="cids-label" data-i18n="cids.lbl.user">Usuario</label>
+          <input class="cids-input mono" id="cids-user" type="text" placeholder="WebServicesUser" data-i18n-placeholder="cids.ph.user" autocomplete="username"
+            onkeydown="if(event.key==='Enter')Explorer.submitCidsConnect()">
+        </div>
+        <div class="cids-field-group">
+          <label class="cids-label" data-i18n="cids.lbl.password">Contraseña</label>
+          <input class="cids-input" id="cids-password" type="password" placeholder="••••••••" autocomplete="current-password"
+            onkeydown="if(event.key==='Enter')Explorer.submitCidsConnect()">
+        </div>
+      </div>
+
+      <div id="cids-modal-error" class="cids-modal-error"></div>
+
+      <div class="cids-modal-actions">
+        <button class="btn" onclick="Explorer.closeCidsModal()" data-i18n="common.cancel">Cancelar</button>
+        <button class="btn btn-primary" id="cids-modal-submit" onclick="Explorer.submitCidsConnect()" data-i18n="cids.btnConnect">Conectar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ DATAFLOW DIAGRAM FULLSCREEN MODAL ═══ -->
+  <div id="ex-df-fs-modal" class="ex-df-fs-modal" style="display:none;">
+    <div class="ex-df-fs-header">
+      <div class="ex-df-fs-title" id="ex-df-fs-title"></div>
+      <button class="ex-df-fs-close" onclick="Explorer.closeDataflowFullscreen()" title="Cerrar (Esc)" data-i18n-title="ex.df.close.title">✕</button>
+    </div>
+    <div class="ex-df-fs-body">
+      <div id="ex-df-fs-graph" class="ex-df-fs-graph"></div>
+      <div id="ex-df-fs-resizer" class="ex-df-fs-resizer" title="Arrastra para ajustar el ancho del panel" data-i18n-title="ex.df.resizer.title"></div>
+      <div id="ex-df-fs-node-detail" class="ex-df-fs-node-detail">
+        <div class="ex-df-fs-detail-hint" data-i18n="ex.df.detailHint">Click en un nodo del diagrama para ver sus detalles</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/i18n.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/docs.js"></script>
+  <script src="js/explorer.js"></script>
+</body>
+
+</html>

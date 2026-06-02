@@ -4,6 +4,7 @@ import Sidebar from './components/Sidebar/Sidebar'
 import Connections from './components/Connections/Connections'
 import SystemView from './components/System/SystemView'
 import GlobalResumen from './components/Resumen/GlobalResumen'
+import LegacyModuleView from './components/Legacy/LegacyModuleView'
 import ConnectionTabs from './components/ConnectionTabs'
 import { useIsMobile } from './hooks/useViewport'
 import './App.css'
@@ -167,7 +168,8 @@ export default function App() {
   }
 
   function handleSelect(id) {
-    if (id !== 'connections' && id !== 'resumen-general') {
+    const topLevelViews = ['connections', 'resumen-general', 'mapping-dataflow', 'integration-explorer']
+    if (!topLevelViews.includes(id)) {
       if (!openConnIds.includes(id)) {
         const next = [...openConnIds, id]
         setOpenConnIds(next)
@@ -238,6 +240,12 @@ export default function App() {
             )}
             {activeId === 'resumen-general' && (
               <GlobalResumen connections={connections} onOpenConnection={handleSelect} />
+            )}
+            {activeId === 'mapping-dataflow' && (
+              <LegacyModuleView src="/legacy/mapping-dataflow.html" title="Mapping Dataflow Generator" />
+            )}
+            {activeId === 'integration-explorer' && (
+              <LegacyModuleView src="/legacy/integration-explorer.html" title="Integration Explorer" />
             )}
             {openConnIds.map(id => {
               const conn = connections.find(c => c.id === id)

@@ -118,6 +118,28 @@ export default function Sidebar({ connections, activeId, openConnIds = [], onSel
         accent
       />
 
+      {/* Mapping Dataflow Generator */}
+      <SidebarItem
+        id="mapping-dataflow"
+        label="Mapping Dataflow Generator"
+        icon="📄"
+        active={activeId === 'mapping-dataflow'}
+        expanded={expanded}
+        onClick={() => onSelect('mapping-dataflow')}
+        accent
+      />
+
+      {/* Integration Explorer */}
+      <SidebarItem
+        id="integration-explorer"
+        label="Integration Explorer"
+        icon="🔎"
+        active={activeId === 'integration-explorer'}
+        expanded={expanded}
+        onClick={() => onSelect('integration-explorer')}
+        accent
+      />
+
       {/* Divider */}
       {connections.length > 0 && (
         <div style={{ margin: '4px 10px', borderTop: '1px solid var(--border)' }} />

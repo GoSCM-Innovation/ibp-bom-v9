@@ -70,6 +70,10 @@ async function soapCall(serviceUrl, soapAction, envelopeXml) {
       'SOAPAction':   soapAction,
     },
     body: envelopeXml,
+    // Do not follow redirects: a 3xx to an internal host would bypass the
+    // anti-SSRF host validation done on the original URL. Legit CI-DS SOAP
+    // endpoints answer 200 (or a SOAP fault), never 3xx.
+    redirect: 'manual',
   })
   const text = await resp.text()
   return { ok: resp.ok, status: resp.status, text }
