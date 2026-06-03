@@ -12,6 +12,13 @@ import './App.css'
 const LS_KEY = 'ibp_connections'
 const LS_TABS_KEY = 'ibp_open_tabs'
 
+// Legacy vanilla-JS modules embedded via iframe. Kept mounted once visited so
+// their in-iframe state survives switching to another view and back.
+const LEGACY_MODULES = {
+  'mapping-dataflow':     { src: '/legacy/mapping-dataflow.html',     title: 'Mapping Dataflow Generator' },
+  'integration-explorer': { src: '/legacy/integration-explorer.html', title: 'Integration Explorer' },
+}
+
 function loadConnections() {
   try { return JSON.parse(localStorage.getItem(LS_KEY) || '[]') } catch { return [] }
 }
@@ -38,6 +45,7 @@ export default function App() {
     const firstOpen = tabs.find(id => valid.has(id))
     return firstOpen || 'connections'
   })
+  const [mountedLegacy, setMountedLegacy] = useState(() => [])
   const [sidebarExpanded, setSidebarExpanded] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(false) // mobile drawer
   const isMobile = useIsMobile()
@@ -168,13 +176,16 @@ export default function App() {
   }
 
   function handleSelect(id) {
-    const topLevelViews = ['connections', 'resumen-general', 'mapping-dataflow', 'integration-explorer']
+    const topLevelViews = ['connections', 'resumen-general', ...Object.keys(LEGACY_MODULES)]
     if (!topLevelViews.includes(id)) {
       if (!openConnIds.includes(id)) {
         const next = [...openConnIds, id]
         setOpenConnIds(next)
         persistOpenTabs(next)
       }
+    }
+    if (LEGACY_MODULES[id] && !mountedLegacy.includes(id)) {
+      setMountedLegacy(prev => [...prev, id])
     }
     setActiveId(id)
     if (isMobile) setSidebarOpen(false)
@@ -241,12 +252,18 @@ export default function App() {
             {activeId === 'resumen-general' && (
               <GlobalResumen connections={connections} onOpenConnection={handleSelect} />
             )}
-            {activeId === 'mapping-dataflow' && (
-              <LegacyModuleView src="/legacy/mapping-dataflow.html" title="Mapping Dataflow Generator" />
-            )}
-            {activeId === 'integration-explorer' && (
-              <LegacyModuleView src="/legacy/integration-explorer.html" title="Integration Explorer" />
-            )}
+            {mountedLegacy.map(id => (
+              <div
+                key={id}
+                style={{
+                  display: activeId === id ? 'flex' : 'none',
+                  flexDirection: 'column',
+                  height: '100%',
+                }}
+              >
+                <LegacyModuleView src={LEGACY_MODULES[id].src} title={LEGACY_MODULES[id].title} />
+              </div>
+            ))}
             {openConnIds.map(id => {
               const conn = connections.find(c => c.id === id)
               if (!conn) return null
