@@ -333,19 +333,24 @@ function parseResponse(operation, xml) {
     }
 
     case 'getTaskLogs': {
-      // SAP returns each messageLine base64-encoded when base64Encode=true. Buffer.from is
-      // lenient (ignores invalid chars), so plaintext header lines round-trip safely if the
-      // sniff says they're not base64.
-      const decodeLine = (raw) => {
-        const text = raw.replace(/<!\[CDATA\[|\]\]>/g, '').replace(/<[^>]+>/g, '').trim()
-        const clean = text.replace(/\s+/g, '')
+      // SAP returns each messageLine base64-encoded when base64Encode=true, but it packs
+      // several independently-encoded lines into one <messageLines> element separated by
+      // newlines. Decode token-by-token: concatenating first would leave a line's '=' padding
+      // mid-string and break the base64 sniff, dumping the whole block back out as raw base64.
+      // Buffer.from is lenient, so plaintext lines that fail the sniff round-trip unchanged.
+      const decodeToken = (part) => {
+        const clean = part.replace(/\s+/g, '')
         if (clean && /^[A-Za-z0-9+/]+=*$/.test(clean) && clean.length % 4 === 0) {
           try {
             const decoded = Buffer.from(clean, 'base64').toString('utf-8')
             if (decoded && !/�/.test(decoded)) return decoded
           } catch {}
         }
-        return text
+        return part
+      }
+      const decodeLine = (raw) => {
+        const text = raw.replace(/<!\[CDATA\[|\]\]>/g, '').replace(/<[^>]+>/g, '').trim()
+        return text.split(/\r?\n/).map(decodeToken).join('\n')
       }
       const parseLog = (name) => {
         const block = xmlVal(xml, name)
