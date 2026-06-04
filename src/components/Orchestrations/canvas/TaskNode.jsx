@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Handle, Position } from '@xyflow/react'
 import { STATUS_COLORS, STATUS_ICONS } from '../canvasUtils'
+import PromotedBadge from '../../ui/PromotedBadge'
+import { usePromotedTasksContext, isTaskPromoted } from '../../../hooks/usePromotedTasks'
 
 const STRATEGY_COLOR = { stop: '#64748b', continue: '#fbbf24', retry: '#3b82f6' }
 const STRATEGY_LABEL = { stop: 'error: detener', continue: 'error: continuar', retry: 'error: reintentar' }
@@ -14,6 +16,8 @@ export default function TaskNode({ data, selected, id }) {
   const icon     = STATUS_ICONS[status]
   const isActive = status === 'running'
   const typeColor = TYPE_COLOR[data.taskType] || TYPE_COLOR.TASK
+  const promotedSet = usePromotedTasksContext()
+  const promoted = isTaskPromoted(promotedSet, data.taskName)
 
   return (
     <div
@@ -55,6 +59,7 @@ export default function TaskNode({ data, selected, id }) {
         }}>
           {data.label || data.taskName}
         </span>
+        {promoted && <PromotedBadge fontSize={8} />}
         {hovered && data.onRunSingle && (
           <button
             onClick={e => { e.stopPropagation(); data.onRunSingle(id) }}

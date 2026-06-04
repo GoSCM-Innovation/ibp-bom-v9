@@ -430,10 +430,12 @@ function HelpPanel({ onClose }) {
             <tr><td style={tdStyle}><b>Organización</b></td><td style={tdStyle}>Nombre técnico de la org CI-DS (case-sensitive)</td><td style={tdStyle}>Consola CI-DS → arriba a la derecha, bajo tu usuario aparece la organización activa</td></tr>
             <tr><td style={tdStyle}><b>URL del servicio</b></td><td style={tdStyle}>Endpoint SOAP del WebService</td><td style={tdStyle}>Ver paso 3</td></tr>
             <tr><td style={tdStyle}><b>Usuario SAP</b> <span style={{ color: 'var(--text3)' }}>(opcional)</span></td><td style={tdStyle}>Usuario tipo WebService</td><td style={tdStyle}>Lo crea el admin en <b>Administrator → Users</b> con permiso de WebServices (un usuario normal de UI no sirve)</td></tr>
-            <tr><td style={tdStyle}><b>Repositorio</b></td><td style={tdStyle}>Producción o Sandbox</td><td style={tdStyle}>Según el repositorio contra el que vayas a ejecutar tasks</td></tr>
             <tr><td style={tdStyle}><b>URL del logo</b> <span style={{ color: 'var(--text3)' }}>(opcional)</span></td><td style={tdStyle}>Imagen para identificar la conexión</td><td style={tdStyle}>Cualquier URL pública de imagen</td></tr>
           </tbody>
         </table>
+        <div style={{ fontSize: 11, color: 'var(--text2)', marginTop: 8 }}>
+          Al guardar se crean automáticamente <b>dos conexiones</b>: una contra el repositorio de Producción y otra contra Sandbox.
+        </div>
       </HelpStep>
 
       <HelpStep n="3" title="Cómo formar la URL del servicio">
@@ -465,8 +467,7 @@ function HelpPanel({ onClose }) {
         <b style={{ color: 'var(--red)' }}>Errores típicos:</b>
         &nbsp;Organización mal escrita (mayúsculas/minúsculas) ·
         URL apuntando a la UI en vez de <code style={codeStyle}>/webservices</code> ·
-        Usuario sin permiso de WebService ·
-        Repositorio equivocado (Producción vs Sandbox).
+        Usuario sin permiso de WebService.
       </div>
     </div>
   )

@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
+import PromotedBadge from '../../ui/PromotedBadge'
+import { usePromotedTasksContext, isTaskPromoted } from '../../../hooks/usePromotedTasks'
 
 async function soapCall(connection, sessionId, operation, params = {}) {
   const { hciUrl, orgName, isProduction } = connection
@@ -18,6 +20,8 @@ async function soapCall(connection, sessionId, operation, params = {}) {
 
 function DragChip({ task, style, fullscreen, onPick, selectable = false, selected = false, onToggleSelect }) {
   const tapMode = typeof onPick === 'function' || selectable
+  const promotedSet = usePromotedTasksContext()
+  const promoted = isTaskPromoted(promotedSet, task.taskName)
 
   function onDragStart(e) {
     e.dataTransfer.effectAllowed = 'copy'
@@ -77,6 +81,11 @@ function DragChip({ task, style, fullscreen, onPick, selectable = false, selecte
         border: `1px solid ${task.type === 'PROCESS' ? 'rgba(139,92,246,.3)' : 'rgba(6,182,212,.3)'}`,
         textTransform: 'uppercase',
       }}>{task.type || 'TASK'}</span>
+      {promoted && (
+        <span style={{ flexShrink: 0, marginTop: showInlineDesc ? 2 : 0, display: 'inline-flex' }}>
+          <PromotedBadge fontSize={8} />
+        </span>
+      )}
       <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
         <span style={{
           fontSize: 11, color: 'var(--text)',

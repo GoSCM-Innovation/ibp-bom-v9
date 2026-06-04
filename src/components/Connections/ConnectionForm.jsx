@@ -2,12 +2,11 @@ import { useState } from 'react'
 
 export default function ConnectionForm({ initial, onSave, onCancel }) {
   const [form, setForm] = useState({
-    name:         initial?.name         || '',
-    hciUrl:       initial?.hciUrl       || '',
-    orgName:      initial?.orgName      || '',
-    user:         initial?.user         || '',
-    isProduction: initial?.isProduction ?? true,
-    logoUrl:      initial?.logoUrl      || '',
+    name:    initial?.name    || '',
+    hciUrl:  initial?.hciUrl  || '',
+    orgName: initial?.orgName || '',
+    user:    initial?.user    || '',
+    logoUrl: initial?.logoUrl || '',
   })
   const [error, setError] = useState('')
 
@@ -19,13 +18,12 @@ export default function ConnectionForm({ initial, onSave, onCancel }) {
     if (!form.orgName){ setError('El nombre de organización es obligatorio'); return }
     setError('')
     onSave({
-      ...(initial ? { id: initial.id } : {}),
-      name:         form.name,
-      hciUrl:       form.hciUrl.replace(/\/$/, ''),
-      orgName:      form.orgName,
-      user:         form.user,
-      isProduction: form.isProduction,
-      logoUrl:      form.logoUrl,
+      ...(initial ? { id: initial.id, isProduction: initial.isProduction ?? true } : {}),
+      name:    form.name,
+      hciUrl:  form.hciUrl.replace(/\/$/, ''),
+      orgName: form.orgName,
+      user:    form.user,
+      logoUrl: form.logoUrl,
     })
   }
 
@@ -55,28 +53,25 @@ export default function ConnectionForm({ initial, onSave, onCancel }) {
         </div>
       </div>
 
-      {/* Row 3: User + Repo */}
+      {/* Row 3: User */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
         <Field label="Usuario SAP (opcional, pre-rellena el login)" value={form.user} onChange={v => set('user', v)} placeholder="WebServicesUser" mono />
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-          <label style={{ fontSize: 10, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '.07em' }}>
-            Repositorio
-          </label>
-          <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-            {[{ label: 'Producción', value: true }, { label: 'Sandbox', value: false }].map(opt => (
-              <label key={String(opt.value)} style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', fontSize: 12, color: 'var(--text)' }}>
-                <input
-                  type="radio"
-                  name="isProduction"
-                  checked={form.isProduction === opt.value}
-                  onChange={() => set('isProduction', opt.value)}
-                  style={{ accentColor: 'var(--accent)' }}
-                />
-                {opt.label}
-              </label>
-            ))}
+        {initial ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <label style={{ fontSize: 10, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '.07em' }}>
+              Repositorio
+            </label>
+            <div style={{ fontSize: 12, color: 'var(--text)', marginTop: 4 }}>
+              {(initial.isProduction ?? true) ? 'Producción' : 'Sandbox'}
+            </div>
           </div>
-        </div>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+            <div style={{ fontSize: 11, color: 'var(--text3)', lineHeight: 1.5 }}>
+              Se crearán dos conexiones automáticamente: una en <b style={{ color: 'var(--text2)' }}>Producción</b> y otra en <b style={{ color: 'var(--text2)' }}>Sandbox</b>.
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Row 4: Logo URL */}
@@ -94,7 +89,7 @@ export default function ConnectionForm({ initial, onSave, onCancel }) {
         <button type="button" onClick={handleSave} style={{
           background: 'var(--accent)', border: 'none', borderRadius: 6,
           color: '#000', fontSize: 12, fontWeight: 700, padding: '7px 18px',
-        }}>{initial ? 'Guardar cambios' : 'Crear conexión'}</button>
+        }}>{initial ? 'Guardar cambios' : 'Crear conexiones'}</button>
       </div>
     </div>
   )

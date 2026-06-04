@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import TechLogs, { useTechLogs } from '../TechLogs'
 import ProgressBar from '../ui/ProgressBar'
+import PromotedBadge from '../ui/PromotedBadge'
+import { usePromotedTasksContext, isTaskPromoted } from '../../hooks/usePromotedTasks'
 import { getTzMode, setTzMode, toInputDate, inputDateToDate, formatEpochMs, TZ_OPTIONS } from '../../utils/dateUtils'
 
 const REFRESH_MS = 30000
@@ -73,6 +75,7 @@ export default function TaskMonitor({ connection, sessionId, onSessionExpired, i
   const addLogRef = useRef(addLog)
   addLogRef.current = addLog
 
+  const promotedSet = usePromotedTasksContext()
   const [tzMode, setTzModeState] = useState(() => getTzMode())
   const [fromDate, setFromDate]  = useState(() => toInputDate(new Date(Date.now() - 7 * 86400000), getTzMode()))
   const [toDate,   setToDate]    = useState(() => toInputDate(new Date(), getTzMode()))
@@ -186,11 +189,16 @@ export default function TaskMonitor({ connection, sessionId, onSessionExpired, i
 
   const COLS = useMemo(() => [
     { key: 'statusCode', label: 'Estado',    w: 200, render: v => <StatusBadge code={v} /> },
-    { key: 'taskName',   label: 'Task',      w: 280 },
+    { key: 'taskName',   label: 'Task',      w: 280, render: v => (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, maxWidth: '100%' }}>
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{v ?? '—'}</span>
+        {isTaskPromoted(promotedSet, v) && <PromotedBadge fontSize={8} />}
+      </span>
+    ) },
     { key: 'startDate',  label: 'Inicio',    w: 180, render: v => formatEpochMs(v, tzMode) },
     { key: 'runId',      label: 'RunID',     w: 120 },
     { key: 'jobId',      label: 'JobID',     w: 150 },
-  ].map(c => ({ ...c, w: colWidths[c.key] ?? c.w })), [colWidths])
+  ].map(c => ({ ...c, w: colWidths[c.key] ?? c.w })), [colWidths, promotedSet])
 
   function onResizeStart(col, e) {
     e.preventDefault(); e.stopPropagation()

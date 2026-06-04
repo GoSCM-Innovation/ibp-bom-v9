@@ -56,8 +56,10 @@ export default function App() {
   }, [isMobile])
 
   function addConnection(conn) {
-    const newConn = { ...conn, id: crypto.randomUUID() }
-    const updated = [...connections, newConn]
+    // Cada alta crea el par completo: misma URL/org, un repo por entorno
+    const prod    = { ...conn, id: crypto.randomUUID(), isProduction: true }
+    const sandbox = { ...conn, id: crypto.randomUUID(), isProduction: false }
+    const updated = [...connections, prod, sandbox]
     setConnections(updated)
     persistConnections(updated)
   }
@@ -94,6 +96,9 @@ export default function App() {
           logoutSession(existing, oldSid)
         }
         sessionStorage.removeItem(`sap_${conn.id}`)
+        const oldProdSid = sessionStorage.getItem(`sap_prod_${conn.id}`)
+        if (oldProdSid) logoutSession({ ...existing, isProduction: true }, oldProdSid)
+        sessionStorage.removeItem(`sap_prod_${conn.id}`)
         // Close the tab so the next open shows a fresh login against the new env
         if (openConnIds.includes(conn.id)) {
           closeTab(conn.id, { skipLogout: true })
@@ -129,6 +134,7 @@ export default function App() {
       setActiveId('connections')
     }
     sessionStorage.removeItem(`sap_${id}`)
+    sessionStorage.removeItem(`sap_prod_${id}`)
     const updated = connections.filter(c => c.id !== id)
     setConnections(updated)
     persistConnections(updated)
@@ -197,6 +203,9 @@ export default function App() {
       const conn = connections.find(c => c.id === id)
       if (sid && conn) logoutSession(conn, sid)
       sessionStorage.removeItem(`sap_${id}`)
+      const prodSid = sessionStorage.getItem(`sap_prod_${id}`)
+      if (prodSid && conn) logoutSession({ ...conn, isProduction: true }, prodSid)
+      sessionStorage.removeItem(`sap_prod_${id}`)
     }
     const next = openConnIds.filter(x => x !== id)
     setOpenConnIds(next)

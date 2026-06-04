@@ -6,24 +6,39 @@ export default function SapLoginModal({ connection, onSuccess, onCancel }) {
   const [error, setError]       = useState('')
   const [loading, setLoading]   = useState(false)
 
+  async function loginRequest(isProduction) {
+    const res = await fetch('/api/sap-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        hciUrl:  connection.hciUrl,
+        orgName: connection.orgName,
+        isProduction,
+        user,
+        password,
+      }),
+    })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error || 'Error de autenticación')
+    return data.sessionId
+  }
+
   async function handleLogin() {
     if (!user || !password) { setError('Usuario y contraseña son requeridos'); return }
     setLoading(true); setError('')
     try {
-      const res = await fetch('/api/sap-login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          hciUrl:       connection.hciUrl,
-          orgName:      connection.orgName,
-          isProduction: connection.isProduction,
-          user,
-          password,
-        }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Error de autenticación')
-      onSuccess(data.sessionId)
+      // En sandbox abrimos también una sesión contra el repo productivo (mismas
+      // credenciales) para poder marcar qué tasks están promovidas. Best effort.
+      const prodPromise = !connection.isProduction
+        ? loginRequest(true).catch(() => null)
+        : null
+      const sessionId = await loginRequest(!!connection.isProduction)
+      if (prodPromise) {
+        const prodSid = await prodPromise
+        if (prodSid) sessionStorage.setItem(`sap_prod_${connection.id}`, prodSid)
+        else sessionStorage.removeItem(`sap_prod_${connection.id}`)
+      }
+      onSuccess(sessionId)
     } catch (e) {
       setError(e.message)
     } finally {

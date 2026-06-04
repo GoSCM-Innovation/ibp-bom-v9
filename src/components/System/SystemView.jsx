@@ -5,6 +5,7 @@ import Resumen from '../Resumen/Resumen'
 import Orchestrations from '../Orchestrations/Orchestrations'
 import ConnectionAvatar from '../Connections/ConnectionAvatar'
 import SapLoginModal from '../Connections/SapLoginModal'
+import { usePromotedTasks, PromotedTasksContext } from '../../hooks/usePromotedTasks'
 
 const TABS = [
   { id: 'resumen',        label: 'Resumen'          },
@@ -20,6 +21,7 @@ export default function SystemView({ connection, onLoginCancel }) {
   const [sessionId, setSessionId]       = useState(() => sessionStorage.getItem(`sap_${connection.id}`))
   const [showLogin, setShowLogin]       = useState(!sessionStorage.getItem(`sap_${connection.id}`))
   const [sessionExpired, setSessionExpired] = useState(false)
+  const promotedTasks = usePromotedTasks(connection, sessionId)
 
   useEffect(() => {
     const sid = sessionStorage.getItem(`sap_${connection.id}`)
@@ -131,12 +133,14 @@ export default function SystemView({ connection, onLoginCancel }) {
       )}
 
       {/* Content */}
-      <div style={{ flex: 1, overflow: 'auto' }}>
-        {activeTab === 'resumen'        && <Resumen       connection={connection} sessionId={sessionId} onSessionExpired={handleSessionExpired} />}
-        {activeTab === 'tasks'          && <Tasks          connection={connection} sessionId={sessionId} onSessionExpired={handleSessionExpired} onTaskRun={(name) => { setPendingTaskName(name); setActiveTab('monitor') }} />}
-        {activeTab === 'monitor'        && <TaskMonitor    connection={connection} sessionId={sessionId} onSessionExpired={handleSessionExpired} initialSearch={pendingTaskName} onSearchConsumed={() => setPendingTaskName(null)} />}
-        {activeTab === 'orchestrations' && <Orchestrations connection={connection} sessionId={sessionId} onSessionExpired={handleSessionExpired} />}
-      </div>
+      <PromotedTasksContext.Provider value={promotedTasks}>
+        <div style={{ flex: 1, overflow: 'auto' }}>
+          {activeTab === 'resumen'        && <Resumen       connection={connection} sessionId={sessionId} onSessionExpired={handleSessionExpired} />}
+          {activeTab === 'tasks'          && <Tasks          connection={connection} sessionId={sessionId} onSessionExpired={handleSessionExpired} onTaskRun={(name) => { setPendingTaskName(name); setActiveTab('monitor') }} />}
+          {activeTab === 'monitor'        && <TaskMonitor    connection={connection} sessionId={sessionId} onSessionExpired={handleSessionExpired} initialSearch={pendingTaskName} onSearchConsumed={() => setPendingTaskName(null)} />}
+          {activeTab === 'orchestrations' && <Orchestrations connection={connection} sessionId={sessionId} onSessionExpired={handleSessionExpired} />}
+        </div>
+      </PromotedTasksContext.Provider>
     </div>
   )
 }

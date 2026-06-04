@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import ProgressBar from '../ui/ProgressBar'
+import PromotedBadge from '../ui/PromotedBadge'
 import TechLogs, { useTechLogs } from '../TechLogs'
+import { usePromotedTasksContext, isTaskPromoted } from '../../hooks/usePromotedTasks'
 
 async function soapCall(connection, sessionId, operation, params = {}) {
   const debugSoap = typeof window !== 'undefined'
@@ -279,6 +281,7 @@ export default function Tasks({ connection, sessionId, onSessionExpired, onTaskR
 
 function TaskRow({ task, onRun, isLast }) {
   const typeColor = task.type === 'PROCESS' ? 'var(--purple)' : 'var(--cyan)'
+  const promotedSet = usePromotedTasksContext()
   return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: 12, padding: '9px 16px 9px 40px',
@@ -290,6 +293,7 @@ function TaskRow({ task, onRun, isLast }) {
         background: task.type === 'PROCESS' ? 'rgba(139,92,246,.15)' : 'rgba(6,182,212,.15)',
         color: typeColor, border: `1px solid ${typeColor}44`, flexShrink: 0, textTransform: 'uppercase',
       }}>{task.type || 'TASK'}</span>
+      {isTaskPromoted(promotedSet, task.taskName) && <PromotedBadge />}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 12, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {task.taskName}
