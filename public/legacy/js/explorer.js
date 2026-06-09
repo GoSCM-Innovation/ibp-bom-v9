@@ -378,23 +378,30 @@ const Explorer = (function () {
         }
 
         // ── Match vía lookup(DS."archivo.csv", ...) ──────────────────────────
-        // Requiere: nombre de formato (DS) coincide con targetTable de A.
-        // Si A tiene fileLoaderFileName y el lookup provee nombre de archivo, ambos deben coincidir.
+        // Une por (a) nombre de formato (DS) == targetTable de A, o
+        // (b) nombre de archivo físico del lookup == fileLoaderFileName de A.
+        // El caso (b) es necesario porque el productor puede nombrar su formato
+        // distinto al csv físico (p.ej. formato "ECC_AUSP_CTYTTS" → archivo
+        // "ECC_AUSP_CTYTTS_ALL.csv"), mientras el lookup del consumidor referencia
+        // el nombre físico. El archivo es la clave confiable presente en ambos lados.
         if (!seen.has(`${a._idx}→${b._idx}:table`) &&
             !seen.has(`${a._idx}→${b._idx}:file`)  &&
             !seen.has(`${a._idx}→${b._idx}:lookup`) &&
-            b.lookups.length > 0 && aTblNorm.length >= 4) {
+            b.lookups.length > 0 && (aTblNorm.length >= 4 || aFileNorm.length >= 4)) {
 
+          const aFileBase = aFileNorm.replace(/\.[^.]+$/, '');
           const bPairs = extractLookupPairs(b.lookups);
           const lookupMatch = bPairs.find(p => {
-            if (p.ds !== aTblNorm) return false;
-            // Si A tiene nombre de archivo Y el lookup también lo provee, deben coincidir
-            if (aFileNorm.length >= 4 && p.file.length >= 4) {
-              const aBase = aFileNorm.replace(/\.[^.]+$/, '');
-              const pBase = p.file.replace(/\.[^.]+$/, '');
-              return aBase === pBase;
+            const pFileBase = p.file.replace(/\.[^.]+$/, '');
+            // (a) match por nombre de formato (DS)
+            if (p.ds === aTblNorm) {
+              // Si ambos lados proveen nombre de archivo, deben coincidir
+              if (aFileNorm.length >= 4 && p.file.length >= 4) return aFileBase === pFileBase;
+              return true;  // solo nombre de formato disponible: suficiente
             }
-            return true;  // solo nombre de formato disponible: suficiente
+            // (b) match por nombre de archivo físico (formato del productor difiere)
+            if (aFileBase.length >= 4 && pFileBase.length >= 4 && aFileBase === pFileBase) return true;
+            return false;
           });
 
           if (lookupMatch) {
