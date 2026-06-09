@@ -643,22 +643,81 @@ const Explorer = (function () {
   }
 
   // ── Sidebar (lista master) ───────────────────────────────
-  function _renderIntegrationItem(p) {
-    const typeClass  = `ex-type-${p.tipoIntegracion || 'MD'}`;
-    const inEdges    = chainEdges.filter(e => e.to   === p._idx);
-    const outEdges   = chainEdges.filter(e => e.from === p._idx);
-    const viaColors  = { table: '#34d399', file: '#E8622A', lookup: '#a78bfa' };
-    const chainBadges = [
+  // Badges de cadena (⬅ alimentado por / ➡ alimenta a) para un conjunto de _idx
+  function _chainBadges(idxSet) {
+    const viaColors = { table: '#34d399', file: '#E8622A', lookup: '#a78bfa' };
+    const inEdges   = chainEdges.filter(e => idxSet.has(e.to));
+    const outEdges  = chainEdges.filter(e => idxSet.has(e.from));
+    const html = [
       ...inEdges.map(e  => `<span style="color:${viaColors[e.via]||'#aaa'};font-size:10px;" title="${escH(I18n.t('ex.label.feedBy'))} (${e.via})">⬅</span>`),
       ...outEdges.map(e => `<span style="color:${viaColors[e.via]||'#aaa'};font-size:10px;" title="${escH(I18n.t('ex.label.feedTo'))} (${e.via})">➡</span>`),
     ].join('');
+    return html ? `<span style="margin-left:4px;">${html}</span>` : '';
+  }
+
+  function _isPromotedTask(jobName) {
+    return !!(cidsProdTasks && cidsProdTasks.has((jobName || '').toUpperCase()));
+  }
+
+  // Fila simple (task con un solo dataflow)
+  function _renderIntegrationItem(p) {
+    const typeClass = `ex-type-${p.tipoIntegracion || 'MD'}`;
+    const promBadge = _isPromotedTask(p.jobName)
+      ? `<span class="ex-chain-prom" title="${escH(I18n.t('ex.cids.promotedLabel'))}">✓</span> ` : '';
     return `<div class="ex-item${selectedIdx === p._idx ? ' active' : ''}" data-idx="${p._idx}" onclick="Explorer.renderDetail(${p._idx})">
       <div class="ex-name">
-        <span class="ex-type-badge ${typeClass}">${escH(p.tipoIntegracion || 'MD')}</span>${escH(p.jobName)}${chainBadges ? `<span style="margin-left:4px;">${chainBadges}</span>` : ''}
+        <span class="ex-type-badge ${typeClass}">${escH(p.tipoIntegracion || 'MD')}</span>${promBadge}${escH(p.jobName)}${_chainBadges(new Set([p._idx]))}
       </div>
       ${p.dataflowName && p.dataflowName !== p.jobName ? `<div class="ex-sub ex-sub-df">↳ ${escH(p.dataflowName)}</div>` : ''}
       <div class="ex-sub">${escH(p.targetTable)}</div>
     </div>`;
+  }
+
+  // Sub-fila de dataflow dentro de un grupo de task
+  function _renderDataflowSubItem(p) {
+    const dfName = p.dataflowName || p.targetTable;
+    return `<div class="ex-item ex-item-df${selectedIdx === p._idx ? ' active' : ''}" data-idx="${p._idx}" onclick="Explorer.renderDetail(${p._idx})">
+      <div class="ex-name ex-name-df">↳ ${escH(dfName)}${_chainBadges(new Set([p._idx]))}</div>
+      <div class="ex-sub">${escH(p.targetTable)}</div>
+    </div>`;
+  }
+
+  // Cabecera colapsable de task con N dataflows
+  function _renderTaskGroup(jobName, dfs) {
+    const p0        = dfs[0];
+    const typeClass = `ex-type-${p0.tipoIntegracion || 'MD'}`;
+    const grpId     = 'ex-task-' + p0._idx;
+    const idxSet    = new Set(dfs.map(d => d._idx));
+    const hasActive = dfs.some(d => d._idx === selectedIdx);
+    const promBadge = _isPromotedTask(jobName)
+      ? `<span class="ex-chain-prom" title="${escH(I18n.t('ex.cids.promotedLabel'))}">✓</span> ` : '';
+    return `<div class="ex-task-group">
+      <div class="ex-task-head" onclick="var b=document.getElementById('${grpId}');b.classList.toggle('collapsed');this.querySelector('.ex-tarr').textContent=b.classList.contains('collapsed')?'▶':'▼';">
+        <div class="ex-name">
+          <span class="ex-type-badge ${typeClass}">${escH(p0.tipoIntegracion || 'MD')}</span>${promBadge}${escH(jobName)}
+          <span class="ex-df-count">${dfs.length}</span>${_chainBadges(idxSet)}
+        </div>
+        <span class="ex-tarr">${hasActive ? '▼' : '▶'}</span>
+      </div>
+      <div class="ex-task-body${hasActive ? '' : ' collapsed'}" id="${grpId}">
+        ${dfs.map(_renderDataflowSubItem).join('')}
+      </div>
+    </div>`;
+  }
+
+  // Agrupa una lista por jobName (preservando orden); tasks con >1 dataflow → grupo colapsable
+  function _renderTaskItems(list) {
+    const order = [];
+    const byTask = new Map();
+    list.forEach(p => {
+      const key = p.jobName || '';
+      if (!byTask.has(key)) { byTask.set(key, []); order.push(key); }
+      byTask.get(key).push(p);
+    });
+    return order.map(key => {
+      const dfs = byTask.get(key);
+      return dfs.length === 1 ? _renderIntegrationItem(dfs[0]) : _renderTaskGroup(key, dfs);
+    }).join('');
   }
 
   function renderSidebarList(list) {
@@ -677,7 +736,7 @@ const Explorer = (function () {
     });
 
     if (groups.size === 1) {
-      el.innerHTML = list.map(p => _renderIntegrationItem(p)).join('');
+      el.innerHTML = _renderTaskItems(list);
       return;
     }
 
@@ -692,7 +751,7 @@ const Explorer = (function () {
           <span class="ex-arr">${hasActive ? '▼' : '▶'}</span>
         </div>
         <div class="ex-proj-body${hasActive ? '' : ' collapsed'}" id="${secId}">
-          ${items.map(p => _renderIntegrationItem(p)).join('')}
+          ${_renderTaskItems(items)}
         </div>`;
     });
     el.innerHTML = html;
@@ -721,10 +780,16 @@ const Explorer = (function () {
 
     function chainPill(e, neighborIdx, dir) {
       const nb    = integrations[neighborIdx];
-      const name  = nb ? (nb.dataflowName || nb.jobName) : String(neighborIdx);
+      const task  = nb ? nb.jobName : String(neighborIdx);
+      const df    = nb && nb.dataflowName && nb.dataflowName !== nb.jobName ? nb.dataflowName : '';
       const viaCls = { table: '', file: ' via-file', lookup: ' via-lookup' }[e.via] || '';
       const viaIcon = { table: '⬌', file: '📄', lookup: '🔍' }[e.via] || '→';
-      return `<span class="ex-chain-pill${viaCls}" onclick="Explorer.renderDetail(${neighborIdx})" title="${dir} (${escH(e.via)}): ${escH(e.label)}">${viaIcon} ${escH(name)}</span>`;
+      const isProd  = !!(cidsProdTasks && nb && cidsProdTasks.has((nb.jobName || '').toUpperCase()));
+      const promCls = isProd ? ' is-prod' : '';
+      const promBadge = isProd ? `<span class="ex-chain-prom" title="${escH(I18n.t('ex.cids.promotedLabel'))}">✓</span>` : '';
+      const dfHtml = df ? `<span class="ex-chain-df">↳ ${escH(df)}</span>` : '';
+      const tip = `${dir} (${escH(e.via)}): ${escH(e.label)}${isProd ? ' · ' + escH(I18n.t('ex.cids.promotedLabel')) : ''}`;
+      return `<span class="ex-chain-pill${viaCls}${promCls}" onclick="Explorer.renderDetail(${neighborIdx})" title="${tip}">${viaIcon} ${promBadge}<span class="ex-chain-task">${escH(task)}</span>${dfHtml}</span>`;
     }
 
     const chainsHtml = (incoming.length || outgoing.length) ? `
