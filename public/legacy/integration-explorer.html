@@ -107,9 +107,6 @@
             <button class="mode-btn" id="ex-view-graph" onclick="Explorer.switchView('graph')" data-i18n="ex.view.graph">🕸️ Grafo</button>
           </div>
           <span class="sel-counter" id="ex-counter"></span>
-          <button class="ex-copy-btn" id="ex-copy-tasks" style="display:none" onclick="Explorer.copyTaskList()" data-i18n-title="ex.btn.copyTasks" title="Copiar listado de tareas (formato tabla)">
-            <span class="ex-copy-ico" aria-hidden="true">⧉</span>
-          </button>
         </div>
         <div id="ex-cids-toggle" style="display:none"></div>
         <div class="ex-pa-filter" id="ex-pa-filter" style="display:none"></div>
@@ -118,7 +115,16 @@
 
       <!-- Vista LISTA -->
       <div class="ex-split" id="ex-list-view">
-        <div class="ex-master" id="ex-master"></div>
+        <div class="ex-master-col" id="ex-master-col">
+          <div class="ex-pane-head" id="ex-master-head" style="display:none">
+            <span class="ex-pane-title" id="ex-master-title"></span>
+            <button class="ex-copy-btn" id="ex-copy-master" onclick="Explorer.copySidebarList()" data-i18n-title="ex.btn.copyList" title="Copiar listado">
+              <span class="ex-copy-ico" aria-hidden="true">⧉</span>
+              <span class="ex-copy-lbl" data-i18n="ex.btn.copyShort">Copiar</span>
+            </button>
+          </div>
+          <div class="ex-master" id="ex-master"></div>
+        </div>
         <div id="ex-resizer" class="ex-resizer"></div>
         <div class="ex-detail" id="ex-detail">
           <p class="docs-hint" data-i18n="ex.master.hint">Selecciona una integración a la izquierda para explorar sus campos</p>

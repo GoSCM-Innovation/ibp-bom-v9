@@ -138,7 +138,7 @@ const Explorer = (function () {
     filtered = integrations.slice();
     renderSidebarList(filtered);
     updateCounter(filtered.length, integrations.length);
-    updateCopyBtnVisibility();
+    updateSidebarHeader();
 
     const results = document.getElementById('ex-results');
     if (results) results.style.display = 'block';
@@ -1277,7 +1277,7 @@ const Explorer = (function () {
       document.getElementById('ex-detail').innerHTML = `<p class="docs-hint">${escH(I18n.t('ex.empty.selectIntegration'))}</p>`;
       selectedIdx = null;
     }
-    updateCopyBtnVisibility();
+    updateSidebarHeader();
   }
 
   // ── Copiar listado de tareas (formato tabla) ─────────────
@@ -1369,22 +1369,68 @@ const Explorer = (function () {
     });
   }
 
-  // El botón de copia de la sidebar solo aplica en la vista "Integración"
-  // (en las vistas dimensionales la sidebar lista tablas/campos, no tareas).
-  function updateCopyBtnVisibility() {
-    const btn = document.getElementById('ex-copy-tasks');
-    if (!btn) return;
-    const show = currentDim === 'integration' && filtered && filtered.length > 0;
-    btn.style.display = show ? '' : 'none';
+  // Entradas [key, items] actualmente mostradas en la sidebar en vista dimensional
+  // (se guardan al renderizar para que el botón copie exactamente lo visible).
+  let _currentDimEntries = [];
+
+  // TSV del listado de la sidebar en vista dimensional. Columnas según la dimensión:
+  //  · tablas:  Datastore · Tabla · Integraciones · Mapeos/Filtros
+  //  · campos:  Campo · Integraciones · Usos/Filtros
+  function _dimEntriesToTSV(dim, entries) {
+    const isField  = dim === 'dst-field' || dim === 'src-field' || dim === 'filter-field';
+    const isFilter = dim === 'filter-table' || dim === 'filter-field';
+    const countCol = isFilter ? I18n.t('ex.copy.col.filters') : (isField ? I18n.t('ex.copy.col.uses') : I18n.t('ex.copy.col.mappings'));
+    const clean = v => String(v == null ? '' : v).replace(/[\t\r\n]+/g, ' ').trim();
+    let header, rows;
+    if (isField) {
+      header = [I18n.t('ex.copy.col.field'), I18n.t('ex.copy.col.integrations'), countCol].join('\t');
+      rows = entries.map(([key, items]) => {
+        const intCount = new Set(items.map(x => x.intIdx)).size;
+        return [clean(key), intCount, items.length].join('\t');
+      });
+    } else {
+      header = [I18n.t('ex.copy.col.datastore'), I18n.t('ex.copy.col.table'), I18n.t('ex.copy.col.integrations'), countCol].join('\t');
+      rows = entries.map(([key, items]) => {
+        const parts = key.split('::');
+        const intCount = new Set(items.map(x => x.intIdx)).size;
+        return [clean(parts[0] || ''), clean(parts[1] || key), intCount, items.length].join('\t');
+      });
+    }
+    return [header, ...rows].join('\n');
   }
 
-  // Botón sidebar: copia el listado de tareas actualmente filtrado.
-  function copyTaskList() {
-    if (currentDim !== 'integration') return;
-    _doCopyTasks(filtered, 'ex-copy-tasks');
+  // Actualiza la cabecera de la sidebar (título + botón de copia). El botón se
+  // muestra siempre que haya un listado, en cualquier dimensión.
+  function updateSidebarHeader() {
+    const head  = document.getElementById('ex-master-head');
+    const title = document.getElementById('ex-master-title');
+    if (!head || !title) return;
+    let count, label;
+    if (currentDim === 'integration') {
+      count = (filtered || []).length;
+      label = I18n.t('ex.list.tasks');
+    } else {
+      count = _currentDimEntries.length;
+      label = dimLabel(currentDim) || currentDim;
+    }
+    const hasData = integrations && integrations.length > 0 && count > 0;
+    head.style.display = hasData ? '' : 'none';
+    title.textContent  = hasData ? `${label} (${count})` : '';
   }
 
-  // Botón panel de detalle dimensional: copia las tareas listadas para la
+  // Botón sidebar: copia el listado actualmente visible a la izquierda.
+  //  · vista Integración → tareas (ZIP · Tarea · DS Origen · DS Destino · Tabla).
+  //  · vistas dimensionales → el listado de tablas/campos mostrado.
+  function copySidebarList() {
+    if (currentDim === 'integration') {
+      _doCopyTasks(filtered, 'ex-copy-master');
+      return;
+    }
+    if (!_currentDimEntries.length) { _toast(I18n.t('ex.copy.toast.empty'), true); return; }
+    _copyTSV(_dimEntriesToTSV(currentDim, _currentDimEntries), _currentDimEntries.length, 'ex-copy-master');
+  }
+
+  // Botón panel de detalle (derecha): copia las tareas listadas para la
   // dimensión seleccionada (p. ej. todas las que usan un datastore de origen).
   function copyDimDetailList() {
     if (selectedDimKey === null || currentDim === 'integration') return;
@@ -1403,6 +1449,15 @@ const Explorer = (function () {
       if (p) list.push(p);
     });
     _doCopyTasks(list, 'ex-copy-dim');
+  }
+
+  // Copia un TSV ya generado y muestra feedback con el número de filas de datos.
+  function _copyTSV(tsv, n, btnId) {
+    _copyText(tsv).then(ok => {
+      _flashCopyBtn(btnId, ok);
+      if (ok) _toast(I18n.t(n === 1 ? 'ex.copy.toast.ok.one' : 'ex.copy.toast.ok.many', { n }));
+      else    _toast(I18n.t('ex.copy.toast.err'), true);
+    });
   }
 
   function updateCounter(visible, total) {
@@ -1467,7 +1522,7 @@ const Explorer = (function () {
 
     const q = (document.getElementById('ex-search') || {}).value || '';
     renderMasterForDim(dim, q);
-    updateCopyBtnVisibility();
+    updateSidebarHeader();
   }
 
   function renderMasterForDim(dim, query) {
@@ -1510,6 +1565,8 @@ const Explorer = (function () {
     entries.sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]));
 
     updateCounter(entries.length, Object.keys(dimMap || {}).length);
+    _currentDimEntries = entries;
+    updateSidebarHeader();
 
     if (!entries.length) {
       el.innerHTML = `<p style="padding:12px;color:var(--text2);font-size:13px;">${escH(I18n.t('ex.empty.noResults'))}</p>`;
@@ -1579,6 +1636,7 @@ const Explorer = (function () {
       <div class="ex-header-card">
         <button class="ex-copy-btn ex-copy-btn-detail" id="ex-copy-dim" onclick="Explorer.copyDimDetailList()" title="${escH(I18n.t('ex.btn.copyTasks'))}">
           <span class="ex-copy-ico" aria-hidden="true">⧉</span>
+          <span class="ex-copy-lbl">${escH(I18n.t('ex.btn.copyShort'))}</span>
         </button>
         <div class="ex-h-title">${escH(displayName)}</div>
         ${displayDS ? `<div class="ex-h-flow">${escH(I18n.t('ex.label.datastore'))}: ${escH(displayDS)}</div>` : ''}
@@ -1704,7 +1762,7 @@ const Explorer = (function () {
     if (vt) vt.style.display = '';
     renderSidebarList(filtered);
     updateCounter(filtered.length, integrations.length);
-    updateCopyBtnVisibility();
+    updateSidebarHeader();
     renderDetail(idx);
   }
 
@@ -1816,7 +1874,7 @@ const Explorer = (function () {
   function initMasterResizer() {
     const resizer = document.getElementById('ex-resizer');
     const split   = document.getElementById('ex-list-view');
-    const master  = document.getElementById('ex-master');
+    const master  = document.getElementById('ex-master-col') || document.getElementById('ex-master');
     if (!resizer || !split || !master) return;
 
     const startDrag = (startX) => {
@@ -1871,7 +1929,7 @@ const Explorer = (function () {
     switchDimension,
     handleDimItemClick,
     goToIntegration,
-    copyTaskList,
+    copySidebarList,
     copyDimDetailList,
     togglePA,
     toggleSrcDS,

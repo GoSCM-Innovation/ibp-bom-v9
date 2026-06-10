@@ -2398,14 +2398,37 @@ button[disabled][title]:hover::after {
   align-items: stretch;
   min-height: 520px;
 }
-.ex-master {
+.ex-master-col {
   width: var(--ex-master-w, 340px);
   flex-shrink: 0;
   min-width: 160px;
+  display: flex;
+  flex-direction: column;
+}
+.ex-master {
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
-  max-height: 640px;
+  max-height: 600px;
   border: 1px solid var(--border);
   border-radius: 8px;
+}
+/* Cabecera de panel (sidebar / detalle) con boton de copia */
+.ex-pane-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 4px 8px;
+}
+.ex-pane-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .ex-resizer {
   width: 10px;
@@ -2649,28 +2672,29 @@ button[disabled][title]:hover::after {
   color: #000;
 }
 
-/* ── Botón copiar listado de tareas ── */
+/* ── Botón copiar listado ── */
 .ex-copy-btn {
-  align-self: center;
-  width: 30px;
-  height: 30px;
+  flex-shrink: 0;
+  height: 28px;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
+  gap: 5px;
   background: var(--surface2);
   border: 1px solid var(--border2);
   border-radius: 6px;
   color: var(--text);
-  font-size: 15px;
+  font-size: 12px;
   line-height: 1;
   cursor: pointer;
-  padding: 0;
+  padding: 0 9px;
   transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
 .ex-copy-btn:hover { background: var(--accent); border-color: var(--accent); color: #000; }
 .ex-copy-btn.copied { background: #34d399; border-color: #34d399; color: #04130c; }
 .ex-copy-btn.copy-err { background: #e8622a; border-color: #e8622a; color: #fff; }
-.ex-copy-btn .ex-copy-ico { pointer-events: none; }
+.ex-copy-btn .ex-copy-ico { pointer-events: none; font-size: 14px; }
+.ex-copy-btn .ex-copy-lbl { pointer-events: none; }
+/* Botón en la cabecera del panel de detalle (esquina superior derecha) */
 .ex-copy-btn-detail {
   position: absolute;
   top: 8px;
@@ -3957,6 +3981,7 @@ button[disabled][title]:hover::after {
     gap: 8px;
   }
   .ex-resizer { display: none; }
+  .ex-master-col { width: 100% !important; }
   .ex-master {
     width: 100% !important;
     max-height: 38vh;
