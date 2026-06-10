@@ -107,6 +107,9 @@
             <button class="mode-btn" id="ex-view-graph" onclick="Explorer.switchView('graph')" data-i18n="ex.view.graph">🕸️ Grafo</button>
           </div>
           <span class="sel-counter" id="ex-counter"></span>
+          <button class="ex-copy-btn" id="ex-copy-tasks" style="display:none" onclick="Explorer.copyTaskList()" data-i18n-title="ex.btn.copyTasks" title="Copiar listado de tareas (formato tabla)">
+            <span class="ex-copy-ico" aria-hidden="true">⧉</span>
+          </button>
         </div>
         <div id="ex-cids-toggle" style="display:none"></div>
         <div class="ex-pa-filter" id="ex-pa-filter" style="display:none"></div>

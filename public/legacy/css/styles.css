@@ -2533,6 +2533,7 @@ button[disabled][title]:hover::after {
 .ex-item-df.active .ex-name-df { color: #004466; }
 
 .ex-header-card {
+  position: relative;
   padding: 12px 14px;
   background: var(--surface2);
   border-radius: 8px;
@@ -2647,6 +2648,56 @@ button[disabled][title]:hover::after {
   border-color: var(--accent);
   color: #000;
 }
+
+/* ── Botón copiar listado de tareas ── */
+.ex-copy-btn {
+  align-self: center;
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.ex-copy-btn:hover { background: var(--accent); border-color: var(--accent); color: #000; }
+.ex-copy-btn.copied { background: #34d399; border-color: #34d399; color: #04130c; }
+.ex-copy-btn.copy-err { background: #e8622a; border-color: #e8622a; color: #fff; }
+.ex-copy-btn .ex-copy-ico { pointer-events: none; }
+.ex-copy-btn-detail {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+}
+
+/* ── Toast de feedback (copiar) ── */
+.ex-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translate(-50%, 16px);
+  z-index: 3000;
+  max-width: 90vw;
+  padding: 10px 16px;
+  background: var(--surface2, #1a2740);
+  border: 1px solid var(--border2, #2d3f6a);
+  border-radius: 8px;
+  color: var(--text, #e6edf7);
+  font-size: 13px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s, transform 0.18s;
+}
+.ex-toast.show { opacity: 1; transform: translate(-50%, 0); }
+.ex-toast.is-error { border-color: #e8622a; }
 .ex-df-node-detail {
   margin-top: 10px;
   padding: 10px 12px;
