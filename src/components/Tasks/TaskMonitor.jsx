@@ -122,6 +122,7 @@ export default function TaskMonitor({ connection, sessionId, onSessionExpired, i
   const [colWidths, setColWidths]   = useState({})
   const [page, setPage]             = useState(1)
   const [details, setDetails]       = useState({})  // runId → { end, durSec, done, error }
+  const [enriching, setEnriching]   = useState(false) // cargando fin/duración de la página
   const [copyState, setCopyState]   = useState(null) // 'ok' | 'err' | null
   const detailsRef = useRef(details)
   detailsRef.current = details
@@ -288,23 +289,32 @@ export default function TaskMonitor({ connection, sessionId, onSessionExpired, i
       return !cached?.done || !TERMINAL.has(r.statusCode)
     })
     if (toFetch.length === 0) return
+    // Acumulamos todos los resultados y commiteamos UNA sola vez al final, para
+    // que la columna Fin/Duración no aparezca "de a poco" (goteo). Mientras tanto
+    // se muestra el estado de carga (ProgressBar + "…" en las celdas sin dato).
+    setEnriching(true)
+    const acc = {}
     runPool(toFetch, ENRICH_CONCURRENCY, async (row) => {
       if (cancelled) return
       try {
         const d = await soapCall(connection, sessionId, 'getTaskStatusByRunId2', { runId: row.runId })
         if (cancelled) return
-        setDetails(prev => ({ ...prev, [row.runId]: {
+        acc[row.runId] = {
           end:    (d.endTime || '').replace(/\D/g, '') || null,
           durSec: d.executionTime != null ? parseFloat(d.executionTime) : null,
           done:   true,
-        } }))
+        }
       } catch (e) {
         if (cancelled) return
         if (e.isSessionExpired) { onSessionExpired?.(); return }
-        setDetails(prev => ({ ...prev, [row.runId]: { end: null, durSec: null, done: true, error: true } }))
+        acc[row.runId] = { end: null, durSec: null, done: true, error: true }
       }
+    }).then(() => {
+      if (cancelled) return
+      setDetails(prev => ({ ...prev, ...acc }))
+      setEnriching(false)
     })
-    return () => { cancelled = true }
+    return () => { cancelled = true; setEnriching(false) }
     // lastRefresh: al refrescar, re-consulta solo las no-terminales (las terminales
     // ya cacheadas las descarta el filtro `toFetch`).
   }, [pageKey, connection, sessionId, lastRefresh])
@@ -355,7 +365,7 @@ export default function TaskMonitor({ connection, sessionId, onSessionExpired, i
 
   return (
     <div style={{ padding: 28, display: 'flex', flexDirection: 'column', height: '100%', boxSizing: 'border-box', position: 'relative' }}>
-      <ProgressBar loading={loading || cancelling} />
+      <ProgressBar loading={loading || cancelling || enriching} />
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexShrink: 0, gap: 12, flexWrap: 'wrap' }}>
@@ -363,7 +373,8 @@ export default function TaskMonitor({ connection, sessionId, onSessionExpired, i
           <div style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>Task Monitor</div>
           <div style={{ fontSize: 11, color: 'var(--text2)' }}>
             {loading ? 'Cargando…' : `${filtered.length} de ${rows.length} ejecuciones · pág ${page}/${totalPages}`}
-            {lastRefresh && !loading && <span style={{ marginLeft: 8, opacity: .6 }}>· {lastRefresh.toLocaleTimeString()}</span>}
+            {enriching && !loading && <span style={{ marginLeft: 8, color: 'var(--accent)' }}>· cargando fin/duración…</span>}
+            {lastRefresh && !loading && !enriching && <span style={{ marginLeft: 8, opacity: .6 }}>· {lastRefresh.toLocaleTimeString()}</span>}
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -387,13 +398,13 @@ export default function TaskMonitor({ connection, sessionId, onSessionExpired, i
             </span>
           )}
           <input type="text" placeholder="Buscar…" value={search} onChange={e => setSearch(e.target.value)} style={{ ...inputStyle, width: 180 }} />
-          <button onClick={handleCopyPage} disabled={paged.length === 0}
-            title="Copiar la página actual (formato tabla, pegable en Excel)"
+          <button onClick={handleCopyPage} disabled={paged.length === 0 || enriching}
+            title={enriching ? 'Esperá a que termine de cargar la página' : 'Copiar la página actual (formato tabla, pegable en Excel)'}
             style={{
               background: copyState === 'ok' ? 'rgba(52,211,153,.15)' : copyState === 'err' ? 'rgba(255,107,107,.15)' : 'var(--bg2)',
               border: `1px solid ${copyState === 'ok' ? 'rgba(52,211,153,.4)' : copyState === 'err' ? 'rgba(255,107,107,.4)' : 'var(--border2)'}`,
               borderRadius: 6, color: copyState === 'ok' ? 'var(--green)' : copyState === 'err' ? 'var(--red)' : 'var(--text2)',
-              fontSize: 11, fontWeight: 600, padding: '6px 12px', cursor: paged.length === 0 ? 'not-allowed' : 'pointer',
+              fontSize: 11, fontWeight: 600, padding: '6px 12px', cursor: (paged.length === 0 || enriching) ? 'not-allowed' : 'pointer', opacity: enriching ? .5 : 1,
             }}>
             {copyState === 'ok' ? '✓ Copiado' : copyState === 'err' ? '✕ Error' : '⧉ Copiar'}
           </button>
