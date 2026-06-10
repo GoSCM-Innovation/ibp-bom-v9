@@ -3,9 +3,60 @@ import TechLogs, { useTechLogs } from '../TechLogs'
 import ProgressBar from '../ui/ProgressBar'
 import PromotedBadge from '../ui/PromotedBadge'
 import { usePromotedTasksContext, isTaskPromoted } from '../../hooks/usePromotedTasks'
-import { getTzMode, setTzMode, toInputDate, inputDateToDate, formatEpochMs, TZ_OPTIONS } from '../../utils/dateUtils'
+import { getTzMode, setTzMode, toInputDate, inputDateToDate, formatEpochMs, formatSapTs, TZ_OPTIONS } from '../../utils/dateUtils'
 
 const REFRESH_MS = 30000
+const PAGE_SIZE = 50
+const ENRICH_CONCURRENCY = 6
+
+// Estados terminales: su detalle (fin/duración) nunca cambia → se cachea permanente.
+// Los no-terminales se re-consultan en cada refresh hasta que terminen.
+const TERMINAL = new Set(['SUCCESS', 'SUCCESS_WITH_ERRORS_D', 'SUCCESS_WITH_ERRORS_E', 'ERROR', 'TERMINATED', 'TERMINATION_FAILED'])
+
+/** Formatea una duración en segundos a algo legible: "4m 56s", "7h 6m", "12s". */
+function formatDuration(sec) {
+  if (sec == null || isNaN(sec) || sec <= 0) return '—'
+  const s = Math.round(sec)
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  const r = s % 60
+  if (h > 0) return `${h}h ${m}m`
+  if (m > 0) return `${m}m ${r}s`
+  return `${r}s`
+}
+
+/** Copia texto al portapapeles. API moderna con fallback a execCommand. */
+function copyText(text) {
+  const fallback = () => {
+    try {
+      const ta = document.createElement('textarea')
+      ta.value = text
+      ta.style.position = 'fixed'
+      ta.style.opacity = '0'
+      document.body.appendChild(ta)
+      ta.select()
+      const ok = document.execCommand('copy')
+      document.body.removeChild(ta)
+      return ok
+    } catch { return false }
+  }
+  if (navigator.clipboard?.writeText) {
+    return navigator.clipboard.writeText(text).then(() => true).catch(() => fallback())
+  }
+  return Promise.resolve(fallback())
+}
+
+/** Ejecuta `worker` sobre `items` con un máximo de `limit` en paralelo. */
+async function runPool(items, limit, worker) {
+  let i = 0
+  const n = Math.min(limit, items.length)
+  await Promise.all(Array.from({ length: n }, async () => {
+    while (i < items.length) {
+      const idx = i++
+      await worker(items[idx])
+    }
+  }))
+}
 
 const STATUS_META = {
   'RUNNING':               { label: 'Running',             bg: 'rgba(59,130,246,.15)',  color: '#3b82f6', border: 'rgba(59,130,246,.3)'  },
@@ -69,6 +120,11 @@ export default function TaskMonitor({ connection, sessionId, onSessionExpired, i
   const [cancelMsg, setCancelMsg]   = useState('')
   const [logsModal, setLogsModal]   = useState(null) // runId
   const [colWidths, setColWidths]   = useState({})
+  const [page, setPage]             = useState(1)
+  const [details, setDetails]       = useState({})  // runId → { end, durSec, done, error }
+  const [copyState, setCopyState]   = useState(null) // 'ok' | 'err' | null
+  const detailsRef = useRef(details)
+  detailsRef.current = details
   const resizing = useRef(null)
   const timerRef = useRef(null)
   const [logs, addLog] = useTechLogs()
@@ -167,25 +223,91 @@ export default function TaskMonitor({ connection, sessionId, onSessionExpired, i
     }
   }
 
-  const sorted = [...rows].sort((a, b) => {
+  // Copia la página actual como TSV (pegable en Excel). Patrón del Integration Explorer.
+  function handleCopyPage() {
+    if (paged.length === 0) return
+    const clean = v => String(v == null ? '' : v).replace(/[\t\r\n]+/g, ' ').trim()
+    const header = ['Estado', 'Task', 'Inicio', 'Fin', 'Duración', 'RunID', 'JobID']
+    const lines = paged.map(r => {
+      const d = details[r.runId]
+      const estado = STATUS_META[r.statusCode]?.label || r.statusCode || ''
+      const inicio = formatEpochMs(r.startDate, tzMode)
+      const fin    = d ? (d.end ? formatSapTs(d.end, tzMode) : 'En curso') : ''
+      const dur    = d ? formatDuration(d.durSec) : ''
+      return [estado, r.taskName, inicio, fin, dur, r.runId, r.jobId].map(clean).join('\t')
+    })
+    const tsv = [header.join('\t'), ...lines].join('\n')
+    copyText(tsv).then(ok => {
+      setCopyState(ok ? 'ok' : 'err')
+      setTimeout(() => setCopyState(null), 1500)
+    })
+  }
+
+  const sorted = useMemo(() => [...rows].sort((a, b) => {
     const av = parseInt(a.startDate) || 0, bv = parseInt(b.startDate) || 0
     return bv - av
-  })
+  }), [rows])
 
-  const filteredBase = sorted.filter(r => {
+  const filteredBase = useMemo(() => sorted.filter(r => {
     if (!search.trim()) return true
     const q = search.toLowerCase()
     return (r.taskName || '').toLowerCase().includes(q) ||
            (r.statusCode || '').toLowerCase().includes(q) ||
            String(r.runId || '').includes(q)
-  })
+  }), [sorted, search])
 
   const countByStatus = {}
   filteredBase.forEach(r => { countByStatus[r.statusCode] = (countByStatus[r.statusCode] || 0) + 1 })
 
-  const filtered = filteredBase.filter(r => activeStatus === 'ALL' || r.statusCode === activeStatus)
+  const filtered = useMemo(
+    () => filteredBase.filter(r => activeStatus === 'ALL' || r.statusCode === activeStatus),
+    [filteredBase, activeStatus])
 
   const presentStatuses = [...new Set(filteredBase.map(r => r.statusCode).filter(Boolean))]
+
+  // ── Paginación (client-side, PAGE_SIZE filas) ──────────────────────────────
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const paged = useMemo(
+    () => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [filtered, page])
+
+  // Volver a página 1 cuando cambian los filtros / búsqueda / rango
+  useEffect(() => { setPage(1) }, [search, activeStatus, fromDate, toDate])
+  // Clampar si la página actual quedó fuera de rango
+  useEffect(() => { if (page > totalPages) setPage(totalPages) }, [totalPages, page])
+
+  // ── Enriquecimiento perezoso: fin + duración de la página visible ──────────
+  const pageKey = paged.map(r => r.runId).join(',')
+  useEffect(() => {
+    if (!sessionId || paged.length === 0) return
+    let cancelled = false
+    const toFetch = paged.filter(r => {
+      if (!r.runId) return false
+      const cached = detailsRef.current[r.runId]
+      // Re-consultar si no hay caché, o si el estado no es terminal (aún puede cambiar)
+      return !cached?.done || !TERMINAL.has(r.statusCode)
+    })
+    if (toFetch.length === 0) return
+    runPool(toFetch, ENRICH_CONCURRENCY, async (row) => {
+      if (cancelled) return
+      try {
+        const d = await soapCall(connection, sessionId, 'getTaskStatusByRunId2', { runId: row.runId })
+        if (cancelled) return
+        setDetails(prev => ({ ...prev, [row.runId]: {
+          end:    (d.endTime || '').replace(/\D/g, '') || null,
+          durSec: d.executionTime != null ? parseFloat(d.executionTime) : null,
+          done:   true,
+        } }))
+      } catch (e) {
+        if (cancelled) return
+        if (e.isSessionExpired) { onSessionExpired?.(); return }
+        setDetails(prev => ({ ...prev, [row.runId]: { end: null, durSec: null, done: true, error: true } }))
+      }
+    })
+    return () => { cancelled = true }
+    // lastRefresh: al refrescar, re-consulta solo las no-terminales (las terminales
+    // ya cacheadas las descarta el filtro `toFetch`).
+  }, [pageKey, connection, sessionId, lastRefresh])
 
   const COLS = useMemo(() => [
     { key: 'statusCode', label: 'Estado',    w: 200, render: v => <StatusBadge code={v} /> },
@@ -196,9 +318,20 @@ export default function TaskMonitor({ connection, sessionId, onSessionExpired, i
       </span>
     ) },
     { key: 'startDate',  label: 'Inicio',    w: 180, render: v => formatEpochMs(v, tzMode) },
+    { key: 'endDate',    label: 'Fin',       w: 180, render: (_v, row) => {
+      const d = details[row.runId]
+      if (!d) return <span style={{ opacity: .4 }}>…</span>
+      if (d.end) return formatSapTs(d.end, tzMode)
+      return <span style={{ opacity: .6, fontStyle: 'italic', color: 'var(--text2)' }}>En curso</span>
+    } },
+    { key: 'duration',   label: 'Duración',  w: 110, render: (_v, row) => {
+      const d = details[row.runId]
+      if (!d) return <span style={{ opacity: .4 }}>…</span>
+      return formatDuration(d.durSec)
+    } },
     { key: 'runId',      label: 'RunID',     w: 120 },
     { key: 'jobId',      label: 'JobID',     w: 150 },
-  ].map(c => ({ ...c, w: colWidths[c.key] ?? c.w })), [colWidths, promotedSet])
+  ].map(c => ({ ...c, w: colWidths[c.key] ?? c.w })), [colWidths, promotedSet, details, tzMode])
 
   function onResizeStart(col, e) {
     e.preventDefault(); e.stopPropagation()
@@ -229,7 +362,7 @@ export default function TaskMonitor({ connection, sessionId, onSessionExpired, i
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
           <div style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>Task Monitor</div>
           <div style={{ fontSize: 11, color: 'var(--text2)' }}>
-            {loading ? 'Cargando…' : `${filtered.length} de ${rows.length} ejecuciones`}
+            {loading ? 'Cargando…' : `${filtered.length} de ${rows.length} ejecuciones · pág ${page}/${totalPages}`}
             {lastRefresh && !loading && <span style={{ marginLeft: 8, opacity: .6 }}>· {lastRefresh.toLocaleTimeString()}</span>}
           </div>
         </div>
@@ -254,6 +387,16 @@ export default function TaskMonitor({ connection, sessionId, onSessionExpired, i
             </span>
           )}
           <input type="text" placeholder="Buscar…" value={search} onChange={e => setSearch(e.target.value)} style={{ ...inputStyle, width: 180 }} />
+          <button onClick={handleCopyPage} disabled={paged.length === 0}
+            title="Copiar la página actual (formato tabla, pegable en Excel)"
+            style={{
+              background: copyState === 'ok' ? 'rgba(52,211,153,.15)' : copyState === 'err' ? 'rgba(255,107,107,.15)' : 'var(--bg2)',
+              border: `1px solid ${copyState === 'ok' ? 'rgba(52,211,153,.4)' : copyState === 'err' ? 'rgba(255,107,107,.4)' : 'var(--border2)'}`,
+              borderRadius: 6, color: copyState === 'ok' ? 'var(--green)' : copyState === 'err' ? 'var(--red)' : 'var(--text2)',
+              fontSize: 11, fontWeight: 600, padding: '6px 12px', cursor: paged.length === 0 ? 'not-allowed' : 'pointer',
+            }}>
+            {copyState === 'ok' ? '✓ Copiado' : copyState === 'err' ? '✕ Error' : '⧉ Copiar'}
+          </button>
           <button onClick={loadTasks} disabled={loading} style={{ background: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: 6, color: 'var(--text2)', fontSize: 11, fontWeight: 600, padding: '6px 12px', cursor: 'pointer' }}>↺ Refresh</button>
           <span style={{ fontSize: 10, color: 'var(--text3)', padding: '4px 8px', background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 6 }}>🔄 Auto {REFRESH_MS / 1000}s</span>
         </div>
@@ -287,9 +430,9 @@ export default function TaskMonitor({ connection, sessionId, onSessionExpired, i
             <tbody>
               {loading && rows.length === 0 ? (
                 <tr><td colSpan={COLS.length} style={{ padding: '32px 12px', textAlign: 'center', color: 'var(--text2)' }}>Cargando…</td></tr>
-              ) : filtered.length === 0 ? (
+              ) : paged.length === 0 ? (
                 <tr><td colSpan={COLS.length} style={{ padding: '32px 12px', textAlign: 'center', color: 'var(--text2)' }}>Sin resultados</td></tr>
-              ) : filtered.map((row, i) => {
+              ) : paged.map((row, i) => {
                 const isSel = selectedRow?.runId === row.runId
                 return (
                   <tr key={row.runId || i} onClick={() => setSelected(isSel ? null : row)} style={{ background: isSel ? 'rgba(247,168,0,.08)' : i % 2 === 0 ? 'var(--bg)' : 'var(--bg2)', outline: isSel ? '1px solid rgba(247,168,0,.35)' : 'none', cursor: 'pointer' }}>
@@ -303,6 +446,19 @@ export default function TaskMonitor({ connection, sessionId, onSessionExpired, i
               })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Pagination */}
+      {!error && totalPages > 1 && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 12, flexShrink: 0 }}>
+          <PageBtn disabled={page === 1} onClick={() => setPage(1)}>« Primera</PageBtn>
+          <PageBtn disabled={page === 1} onClick={() => setPage(p => Math.max(1, p - 1))}>‹ Anterior</PageBtn>
+          <span style={{ fontSize: 11, color: 'var(--text2)', padding: '0 10px', whiteSpace: 'nowrap' }}>
+            Página <b style={{ color: 'var(--text)' }}>{page}</b> de {totalPages}
+          </span>
+          <PageBtn disabled={page === totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}>Siguiente ›</PageBtn>
+          <PageBtn disabled={page === totalPages} onClick={() => setPage(totalPages)}>Última »</PageBtn>
         </div>
       )}
 
@@ -356,6 +512,16 @@ function StatusBadge({ code }) {
     <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 20, fontSize: 10, fontWeight: 700, background: m.bg, color: m.color, border: `1px solid ${m.border}`, whiteSpace: 'nowrap' }}>
       {m.label}
     </span>
+  )
+}
+
+function PageBtn({ disabled, onClick, children }) {
+  return (
+    <button onClick={onClick} disabled={disabled} style={{
+      background: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: 6,
+      color: disabled ? 'var(--text3)' : 'var(--text2)', fontSize: 11, fontWeight: 600,
+      padding: '5px 11px', cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? .5 : 1, whiteSpace: 'nowrap',
+    }}>{children}</button>
   )
 }
 
