@@ -2,28 +2,32 @@ import { useState, useRef, useEffect } from 'react'
 
 const REQUIREMENTS = [
   {
-    title: '1. Usuario de Comunicación',
-    detail: 'Crear un Communication User en SAP IBP → Settings → Communication Users. Este usuario y su contraseña se usan como credenciales de la conexión.',
+    title: '1. Tenant SAP CI-DS',
+    detail: 'Acceso a un tenant de SAP Cloud Integration for Data Services (CI-DS), sobre plataforma Kyma o Neo (legacy). Es el sistema cuyas tasks y proyectos gestiona esta aplicación.',
   },
   {
-    title: '2. Sistema de Comunicación',
-    detail: 'Definir un Communication System en SAP IBP → Settings → Communication Systems, representando el sistema externo (GoSCM) que consumirá la API.',
+    title: '2. Usuario tipo WebService',
+    detail: 'El admin debe crearlo en Administrator → Users con permiso de WebServices. Un usuario normal de UI no sirve. Su usuario y contraseña se usan al iniciar sesión.',
   },
   {
-    title: '3. Acuerdo de Comunicación',
-    detail: 'Crear un Communication Arrangement en SAP IBP → Settings → Communication Arrangements usando el escenario SAP_COM_0326. Asociar el Communication System y el Communication User — esto activa el endpoint OData.',
+    title: '3. Organización (orgName)',
+    detail: 'Nombre técnico de la organización CI-DS, sensible a mayúsculas/minúsculas. Aparece en la consola CI-DS, arriba a la derecha bajo tu usuario.',
   },
   {
-    title: '4. URL del endpoint',
-    detail: 'La URL del API se obtiene directamente del Communication Arrangement creado. Formato: https://<tenant>-api.scmibp.ondemand.com/sap/opu/odata/sap/BC_EXT_APPJOB_MANAGEMENT;v=0002',
+    title: '4. URL del servicio SOAP',
+    detail: 'Endpoint del WebService de CI-DS. Kyma: https://<host>/webservices · Neo: https://<host>/DSoD/webservices. Se obtiene del dominio del portal CI-DS reemplazando la ruta por /webservices.',
   },
   {
-    title: '5. Rol de autorización',
-    detail: 'El Communication User debe tener asignado el business role correspondiente para leer y ejecutar Application Jobs en IBP.',
+    title: '5. Autenticación por sesión',
+    detail: 'La app hace logon con usuario y contraseña y obtiene un SessionId temporal que usa en cada operación; al cerrar la conexión hace logout. No usa Basic Auth ni OAuth, y la contraseña no se almacena.',
   },
   {
-    title: '6. Autenticación Basic Auth',
-    detail: 'La API usa HTTP Basic Authentication con el usuario y contraseña del Communication User. No se requiere configuración adicional de OAuth.',
+    title: '6. Repositorios Producción y Sandbox',
+    detail: 'Cada alta crea automáticamente dos conexiones sobre el mismo tenant: una contra el repositorio Productivo y otra contra el Sandbox.',
+  },
+  {
+    title: '7. Conectividad de red',
+    detail: 'El endpoint SOAP debe ser alcanzable desde el backend de GoSCM, que actúa como pasarela segura (token Bearer + protección anti-SSRF, sin seguir redirecciones).',
   },
 ]
 
@@ -107,7 +111,7 @@ export default function Header({ onMenuToggle }) {
             boxShadow: '0 8px 32px rgba(0,0,0,.6)', padding: 20, zIndex: 300,
           }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span>📋</span> Requisitos Técnicos de la API
+              <span>📋</span> Requisitos Técnicos — Conexión a SAP CI-DS
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {REQUIREMENTS.map((r, i) => (
