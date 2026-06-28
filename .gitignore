@@ -31,9 +31,5 @@ dist-ssr
 # Vercel
 .vercel
 
-# Claude Code
-.claude
-
 # Project-internal docs (not for public repos)
-CLAUDE.md
 docs/*.wsdl
