@@ -1,20 +1,5 @@
 import { useState, useEffect } from 'react'
-
-async function soapCall(connection, sessionId, operation, params = {}) {
-  const { hciUrl, orgName, isProduction } = connection
-  const res = await fetch('/api/soap', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ connection: { hciUrl, orgName, isProduction }, sessionId, operation, params }),
-  })
-  const raw = await res.text()
-  let data = null
-  try { data = raw ? JSON.parse(raw) : null } catch {}
-  if (res.status === 401) throw Object.assign(new Error('Sesión SAP expirada'), { isSessionExpired: true })
-  if (!res.ok) throw new Error(data?.error || raw?.slice(0, 240) || `HTTP ${res.status}`)
-  if (!data) throw new Error(raw?.slice(0, 240) || 'Respuesta inválida del servidor')
-  return data
-}
+import { soapCall } from '../../../api/soapCall'
 
 const inputStyle = {
   background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 6,

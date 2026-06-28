@@ -6,6 +6,7 @@ import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend,
 } from 'recharts'
+import { soapCall } from '../../api/soapCall'
 
 const REFRESH_MS = 5 * 60 * 1000
 
@@ -29,28 +30,6 @@ const STATUS_LABELS = {
   'ERROR': 'Error', 'QUEUEING': 'Queueing', 'IMPORTED': 'Imported',
   'FETCHED': 'Fetched', 'TERMINATED': 'Terminated',
   'TERMINATION_FAILED': 'Termination failed', 'UNKNOWN': 'Unknown',
-}
-
-async function soapCall(connection, sessionId, operation, params = {}) {
-  const res = await fetch('/api/soap', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      connection: { hciUrl: connection.hciUrl, orgName: connection.orgName, isProduction: connection.isProduction },
-      sessionId, operation, params,
-    }),
-  })
-  const raw = await res.text()
-  let data = null
-  try { data = raw ? JSON.parse(raw) : null } catch {}
-  if (res.status === 401) throw Object.assign(new Error('Sesión SAP expirada'), { isSessionExpired: true })
-  if (!res.ok) {
-    const msg = data?.error || raw?.slice(0, 240) || `HTTP ${res.status}`
-    throw new Error(msg)
-  }
-  if (!data) throw new Error(raw?.slice(0, 240) || 'Respuesta inválida del servidor')
-  if (data.error) throw new Error(data.error)
-  return data
 }
 
 function computeRate(success, warnings, total) {

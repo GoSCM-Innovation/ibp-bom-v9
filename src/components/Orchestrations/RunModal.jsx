@@ -1,16 +1,5 @@
 import { useState, useEffect } from 'react'
-
-async function soapCall(connection, sessionId, operation, params = {}) {
-  const { hciUrl, orgName, isProduction } = connection
-  const res = await fetch('/api/soap', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ connection: { hciUrl, orgName, isProduction }, sessionId, operation, params }),
-  })
-  const data = await res.json()
-  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
-  return data
-}
+import { soapCall, isSoapDebug } from '../../api/soapCall'
 
 const selectStyle = {
   background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 6,
@@ -104,28 +93,30 @@ export default function RunModal({ connection, sessionId, orchNodes = [], onConf
   // Load agents + system configs
   useEffect(() => {
     async function load() {
-      // eslint-disable-next-line no-console
-      console.log('[ibp-runmodal-debug] mount/load', {
-        connId: connection?.id,
-        hciUrl: connection?.hciUrl,
-        orgName: connection?.orgName,
-        isProduction: connection?.isProduction,
-        sessionId,
-      })
+      if (isSoapDebug()) {
+        console.log('[ibp-runmodal-debug] mount/load', {
+          connId: connection?.id,
+          hciUrl: connection?.hciUrl,
+          orgName: connection?.orgName,
+          isProduction: connection?.isProduction,
+          sessionId,
+        })
+      }
       try {
         const [agentGroups, profs] = await Promise.all([
           soapCall(connection, sessionId, 'getAgents', { activeOnly: false }),
           soapCall(connection, sessionId, 'getSystemConfigurations'),
         ])
-        // eslint-disable-next-line no-console
-        console.log('[ibp-runmodal-debug] response', {
-          isProduction: connection?.isProduction,
-          sessionId,
-          agentGroupsCount: Array.isArray(agentGroups) ? agentGroups.length : 'not-array',
-          configsCount:     Array.isArray(profs) ? profs.length : 'not-array',
-          firstAgent:       Array.isArray(agentGroups) && agentGroups[0]?.agents?.[0]?.name,
-          firstConfig:      Array.isArray(profs) && profs[0]?.name,
-        })
+        if (isSoapDebug()) {
+          console.log('[ibp-runmodal-debug] response', {
+            isProduction: connection?.isProduction,
+            sessionId,
+            agentGroupsCount: Array.isArray(agentGroups) ? agentGroups.length : 'not-array',
+            configsCount:     Array.isArray(profs) ? profs.length : 'not-array',
+            firstAgent:       Array.isArray(agentGroups) && agentGroups[0]?.agents?.[0]?.name,
+            firstConfig:      Array.isArray(profs) && profs[0]?.name,
+          })
+        }
         setRawAgents(agentGroups)
         setRawConfigs(profs)
         const flat = (Array.isArray(agentGroups) ? agentGroups : [])
@@ -134,8 +125,9 @@ export default function RunModal({ connection, sessionId, orchNodes = [], onConf
         setConfigs(Array.isArray(profs) ? profs : [])
         if (flat.length === 0) setUseManual(true)
       } catch (e) {
-        // eslint-disable-next-line no-console
-        console.log('[ibp-runmodal-debug] error', e.message)
+        if (isSoapDebug()) {
+          console.log('[ibp-runmodal-debug] error', e.message)
+        }
         setError(e.message)
         setUseManual(true)
       } finally {

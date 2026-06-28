@@ -1,22 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import PromotedBadge from '../../ui/PromotedBadge'
 import { usePromotedTasksContext, isTaskPromoted } from '../../../hooks/usePromotedTasks'
-
-async function soapCall(connection, sessionId, operation, params = {}) {
-  const { hciUrl, orgName, isProduction } = connection
-  const res = await fetch('/api/soap', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ connection: { hciUrl, orgName, isProduction }, sessionId, operation, params }),
-  })
-  const raw = await res.text()
-  let data = null
-  try { data = raw ? JSON.parse(raw) : null } catch {}
-  if (res.status === 401) throw Object.assign(new Error('Sesión SAP expirada'), { isSessionExpired: true })
-  if (!res.ok) throw new Error(data?.error || raw?.slice(0, 240) || `HTTP ${res.status}`)
-  if (!data) throw new Error(raw?.slice(0, 240) || 'Respuesta inválida del servidor')
-  return data
-}
+import { soapCall } from '../../../api/soapCall'
 
 function DragChip({ task, style, fullscreen, onPick, selectable = false, selected = false, onToggleSelect }) {
   const tapMode = typeof onPick === 'function' || selectable
