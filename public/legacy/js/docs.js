@@ -37,8 +37,11 @@ async function fetchIbpFieldDescriptions() {
       }).then(r => r.ok ? r.text() : Promise.reject(r.status));
     })
   );
+  let anyFulfilled = false;
+  let lastError = null;
   for (const r of results) {
-    if (r.status !== 'fulfilled') continue;
+    if (r.status !== 'fulfilled') { lastError = r.reason; continue; }
+    anyFulfilled = true;
     const xml = new DOMParser().parseFromString(r.value, 'text/xml');
     xml.querySelectorAll('Property').forEach(p => {
       const name  = p.getAttribute('Name');
@@ -46,6 +49,13 @@ async function fetchIbpFieldDescriptions() {
       // MASTER_DATA_API_SRV is processed first — don't overwrite with PLANNING_DATA
       if (name && label && !descs[name]) descs[name] = label;
     });
+  }
+  // Hay CFG, pero TODAS las llamadas al proxy fallaron (p. ej. 404 si /api no está
+  // disponible bajo `npm run dev`, 401, o IBP inalcanzable). Propagar el motivo real
+  // para que el caller lo registre, en vez del engañoso "Sin conexión a IBP".
+  if (!anyFulfilled) {
+    const reason = typeof lastError === 'number' ? `HTTP ${lastError}` : (lastError?.message || 'desconocido');
+    throw new Error(reason);
   }
   return descs;
 }

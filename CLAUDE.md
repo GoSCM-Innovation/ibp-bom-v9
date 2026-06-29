@@ -34,9 +34,9 @@ CIDS Studio: SPA de React (Vite) para monitorear y orquestar tareas de SAP CI-DS
 
 - `VITE_API_TOKEN` queda embebido en el bundle (público de facto). Ver `docs/SECURITY.md`.
 - No hay tests. `npm run lint` arrastra errores preexistentes; no agregar nuevos en los archivos que toques. Ver `docs/DEUDA-TECNICA.md`.
-- `npm run dev` no levanta `/api`; para las funciones usar `npm run dev:full` (`vercel dev`).
+- `npm run dev` sirve `/api` vía un middleware de dev en `vite.config.js` (monta los handlers de `api/*.js`, lee `.env`); editar un `api/*.js` requiere reiniciar el dev. `npm run dev:full` (`vercel dev`) usa el runtime real de Vercel.
 
 ## Comandos
 
-- Dev: `npm run dev` (solo frontend) o `npm run dev:full` (con `/api`).
+- Dev: `npm run dev` (frontend + `/api` vía middleware de dev) o `npm run dev:full` (`vercel dev`, runtime real).
 - Verificar: `npm run lint` y `npm run build`.

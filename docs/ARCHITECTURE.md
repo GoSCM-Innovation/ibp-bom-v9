@@ -152,6 +152,7 @@ Cargan grandes volúmenes de datos de SAP IBP (OData, vía `/api/ibp-proxy`) y l
 ## 7. Build, deploy y versionado
 
 - **Build:** Vite genera `dist/` (SPA). Config en [vite.config.js](../vite.config.js).
+- **Dev local:** `npm run dev` también sirve `/api`: un plugin de desarrollo en [vite.config.js](../vite.config.js) (`apply: 'serve'`) monta los handlers de `api/*.js` en el dev server de Vite y lee `.env`. No participa del build de producción. `npm run dev:full` (`vercel dev`) usa el runtime real de Vercel.
 - **Ruteo:** [vercel.json](../vercel.json) reescribe `/api/connections/:id` a la función `connections`, deja pasar `/api/*`, y manda el resto a `index.html` (ruteo SPA).
 - **Deploy:** automático en Vercel al hacer push a `master`.
 - **Versionado:** GitHub Actions sube la versión patch automáticamente ([.github/workflows/version-bump.yml](../.github/workflows/version-bump.yml)); los commits de bump llevan `[skip ci]`.

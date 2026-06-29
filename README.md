@@ -37,21 +37,21 @@ Versiones exactas en [package.json](package.json).
 ```bash
 npm ci                 # instalar dependencias (usa package-lock.json)
 cp .env.example .env   # configurar variables (ver abajo)
-npm run dev            # frontend en http://localhost:5173 (sin funciones /api)
+npm run dev            # frontend + funciones /api en http://localhost:5173
 ```
 
-Para ejecutar también las funciones serverless de `/api` en local se usa Vercel CLI:
+`npm run dev` ya sirve las funciones de `/api` mediante un middleware de desarrollo que monta los handlers de `api/*.js` (lee las variables de `.env`). Para probar contra el runtime real de Vercel en vez del middleware, se usa la Vercel CLI:
 
 ```bash
-npm run dev:full       # vercel dev (frontend + funciones /api)
+npm run dev:full       # vercel dev (runtime real de Vercel)
 ```
 
 Scripts disponibles:
 
 | Script | Acción |
 |---|---|
-| `npm run dev` | Servidor de desarrollo Vite (solo frontend). |
-| `npm run dev:full` | `vercel dev`: frontend + funciones `/api`. |
+| `npm run dev` | Servidor Vite: frontend + funciones `/api` (vía middleware de dev). |
+| `npm run dev:full` | `vercel dev`: frontend + `/api` con el runtime real de Vercel. |
 | `npm run build` | Build de producción a `dist/`. |
 | `npm run preview` | Sirve el build de `dist/` localmente. |
 | `npm run lint` | ESLint sobre todo el repo. |

@@ -10,15 +10,15 @@ npm ci                 # instalar dependencias desde el lockfile
 cp .env.example .env   # configurar variables (ver README)
 ```
 
-- `npm run dev` levanta solo el frontend (las llamadas a `/api/*` no responden).
-- `npm run dev:full` (`vercel dev`) levanta frontend + funciones serverless; requiere tener la Vercel CLI y las variables de entorno configuradas.
+- `npm run dev` levanta frontend + funciones `/api` en un solo puerto: un middleware de desarrollo en [vite.config.js](vite.config.js) monta los handlers de `api/*.js` y lee las variables de `.env`. Editar un archivo de `api/*.js` requiere reiniciar el dev.
+- `npm run dev:full` (`vercel dev`) levanta lo mismo pero con el runtime real de Vercel; requiere la Vercel CLI y el proyecto vinculado.
 
 ## Scripts
 
 | Script | Uso |
 |---|---|
-| `npm run dev` | Desarrollo frontend (Vite). |
-| `npm run dev:full` | Frontend + funciones `/api` (`vercel dev`). |
+| `npm run dev` | Frontend + funciones `/api` (Vite + middleware de dev). |
+| `npm run dev:full` | Frontend + `/api` con el runtime real de Vercel (`vercel dev`). |
 | `npm run build` | Build de producción a `dist/`. |
 | `npm run preview` | Sirve el build localmente. |
 | `npm run lint` | ESLint sobre el repo. |
