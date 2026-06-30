@@ -4,6 +4,7 @@ import ProgressBar from '../ui/ProgressBar'
 import PromotedBadge from '../ui/PromotedBadge'
 import { usePromotedTasksContext, isTaskPromoted } from '../../hooks/usePromotedTasks'
 import { getTzMode, setTzMode, toInputDate, inputDateToDate, formatEpochMs, formatSapTs, TZ_OPTIONS } from '../../utils/dateUtils'
+import { soapCall } from '../../api/soapCall'
 
 const REFRESH_MS = 30000
 const PAGE_SIZE = 50
@@ -74,39 +75,6 @@ const STATUS_META = {
 
 const CANCELABLE = new Set(['RUNNING', 'QUEUEING', 'IMPORTED', 'FETCHED'])
 
-
-async function soapCall(connection, sessionId, operation, params = {}) {
-  const debugSoap = typeof window !== 'undefined'
-    && (import.meta.env.DEV || localStorage.getItem('ibpSoapDebug') === '1')
-  const res = await fetch('/api/soap', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      connection: { hciUrl: connection.hciUrl, orgName: connection.orgName, isProduction: connection.isProduction },
-      sessionId, operation, params: debugSoap ? { ...params, _debug: true } : params,
-    }),
-  })
-  const raw = await res.text()
-  let data = null
-  try { data = raw ? JSON.parse(raw) : null } catch {}
-  if (res.status === 401) throw Object.assign(new Error('Sesión SAP expirada'), { isSessionExpired: true })
-  if (!res.ok) {
-    const msg = data?.error || raw?.slice(0, 240) || `HTTP ${res.status}`
-    throw new Error(msg)
-  }
-  if (!data) throw new Error(raw?.slice(0, 240) || 'Respuesta inválida del servidor')
-  if (data.error) throw new Error(data.error)
-  if (debugSoap && data?._result !== undefined) {
-    console.log(`[SOAP DEBUG][TaskMonitor] op=${data._operation || operation}`, {
-      soapAction: data._soapAction,
-      requestBodyXml: data._requestBodyXml,
-      requestEnvelopeXml: data._requestEnvelopeXml,
-      rawXml: data._rawXml,
-    })
-    return data._result
-  }
-  return data
-}
 
 export default function TaskMonitor({ connection, sessionId, onSessionExpired, initialSearch, onSearchConsumed }) {
   const [rows, setRows]           = useState([])

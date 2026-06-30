@@ -1,17 +1,6 @@
 import { useState } from 'react'
 import { STATUS_COLORS } from './canvasUtils'
-
-async function soapCall(connection, sessionId, operation, params = {}) {
-  const { hciUrl, orgName, isProduction } = connection
-  const res = await fetch('/api/soap', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ connection: { hciUrl, orgName, isProduction }, sessionId, operation, params }),
-  })
-  const data = await res.json()
-  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
-  return data
-}
+import { soapCall } from '../../api/soapCall'
 
 const STATUS_LABEL = {
   pending: 'Pendiente', running: 'Ejecutando', success: 'Completado',

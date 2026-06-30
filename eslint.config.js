@@ -26,4 +26,9 @@ export default defineConfig([
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
     },
   },
+  {
+    // Archivos de configuración (vite.config.js, etc.): corren en Node.
+    files: ['**/*.config.js'],
+    languageOptions: { globals: globals.node },
+  },
 ])

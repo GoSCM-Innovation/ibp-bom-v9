@@ -3,33 +3,7 @@ import ProgressBar from '../ui/ProgressBar'
 import PromotedBadge from '../ui/PromotedBadge'
 import TechLogs, { useTechLogs } from '../TechLogs'
 import { usePromotedTasksContext, isTaskPromoted } from '../../hooks/usePromotedTasks'
-
-async function soapCall(connection, sessionId, operation, params = {}) {
-  const debugSoap = typeof window !== 'undefined'
-    && (import.meta.env.DEV || localStorage.getItem('ibpSoapDebug') === '1')
-  const res = await fetch('/api/soap', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      connection: { hciUrl: connection.hciUrl, orgName: connection.orgName, isProduction: connection.isProduction },
-      sessionId, operation, params: debugSoap ? { ...params, _debug: true } : params,
-    }),
-  })
-  const raw = await res.text()
-  let data = null
-  try { data = raw ? JSON.parse(raw) : null } catch {}
-  if (res.status === 401) throw Object.assign(new Error('Sesión SAP expirada'), { isSessionExpired: true })
-  if (!res.ok) {
-    const msg = data?.error || raw?.slice(0, 240) || `HTTP ${res.status}`
-    throw new Error(msg)
-  }
-  if (!data) throw new Error(raw?.slice(0, 240) || 'Respuesta inválida del servidor')
-  if (data.error) throw new Error(data.error)
-  if (debugSoap && data?._result !== undefined) {
-    return data._result
-  }
-  return data
-}
+import { soapCall } from '../../api/soapCall'
 
 export default function Tasks({ connection, sessionId, onSessionExpired, onTaskRun }) {
   const PINS_KEY = `ibp-project-pins-${connection.id}`
