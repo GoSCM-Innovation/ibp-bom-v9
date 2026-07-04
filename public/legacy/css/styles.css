@@ -3725,6 +3725,129 @@ button[disabled][title]:hover::after {
   margin-top: 18px;
 }
 
+/* ── SAP IBP connection (bar + toggle) ──────────────────────────── */
+#ex-ibp-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+#ex-ibp-toggle {
+  display: flex;
+  align-items: center;
+  padding: 4px 0 2px;
+}
+.ex-ibp-connect-btn {
+  padding: 5px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--cyan, #29ABE2);
+  background: transparent;
+  color: var(--cyan, #29ABE2);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.ex-ibp-connect-btn:hover { background: var(--cyan, #29ABE2); color: #000; }
+.ex-ibp-pill {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--cyan, #29ABE2);
+  padding: 4px 10px;
+  border: 1px solid var(--cyan, #29ABE2);
+  border-radius: 20px;
+  white-space: nowrap;
+}
+.ex-ibp-disconnect-btn {
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text2);
+  font-size: 11px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.ex-ibp-disconnect-btn:hover { border-color: var(--red); color: var(--red); }
+
+/* ── Botón de ayuda "?" + popover (compartido CI-DS / SAP IBP) ──── */
+.ex-help-wrap { position: relative; display: inline-flex; align-items: center; }
+.ex-help-btn {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text2);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s, color 0.15s;
+}
+.ex-help-btn:hover { border-color: var(--text1); color: var(--text1); }
+.ex-help-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  width: min(320px, 80vw);
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.6);
+  padding: 14px 16px;
+  z-index: 2500;
+}
+.ex-help-pop-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text1);
+  margin-bottom: 6px;
+}
+.ex-help-pop-body {
+  font-size: 11px;
+  color: var(--text2);
+  line-height: 1.55;
+}
+
+/* ── SAP IBP: badge en sidebar + tabla en detalle ───────────────── */
+.ex-ibp-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--cyan, #29ABE2);
+  border: 1px solid var(--cyan, #29ABE2);
+  border-radius: 4px;
+  padding: 0 4px;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+.ex-ibp-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.ex-ibp-table th,
+.ex-ibp-table td {
+  text-align: left;
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+.ex-ibp-table th {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--text2);
+}
+.ex-ibp-empty {
+  font-size: 12px;
+  color: var(--text2);
+}
+
 /* ═══════════════════════════════════════════════════════════════
    FIELD MAP — Panel de corrección de campos
    ═══════════════════════════════════════════════════════════════ */

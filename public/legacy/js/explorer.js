@@ -35,6 +35,11 @@ const Explorer = (function () {
   let cidsLoading   = false;
   let showPromoted  = false;
 
+  // ── Estado SAP IBP ───────────────────────────────────────────
+  let ibpConn      = null;   // { base, user } — null = no conectado
+  let ibpTaskIndex = null;   // { TASKID_UC: [{jobName, stepName, stepPos, stepType}] }
+  let showIbpOnly  = false;
+
   // ── Normalización de claves para matching ───────────────
   function normTableKey(ds, tbl) {
     const d = (ds  || '').trim().toUpperCase();
@@ -568,6 +573,187 @@ const Explorer = (function () {
     }
   }
 
+  // ── Conexión SAP IBP ─────────────────────────────────────────
+  // Servicio de Application Job Management (mismo que usa docs.js).
+  const IBP_SVC_APPJOB = '/sap/opu/odata/sap/BC_EXT_APPJOB_MANAGEMENT;v=0002';
+
+  function openIbpModal() {
+    const m = document.getElementById('ibp-modal');
+    if (m) m.style.display = 'flex';
+    setTimeout(() => { const f = document.getElementById('ibp-base'); if (f) f.focus(); }, 50);
+  }
+
+  function closeIbpModal() {
+    const m = document.getElementById('ibp-modal');
+    if (m) m.style.display = 'none';
+  }
+
+  // Trae JobTemplates + Sequences + parámetros P_TSKID desde SAP IBP y construye
+  // el índice inverso taskId(UC) → [{jobName, stepName, stepPos, stepType}].
+  // Reutiliza fetchAllPages()/CFG (api.js/state.js), ya cargados en el iframe.
+  async function loadIbpJobIndex() {
+    // #docs-log es un stub oculto presente en la página; evita que log() falle
+    // si fetchAllPages pagina (llama a log() sólo a partir de la página 2).
+    const logEl = document.getElementById('docs-log') || document.createElement('div');
+    const appjobBase = CFG.url + IBP_SVC_APPJOB;
+
+    const templates = await fetchAllPages(appjobBase + '/JobTemplateSet', logEl);
+    const templateText = {};
+    templates.forEach(t => {
+      templateText[t.JobTemplateName] = t.JobTemplateText || t.Text || t.JobTemplateName;
+    });
+
+    const steps = await fetchAllPages(appjobBase + '/JobTemplateSequenceSet', logEl);
+
+    const paramRows = await fetchAllPages(
+      appjobBase + '/JobTemplateParameterValueDataSet', logEl,
+      "startswith(JobTemplateParameterName,'P_TSKID') eq true"
+    );
+    const seqToTaskId = {};
+    paramRows.forEach(r => {
+      const seqName = (r.JobTemplateParameterName || '').replace(/^P_TSKID\s*/, '').trim();
+      const taskId  = (r.Low || '').trim();
+      if (seqName && taskId) seqToTaskId[seqName] = taskId;
+    });
+
+    const index = {};
+    steps.forEach(s => {
+      const taskId = seqToTaskId[s.JobSequenceName || ''];
+      if (!taskId) return;
+      const key = taskId.toUpperCase();
+      if (!index[key]) index[key] = [];
+      index[key].push({
+        jobName:  templateText[s.JobTemplateName] || s.JobTemplateName || '',
+        stepName: s.JobSequenceText || s.JobSequenceName || '',
+        stepPos:  s.JobSequencePosition || '',
+        stepType: s.JceText || '',
+      });
+    });
+    // Orden estable por posición del step
+    Object.keys(index).forEach(k => {
+      index[k].sort((a, b) => (Number(a.stepPos) || 0) - (Number(b.stepPos) || 0));
+    });
+    return index;
+  }
+
+  function _ibpTaskCount() {
+    return ibpTaskIndex ? Object.keys(ibpTaskIndex).length : 0;
+  }
+
+  function _ibpMatches(jobName) {
+    if (!ibpTaskIndex) return null;
+    return ibpTaskIndex[(jobName || '').toUpperCase()] || null;
+  }
+
+  async function submitIbpConnect() {
+    const base  = (document.getElementById('ibp-base')?.value || '').trim();
+    const user  = (document.getElementById('ibp-user')?.value || '').trim();
+    const pass  = (document.getElementById('ibp-pass')?.value || '').trim();
+    const errEl = document.getElementById('ibp-modal-error');
+    const btnEl = document.getElementById('ibp-modal-submit');
+
+    if (!base || !user || !pass) {
+      if (errEl) errEl.textContent = I18n.t('ex.ibp.allRequired');
+      return;
+    }
+    if (errEl) errEl.textContent = '';
+    if (btnEl) { btnEl.disabled = true; btnEl.textContent = I18n.t('ex.ibp.connecting'); }
+
+    // Cargar credenciales en el CFG global compartido con api.js (Basic Auth por request)
+    CFG.url  = base.replace(/\/+$/, '');
+    CFG.user = user;
+    CFG.pass = pass;
+
+    try {
+      const index = await loadIbpJobIndex();
+      ibpConn = { base: CFG.url, user };
+      ibpTaskIndex = index;
+      closeIbpModal();
+      renderIbpBar();
+      const q = (document.getElementById('ex-search') || {}).value || '';
+      applySearch(q);
+      if (selectedIdx !== null) renderDetail(selectedIdx);
+    } catch (e) {
+      // credenciales inválidas / error de red → no dejar credenciales colgando
+      CFG.user = ''; CFG.pass = '';
+      if (errEl) errEl.textContent = e.message || String(e);
+    } finally {
+      if (btnEl) { btnEl.disabled = false; btnEl.textContent = I18n.t('ibp.btnConnect'); }
+    }
+  }
+
+  function ibpDisconnect() {
+    ibpConn      = null;
+    ibpTaskIndex = null;
+    showIbpOnly  = false;
+    CFG.user = ''; CFG.pass = '';
+    renderIbpBar();
+    const q = (document.getElementById('ex-search') || {}).value || '';
+    applySearch(q);
+    if (selectedIdx !== null) renderDetail(selectedIdx);
+  }
+
+  function toggleIbpOnly() {
+    showIbpOnly = !showIbpOnly;
+    const sw = document.querySelector('#ex-ibp-toggle .ex-toggle-switch');
+    if (sw) sw.className = showIbpOnly ? 'ex-toggle-switch on' : 'ex-toggle-switch';
+    const q = (document.getElementById('ex-search') || {}).value || '';
+    applySearch(q);
+  }
+
+  function renderIbpBar() {
+    const bar    = document.getElementById('ex-ibp-bar');
+    const toggle = document.getElementById('ex-ibp-toggle');
+
+    if (!ibpConn) {
+      if (bar)    bar.innerHTML = `<button class="ex-ibp-connect-btn" onclick="Explorer.openIbpModal()">${escH(I18n.t('ex.ibp.connectBtn'))}</button>`;
+      if (toggle) { toggle.innerHTML = ''; toggle.style.display = 'none'; }
+      return;
+    }
+
+    let host = ibpConn.base;
+    try { host = new URL(ibpConn.base).hostname; } catch { /* base no es URL absoluta */ }
+    const n     = _ibpTaskCount();
+    const count = I18n.t(n === 1 ? 'ex.ibp.tasksCount.one' : 'ex.ibp.tasksCount.many', { n });
+    const swCls = showIbpOnly ? 'ex-toggle-switch on' : 'ex-toggle-switch';
+
+    if (bar) {
+      bar.innerHTML = `
+        <span class="ex-ibp-pill">SAP IBP: ${escH(host)} · ${escH(count)}</span>
+        <button class="ex-ibp-disconnect-btn" onclick="Explorer.ibpDisconnect()">${escH(I18n.t('ex.ibp.disconnectBtn'))}</button>`;
+    }
+    if (toggle) {
+      toggle.style.display = '';
+      toggle.innerHTML = `
+        <label class="ex-promoted-label">
+          <span class="ex-promoted-text">${escH(I18n.t('ex.ibp.onlyLabel'))}</span>
+          <span class="${swCls}" onclick="Explorer.toggleIbpOnly()" title="${escH(I18n.t('ex.ibp.tooltip.filterOnly'))}"><span class="ex-toggle-knob"></span></span>
+        </label>`;
+    }
+  }
+
+  // ── Popover de ayuda "?" (compartido CI-DS / SAP IBP) ────────
+  let _helpHandler = null;
+  function _closeHelpPopovers() {
+    document.querySelectorAll('.ex-help-popover').forEach(p => { p.style.display = 'none'; });
+    if (_helpHandler) { document.removeEventListener('mousedown', _helpHandler); _helpHandler = null; }
+  }
+  function toggleHelpPopover(which) {
+    const pop = document.getElementById('ex-help-' + which);
+    if (!pop) return;
+    const wasOpen = pop.style.display === 'block';
+    _closeHelpPopovers();
+    if (wasOpen) return;
+    const titleKey = which === 'ibp' ? 'ex.ibp.help.title' : 'ex.cids.help.title';
+    const bodyKey  = which === 'ibp' ? 'ex.ibp.help.body'  : 'ex.cids.help.body';
+    pop.innerHTML = `<div class="ex-help-pop-title">${escH(I18n.t(titleKey))}</div><div class="ex-help-pop-body">${escH(I18n.t(bodyKey))}</div>`;
+    pop.style.display = 'block';
+    _helpHandler = function (e) {
+      if (!pop.contains(e.target) && !(e.target.closest && e.target.closest('.ex-help-btn'))) _closeHelpPopovers();
+    };
+    setTimeout(() => { if (_helpHandler) document.addEventListener('mousedown', _helpHandler); }, 0);
+  }
+
   // ── Filtro Planning Area ─────────────────────────────────
   function computeBaseFiltered() {
     let base = integrations.slice();
@@ -579,6 +765,8 @@ const Explorer = (function () {
       base = base.filter(p => activeDstDS.has(p.dstDSName || ''));
     if (showPromoted && cidsProdTasks)
       base = base.filter(p => cidsProdTasks.has((p.jobName || '').toUpperCase()));
+    if (showIbpOnly && ibpTaskIndex)
+      base = base.filter(p => !!ibpTaskIndex[(p.jobName || '').toUpperCase()]);
     return base;
   }
 
@@ -665,9 +853,11 @@ const Explorer = (function () {
     const typeClass = `ex-type-${p.tipoIntegracion || 'MD'}`;
     const promBadge = _isPromotedTask(p.jobName)
       ? `<span class="ex-chain-prom" title="${escH(I18n.t('ex.cids.promotedLabel'))}">✓</span> ` : '';
+    const ibpBadge = _ibpMatches(p.jobName)
+      ? `<span class="ex-ibp-badge" title="${escH(I18n.t('ex.ibp.section.title'))}">IBP</span>` : '';
     return `<div class="ex-item${selectedIdx === p._idx ? ' active' : ''}" data-idx="${p._idx}" onclick="Explorer.renderDetail(${p._idx})">
       <div class="ex-name">
-        <span class="ex-type-badge ${typeClass}">${escH(p.tipoIntegracion || 'MD')}</span>${promBadge}${escH(p.jobName)}${_chainBadges(new Set([p._idx]))}
+        <span class="ex-type-badge ${typeClass}">${escH(p.tipoIntegracion || 'MD')}</span>${promBadge}${ibpBadge}${escH(p.jobName)}${_chainBadges(new Set([p._idx]))}
       </div>
       ${p.dataflowName && p.dataflowName !== p.jobName ? `<div class="ex-sub ex-sub-df">↳ ${escH(p.dataflowName)}</div>` : ''}
       <div class="ex-sub">${escH(p.targetTable)}</div>
@@ -692,10 +882,12 @@ const Explorer = (function () {
     const hasActive = dfs.some(d => d._idx === selectedIdx);
     const promBadge = _isPromotedTask(jobName)
       ? `<span class="ex-chain-prom" title="${escH(I18n.t('ex.cids.promotedLabel'))}">✓</span> ` : '';
+    const ibpBadge = _ibpMatches(jobName)
+      ? `<span class="ex-ibp-badge" title="${escH(I18n.t('ex.ibp.section.title'))}">IBP</span>` : '';
     return `<div class="ex-task-group">
       <div class="ex-task-head" onclick="var b=document.getElementById('${grpId}');b.classList.toggle('collapsed');this.querySelector('.ex-tarr').textContent=b.classList.contains('collapsed')?'▶':'▼';">
         <div class="ex-name">
-          <span class="ex-type-badge ${typeClass}">${escH(p0.tipoIntegracion || 'MD')}</span>${promBadge}${escH(jobName)}
+          <span class="ex-type-badge ${typeClass}">${escH(p0.tipoIntegracion || 'MD')}</span>${promBadge}${ibpBadge}${escH(jobName)}
           <span class="ex-df-count">${dfs.length}</span>${_chainBadges(idxSet)}
         </div>
         <span class="ex-tarr">${hasActive ? '▼' : '▶'}</span>
@@ -901,7 +1093,30 @@ const Explorer = (function () {
         </div>`).join('')
     ) : '';
 
-    det.innerHTML = headerHtml + chainsHtml + diagramHtml + mappingsHtml + filtersHtml + lookupsHtml + varsHtml;
+    // SAP IBP · Jobs y Steps — sólo cuando hay conexión IBP activa
+    let ibpHtml = '';
+    if (ibpTaskIndex) {
+      const matches = _ibpMatches(p.jobName) || [];
+      const body = matches.length === 0
+        ? `<p class="ex-ibp-empty">${escH(I18n.t('ex.ibp.noMatch'))}</p>`
+        : `<div style="overflow-x:auto"><table class="ex-ibp-table">
+            <thead><tr>
+              <th>${escH(I18n.t('ex.ibp.col.job'))}</th>
+              <th>${escH(I18n.t('ex.ibp.col.step'))}</th>
+              <th style="width:48px">${escH(I18n.t('ex.ibp.col.pos'))}</th>
+              <th>${escH(I18n.t('ex.ibp.col.type'))}</th>
+            </tr></thead>
+            <tbody>${matches.map(m => `<tr>
+              <td>${escH(m.jobName || '—')}</td>
+              <td>${escH(m.stepName || '—')}</td>
+              <td>${escH(String(m.stepPos || ''))}</td>
+              <td>${escH(m.stepType || '—')}</td>
+            </tr>`).join('')}</tbody>
+          </table></div>`;
+      ibpHtml = buildSection(I18n.t('ex.ibp.section.title'), matches.length, body);
+    }
+
+    det.innerHTML = headerHtml + chainsHtml + ibpHtml + diagramHtml + mappingsHtml + filtersHtml + lookupsHtml + varsHtml;
 
     // El network del diagrama se renderiza lazy al expandir la sección (ver onclick en diagramHtml).
 
@@ -1916,8 +2131,28 @@ const Explorer = (function () {
   function init() {
     initDropZone();
     initMasterResizer();
-    I18n.ready.then(() => renderCidsBar());
+    I18n.ready.then(() => { renderCidsBar(); renderIbpBar(); });
   }
+
+  // Re-render del Integration Explorer al cambiar idioma.
+  // Reconstruye barras CI-DS/IBP, filtro PA, lista master/dim, contador y detalle activo.
+  document.addEventListener('i18n:change', function () {
+    try {
+      if (!integrations || !integrations.length) return;
+      renderCidsBar();
+      renderIbpBar();
+      renderPlanAreaFilter();
+      renderDSFilter();
+      const q = (document.getElementById('ex-search') || {}).value || '';
+      if (currentDim === 'integration') {
+        applySearch(q);
+        if (selectedIdx !== null) renderDetail(selectedIdx);
+      } else {
+        renderMasterForDim(currentDim, q);
+        if (selectedDimKey !== null) renderDetailDimByKey(selectedDimKey, currentDim);
+      }
+    } catch (e) { console.warn('[explorer i18n re-render]', e); }
+  });
 
   // ── API pública ──────────────────────────────────────────
   return {
@@ -1939,6 +2174,12 @@ const Explorer = (function () {
     submitCidsConnect,
     cidsDisconnect,
     togglePromoted,
+    openIbpModal,
+    closeIbpModal,
+    submitIbpConnect,
+    ibpDisconnect,
+    toggleIbpOnly,
+    toggleHelpPopover,
     renderDataflowDiagram,
     renderDataflowNodeDetail,
     openDataflowFullscreen,
@@ -1946,25 +2187,6 @@ const Explorer = (function () {
     toggleUploadPanel,
     init
   };
-
-  // Re-render del Integration Explorer al cambiar idioma.
-  // Reconstruye barra CI-DS, filtro PA, lista master/dim, contador y detalle activo.
-  document.addEventListener('i18n:change', function () {
-    try {
-      if (!integrations || !integrations.length) return;
-      renderCidsBar();
-      renderPlanAreaFilter();
-      renderDSFilter();
-      const q = (document.getElementById('ex-search') || {}).value || '';
-      if (currentDim === 'integration') {
-        applySearch(q);
-        if (selectedIdx !== null) renderDetail(selectedIdx);
-      } else {
-        renderMasterForDim(currentDim, q);
-        if (selectedDimKey !== null) renderDetailDimByKey(selectedDimKey, currentDim);
-      }
-    } catch (e) { console.warn('[explorer i18n re-render]', e); }
-  });
 
 })();
 
