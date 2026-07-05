@@ -434,6 +434,7 @@
   "ex.ibp.disconnectBtn": "Desconectar",
   "ex.ibp.connecting": "Conectando...",
   "ex.ibp.allRequired": "Todos los campos son obligatorios.",
+  "ex.ibp.noTemplates": "Conexión establecida pero no se encontraron job templates. Revisa la URL del servicio, el Communication Arrangement (SAP_COM_0326) y las autorizaciones del Communication User.",
   "ex.ibp.tasksCount.one": "{n} tarea localizada",
   "ex.ibp.tasksCount.many": "{n} tareas localizadas",
   "ex.ibp.onlyLabel": "Solo tareas en jobs IBP",

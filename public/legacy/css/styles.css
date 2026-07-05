@@ -4126,7 +4126,6 @@ button[disabled][title]:hover::after {
   font-family: monospace;
   padding: 0 var(--sp-4) 6px;
 }
-}
 
 /* ══════════════════════════════════════════════════════════════
    Integration Explorer — optimización mobile (≤ 768 px)
@@ -4174,7 +4173,18 @@ button[disabled][title]:hover::after {
   /* Drop zone y upload actions */
   .ex-upload-actions { flex-direction: column; align-items: stretch; gap: 8px; }
   .ex-conn-bars { flex-direction: column; align-items: stretch; gap: 10px; }
-  .ex-cids-bar { justify-content: flex-start; flex-wrap: wrap; }
+  /* En móvil el popover de ayuda se centra como tarjeta fija para no cortarse
+     contra el borde (el "?" no siempre queda pegado al borde derecho). */
+  .ex-help-popover {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    right: auto;
+    transform: translate(-50%, -50%);
+    width: min(340px, 90vw);
+    max-height: 75vh;
+    overflow-y: auto;
+  }
 
   /* Items del master — más espacio para tap */
   .ex-item { padding: 12px; }

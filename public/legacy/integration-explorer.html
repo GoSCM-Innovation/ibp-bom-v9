@@ -88,14 +88,14 @@
           <div class="ex-conn-group">
             <div id="ex-cids-bar"></div>
             <span class="ex-help-wrap">
-              <button class="ex-help-btn" onclick="Explorer.toggleHelpPopover('cids')" data-i18n-title="ex.cids.help.title" title="Conexión SAP CI-DS" aria-label="Ayuda CI-DS">?</button>
+              <button class="ex-help-btn" onclick="Explorer.toggleHelpPopover('cids')" data-i18n-title="ex.cids.help.title" data-i18n-aria-label="ex.cids.help.title" aria-label="Ayuda CI-DS">?</button>
               <div class="ex-help-popover" id="ex-help-cids" style="display:none"></div>
             </span>
           </div>
           <div class="ex-conn-group">
             <div id="ex-ibp-bar"></div>
             <span class="ex-help-wrap">
-              <button class="ex-help-btn" onclick="Explorer.toggleHelpPopover('ibp')" data-i18n-title="ex.ibp.help.title" title="Conexión SAP IBP" aria-label="Ayuda SAP IBP">?</button>
+              <button class="ex-help-btn" onclick="Explorer.toggleHelpPopover('ibp')" data-i18n-title="ex.ibp.help.title" data-i18n-aria-label="ex.ibp.help.title" aria-label="Ayuda SAP IBP">?</button>
               <div class="ex-help-popover" id="ex-help-ibp" style="display:none"></div>
             </span>
           </div>
@@ -167,7 +167,7 @@
   </div><!-- /tab-explorer -->
 
   <!-- ═══ CI-DS CONNECTION MODAL ═══ -->
-  <div id="cids-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:2000;align-items:center;justify-content:center;">
+  <div id="cids-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:2000;align-items:center;justify-content:center;" onclick="Explorer.closeCidsModal()">
     <div class="cids-modal-box" onclick="event.stopPropagation()">
       <div class="cids-modal-title" data-i18n="cids.title">Conectar SAP CI-DS</div>
       <div class="cids-modal-subtitle" data-i18n="cids.subtitle">Las credenciales solo se usan durante esta sesión y no se almacenan.</div>
@@ -215,7 +215,7 @@
   </div>
 
   <!-- ═══ SAP IBP CONNECTION MODAL ═══ -->
-  <div id="ibp-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:2000;align-items:center;justify-content:center;">
+  <div id="ibp-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:2000;align-items:center;justify-content:center;" onclick="Explorer.closeIbpModal()">
     <div class="cids-modal-box" onclick="event.stopPropagation()">
       <div class="cids-modal-title" data-i18n="ibp.title">Conectar SAP IBP</div>
       <div class="cids-modal-subtitle" data-i18n="ibp.subtitle">Las credenciales solo se usan durante esta sesión y no se almacenan.</div>

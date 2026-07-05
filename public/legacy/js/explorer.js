@@ -633,7 +633,7 @@ const Explorer = (function () {
       index[key].push({
         jobName:  templateText[s.JobTemplateName] || s.JobTemplateName || '',
         stepName: s.JobSequenceText || s.JobSequenceName || '',
-        stepPos:  s.JobSequencePosition || '',
+        stepPos:  s.JobSequencePosition ?? '',
         stepType: s.JceText || '',
       });
     });
@@ -641,7 +641,7 @@ const Explorer = (function () {
     Object.keys(index).forEach(k => {
       index[k].sort((a, b) => (Number(a.stepPos) || 0) - (Number(b.stepPos) || 0));
     });
-    return index;
+    return { index, templatesCount: templates.length };
   }
 
   function _ibpTaskCount() {
@@ -679,7 +679,13 @@ const Explorer = (function () {
     CFG.pass = pass;
 
     try {
-      const index = await loadIbpJobIndex(url);
+      const { index, templatesCount } = await loadIbpJobIndex(url);
+      if (!templatesCount) {
+        // 0 job templates ⇒ URL/servicio/autorización incorrectos: no conectar, avisar.
+        CFG.url = ''; CFG.user = ''; CFG.pass = '';
+        if (errEl) errEl.textContent = I18n.t('ex.ibp.noTemplates');
+        return;
+      }
       ibpConn = { base: url, user };
       ibpTaskIndex = index;
       closeIbpModal();
@@ -688,8 +694,8 @@ const Explorer = (function () {
       applySearch(q);
       if (selectedIdx !== null) renderDetail(selectedIdx);
     } catch (e) {
-      // credenciales inválidas / error de red → no dejar credenciales colgando
-      CFG.user = ''; CFG.pass = '';
+      // credenciales inválidas / error de red → no dejar credenciales/URL colgando
+      CFG.url = ''; CFG.user = ''; CFG.pass = '';
       if (errEl) errEl.textContent = e.message || String(e);
     } finally {
       if (btnEl) { btnEl.disabled = false; btnEl.textContent = I18n.t('ibp.btnConnect'); }
@@ -700,7 +706,7 @@ const Explorer = (function () {
     ibpConn      = null;
     ibpTaskIndex = null;
     showIbpOnly  = false;
-    CFG.user = ''; CFG.pass = '';
+    CFG.url = ''; CFG.user = ''; CFG.pass = '';
     renderIbpBar();
     const q = (document.getElementById('ex-search') || {}).value || '';
     applySearch(q);
@@ -1123,7 +1129,7 @@ const Explorer = (function () {
             <tbody>${matches.map(m => `<tr>
               <td>${escH(m.jobName || '—')}</td>
               <td>${escH(m.stepName || '—')}</td>
-              <td>${escH(String(m.stepPos || ''))}</td>
+              <td>${escH(String(m.stepPos ?? ''))}</td>
               <td>${escH(m.stepType || '—')}</td>
             </tr>`).join('')}</tbody>
           </table></div>`;
@@ -2146,6 +2152,9 @@ const Explorer = (function () {
     initDropZone();
     initMasterResizer();
     I18n.ready.then(() => { renderCidsBar(); renderIbpBar(); });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') { closeCidsModal(); closeIbpModal(); _closeHelpPopovers(); }
+    });
   }
 
   // Re-render del Integration Explorer al cambiar idioma.

@@ -434,6 +434,7 @@
   "ex.ibp.disconnectBtn": "Disconnect",
   "ex.ibp.connecting": "Connecting...",
   "ex.ibp.allRequired": "All fields are required.",
+  "ex.ibp.noTemplates": "Connected, but no job templates were found. Check the service URL, the Communication Arrangement (SAP_COM_0326) and the Communication User's authorizations.",
   "ex.ibp.tasksCount.one": "{n} task located",
   "ex.ibp.tasksCount.many": "{n} tasks located",
   "ex.ibp.onlyLabel": "Only tasks in IBP jobs",
