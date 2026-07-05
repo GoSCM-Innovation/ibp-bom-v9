@@ -12,6 +12,10 @@ let docsMode = 'zip';           // 'zip' | 'jobs'
 
 const SVC_APPJOB   = '/sap/opu/odata/sap/BC_EXT_APPJOB_MANAGEMENT;v=0002';
 const JCE_DATA_INT = 'DATA INTEGRATION';  // substring of JceText that identifies CI-DS steps
+// Clave compuesta step↔task: JobSequenceName NO es único entre job templates
+// (se repite entre jobs distintos), así que se combina con JobTemplateName + versión
+// para no contaminar unas tasks con steps de otras.
+function ibpSeqKey(tpl, ver, seq) { return (tpl || '') + '|' + (ver || '') + '|' + (seq || ''); }
 const ATL_NO_GROUP = 'Sin grupo ATL';
 let fetchedJobs = [];           // raw job data from API
 let jobsFiles = [];             // [{name, data: ArrayBuffer}] ZIPs in jobs mode
@@ -1664,7 +1668,7 @@ async function generateZipJobs() {
       rows.forEach(r => {
         const seqName = (r.JobTemplateParameterName || '').replace(/^P_TSKID\s*/, '').trim();
         const taskId  = (r.Low || '').trim();
-        if (seqName && taskId) seqToTaskId[seqName] = taskId;
+        if (seqName && taskId) seqToTaskId[ibpSeqKey(r.JobTemplateName, r.JobTemplateVersion, seqName)] = taskId;
       });
       docsLog(I18n.t('docs.log.ptskidOk', { n: rows.length }), 'l-ok');
     } catch (e) {
@@ -1674,7 +1678,7 @@ async function generateZipJobs() {
     // Build final index: taskId.toUpperCase() → step info
     const stepByTaskId = {};
     diSteps.forEach(s => {
-      const taskId = seqToTaskId[s.JobSequenceName || ''];
+      const taskId = seqToTaskId[ibpSeqKey(s.JobTemplateName, s.JobTemplateVersion, s.JobSequenceName)];
       if (!taskId) return;
       const key = taskId.toUpperCase();
       if (!stepByTaskId[key]) {
@@ -2174,7 +2178,7 @@ async function generateFromJobs() {
           docsLog(I18n.t('docs.log.stepDetail', { pos: s.JobSequencePosition, text: s.JobSequenceText || s.JceText || '' }), 'l-info');
         });
         return steps.map(function(s) {
-          return { pos: s.JobSequencePosition || 0, text: s.JobSequenceText || s.JceText || '', jceText: s.JceText || '', seqName: s.JobSequenceName || '', taskId: '' };
+          return { pos: s.JobSequencePosition || 0, text: s.JobSequenceText || s.JceText || '', jceText: s.JceText || '', seqName: s.JobSequenceName || '', tpl: jtName, ver: String(job.JobTemplateVersion || '0'), taskId: '' };
         });
       } catch(e) {
         docsLog(I18n.t('docs.log.jobStepsFailed', { name: jtName, err: e.message }), 'l-warn');
@@ -2195,14 +2199,14 @@ async function generateFromJobs() {
       tskidRows.forEach(function(r) {
         const seqName = (r.JobTemplateParameterName || '').replace(/^P_TSKID\s*/, '').trim();
         const taskId  = (r.Low || '').trim();
-        if (seqName && taskId) seqToTaskId[seqName] = taskId;
+        if (seqName && taskId) seqToTaskId[ibpSeqKey(r.JobTemplateName, r.JobTemplateVersion, seqName)] = taskId;
       });
       docsLog(I18n.t('docs.log.ptskidResolved', { n: Object.keys(seqToTaskId).length }), 'l-ok');
     } catch(e) {
       docsLog(I18n.t('docs.log.ptskidFallback', { err: e.message }), 'l-warn');
     }
     Object.values(stepMap).forEach(function(steps) {
-      steps.forEach(function(s) { s.taskId = seqToTaskId[s.seqName] || ''; });
+      steps.forEach(function(s) { s.taskId = seqToTaskId[ibpSeqKey(s.tpl, s.ver, s.seqName)] || ''; });
     });
   }
 

@@ -84,7 +84,22 @@
       <div id="ex-file-list"></div>
       <div class="btn-row ex-upload-actions">
         <button class="btn btn-primary" id="ex-analyze-btn" disabled onclick="Explorer.analyze()" data-i18n="ex.analyzeBtn">🔬 Explorar integraciones</button>
-        <div id="ex-cids-bar"></div>
+        <div class="ex-conn-bars">
+          <div class="ex-conn-group">
+            <div id="ex-cids-bar"></div>
+            <span class="ex-help-wrap">
+              <button class="ex-help-btn" onclick="Explorer.toggleHelpPopover('cids')" data-i18n-title="ex.cids.help.title" data-i18n-aria-label="ex.cids.help.title" aria-label="Ayuda CI-DS">?</button>
+              <div class="ex-help-popover" id="ex-help-cids" style="display:none"></div>
+            </span>
+          </div>
+          <div class="ex-conn-group">
+            <div id="ex-ibp-bar"></div>
+            <span class="ex-help-wrap">
+              <button class="ex-help-btn" onclick="Explorer.toggleHelpPopover('ibp')" data-i18n-title="ex.ibp.help.title" data-i18n-aria-label="ex.ibp.help.title" aria-label="Ayuda SAP IBP">?</button>
+              <div class="ex-help-popover" id="ex-help-ibp" style="display:none"></div>
+            </span>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -109,6 +124,7 @@
           <span class="sel-counter" id="ex-counter"></span>
         </div>
         <div id="ex-cids-toggle" style="display:none"></div>
+        <div id="ex-ibp-toggle" style="display:none"></div>
         <div class="ex-pa-filter" id="ex-pa-filter" style="display:none"></div>
         <div class="ex-ds-filter" id="ex-ds-filter" style="display:none"></div>
       </div>
@@ -151,7 +167,7 @@
   </div><!-- /tab-explorer -->
 
   <!-- ═══ CI-DS CONNECTION MODAL ═══ -->
-  <div id="cids-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:2000;align-items:center;justify-content:center;">
+  <div id="cids-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:2000;align-items:center;justify-content:center;" onclick="Explorer.closeCidsModal()">
     <div class="cids-modal-box" onclick="event.stopPropagation()">
       <div class="cids-modal-title" data-i18n="cids.title">Conectar SAP CI-DS</div>
       <div class="cids-modal-subtitle" data-i18n="cids.subtitle">Las credenciales solo se usan durante esta sesión y no se almacenan.</div>
@@ -194,6 +210,41 @@
       <div class="cids-modal-actions">
         <button class="btn" onclick="Explorer.closeCidsModal()" data-i18n="common.cancel">Cancelar</button>
         <button class="btn btn-primary" id="cids-modal-submit" onclick="Explorer.submitCidsConnect()" data-i18n="cids.btnConnect">Conectar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SAP IBP CONNECTION MODAL ═══ -->
+  <div id="ibp-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:2000;align-items:center;justify-content:center;" onclick="Explorer.closeIbpModal()">
+    <div class="cids-modal-box" onclick="event.stopPropagation()">
+      <div class="cids-modal-title" data-i18n="ibp.title">Conectar SAP IBP</div>
+      <div class="cids-modal-subtitle" data-i18n="ibp.subtitle">Las credenciales solo se usan durante esta sesión y no se almacenan.</div>
+      <div class="ibp-comm-note" data-i18n-html="ibp.commNote">Requiere un <b>Communication User</b> y el Communication Arrangement <b>SAP_COM_0326</b> (External Scheduler – Application Job Administration Integration), que expone el servicio <code>BC_EXT_APPJOB_MANAGEMENT</code>.</div>
+
+      <div class="cids-field-group">
+        <label class="cids-label" data-i18n="ibp.lbl.baseUrl">URL del servicio OData</label>
+        <input class="cids-input mono" id="ibp-base" type="url" placeholder="https://tuTenant-api.scmibp.ondemand.com/sap/opu/odata/sap/BC_EXT_APPJOB_MANAGEMENT;v=0002" data-i18n-placeholder="ibp.ph.baseUrl" autocomplete="off"
+          onkeydown="if(event.key==='Enter')Explorer.submitIbpConnect()">
+        <div class="cids-hint" data-i18n="ibp.hint.baseUrl">Pega la URL completa del servicio, tal como la usas en tu Communication Arrangement.</div>
+      </div>
+      <div class="cids-field-row">
+        <div class="cids-field-group">
+          <label class="cids-label" data-i18n="ibp.lbl.user">Communication User</label>
+          <input class="cids-input mono" id="ibp-user" type="text" placeholder="COMM_USER" data-i18n-placeholder="ibp.ph.user" autocomplete="username"
+            onkeydown="if(event.key==='Enter')Explorer.submitIbpConnect()">
+        </div>
+        <div class="cids-field-group">
+          <label class="cids-label" data-i18n="ibp.lbl.password">Contraseña</label>
+          <input class="cids-input" id="ibp-pass" type="password" placeholder="••••••••" autocomplete="current-password"
+            onkeydown="if(event.key==='Enter')Explorer.submitIbpConnect()">
+        </div>
+      </div>
+
+      <div id="ibp-modal-error" class="cids-modal-error"></div>
+
+      <div class="cids-modal-actions">
+        <button class="btn" onclick="Explorer.closeIbpModal()" data-i18n="common.cancel">Cancelar</button>
+        <button class="btn btn-primary" id="ibp-modal-submit" onclick="Explorer.submitIbpConnect()" data-i18n="ibp.btnConnect">Conectar</button>
       </div>
     </div>
   </div>
