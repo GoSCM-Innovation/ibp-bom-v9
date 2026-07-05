@@ -594,6 +594,10 @@ const Explorer = (function () {
     const logEl = document.getElementById('docs-log') || document.createElement('div');
     // Se usa EXACTAMENTE la URL del servicio que ingresó el usuario.
     const appjobBase = serviceUrl;
+    // JobSequenceName NO es único entre templates (se repite en muchos jobs),
+    // así que la clave para mapear step↔task debe componerse con el template y
+    // su versión. De lo contrario, un step de un job contamina otras tasks.
+    const seqKey = (tpl, ver, seq) => (tpl || '') + '|' + (ver || '') + '|' + (seq || '');
 
     const templates = await fetchAllPages(appjobBase + '/JobTemplateSet', logEl);
     const templateText = {};
@@ -614,7 +618,7 @@ const Explorer = (function () {
       paramRows.forEach(r => {
         const seqName = (r.JobTemplateParameterName || '').replace(/^P_TSKID\s*/, '').trim();
         const taskId  = (r.Low || '').trim();
-        if (seqName && taskId) seqToTaskId[seqName] = taskId;
+        if (seqName && taskId) seqToTaskId[seqKey(r.JobTemplateName, r.JobTemplateVersion, seqName)] = taskId;
       });
     } catch (e) {
       console.warn('[ibp] No se pudo leer P_TSKID (task→step); índice sin mapeo.', e && e.message);
@@ -622,7 +626,7 @@ const Explorer = (function () {
 
     const index = {};
     steps.forEach(s => {
-      const taskId = seqToTaskId[s.JobSequenceName || ''];
+      const taskId = seqToTaskId[seqKey(s.JobTemplateName, s.JobTemplateVersion, s.JobSequenceName)];
       if (!taskId) return;
       const key = taskId.toUpperCase();
       if (!index[key]) index[key] = [];
