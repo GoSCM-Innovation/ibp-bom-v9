@@ -222,10 +222,10 @@
       <div class="ibp-comm-note" data-i18n-html="ibp.commNote">Requiere un <b>Communication User</b> y el Communication Arrangement <b>SAP_COM_0326</b> (External Scheduler – Application Job Administration Integration), que expone el servicio <code>BC_EXT_APPJOB_MANAGEMENT</code>.</div>
 
       <div class="cids-field-group">
-        <label class="cids-label" data-i18n="ibp.lbl.baseUrl">API Base URL</label>
-        <input class="cids-input mono" id="ibp-base" type="url" placeholder="https://tuTenant-api.scmibp.ondemand.com" data-i18n-placeholder="ibp.ph.baseUrl" autocomplete="off"
+        <label class="cids-label" data-i18n="ibp.lbl.baseUrl">URL del servicio OData</label>
+        <input class="cids-input mono" id="ibp-base" type="url" placeholder="https://tuTenant-api.scmibp.ondemand.com/sap/opu/odata/sap/BC_EXT_APPJOB_MANAGEMENT;v=0002" data-i18n-placeholder="ibp.ph.baseUrl" autocomplete="off"
           onkeydown="if(event.key==='Enter')Explorer.submitIbpConnect()">
-        <div class="cids-hint" data-i18n="ibp.hint.baseUrl">Ej.: https://tuTenant-api.scmibp.ondemand.com</div>
+        <div class="cids-hint" data-i18n="ibp.hint.baseUrl">Pega la URL completa del servicio, tal como la usas en tu Communication Arrangement.</div>
       </div>
       <div class="cids-field-row">
         <div class="cids-field-group">

@@ -574,9 +574,6 @@ const Explorer = (function () {
   }
 
   // ── Conexión SAP IBP ─────────────────────────────────────────
-  // Servicio de Application Job Management (mismo que usa docs.js).
-  const IBP_SVC_APPJOB = '/sap/opu/odata/sap/BC_EXT_APPJOB_MANAGEMENT;v=0002';
-
   function openIbpModal() {
     const m = document.getElementById('ibp-modal');
     if (m) m.style.display = 'flex';
@@ -591,11 +588,12 @@ const Explorer = (function () {
   // Trae JobTemplates + Sequences + parámetros P_TSKID desde SAP IBP y construye
   // el índice inverso taskId(UC) → [{jobName, stepName, stepPos, stepType}].
   // Reutiliza fetchAllPages()/CFG (api.js/state.js), ya cargados en el iframe.
-  async function loadIbpJobIndex() {
+  async function loadIbpJobIndex(serviceUrl) {
     // #docs-log es un stub oculto presente en la página; evita que log() falle
     // si fetchAllPages pagina (llama a log() sólo a partir de la página 2).
     const logEl = document.getElementById('docs-log') || document.createElement('div');
-    const appjobBase = CFG.url + IBP_SVC_APPJOB;
+    // Se usa EXACTAMENTE la URL del servicio que ingresó el usuario.
+    const appjobBase = serviceUrl;
 
     const templates = await fetchAllPages(appjobBase + '/JobTemplateSet', logEl);
     const templateText = {};
@@ -646,32 +644,33 @@ const Explorer = (function () {
   }
 
   async function submitIbpConnect() {
-    let base    = (document.getElementById('ibp-base')?.value || '').trim();
+    let url     = (document.getElementById('ibp-base')?.value || '').trim();
     const user  = (document.getElementById('ibp-user')?.value || '').trim();
     const pass  = (document.getElementById('ibp-pass')?.value || '').trim();
     const errEl = document.getElementById('ibp-modal-error');
     const btnEl = document.getElementById('ibp-modal-submit');
 
-    if (!base || !user || !pass) {
+    if (!url || !user || !pass) {
       if (errEl) errEl.textContent = I18n.t('ex.ibp.allRequired');
       return;
     }
-    // Normaliza a solo el host base: acepta que peguen la URL completa del
-    // servicio (…/sap/opu/odata/sap/BC_EXT_APPJOB_MANAGEMENT;v=0002) o el host
-    // sin protocolo; nos quedamos con el origin y la app agrega la ruta OData.
-    if (!/^https?:\/\//i.test(base)) base = 'https://' + base;
-    try { base = new URL(base).origin; } catch { /* el backend validará la URL */ }
+    // Se respeta la URL COMPLETA del servicio tal como la ingresa el usuario;
+    // sólo se antepone https:// si falta y se quita una barra final para poder
+    // concatenar /JobTemplateSet, /JobTemplateSequenceSet, etc.
+    if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+    url = url.replace(/\/+$/, '');
     if (errEl) errEl.textContent = '';
     if (btnEl) { btnEl.disabled = true; btnEl.textContent = I18n.t('ex.ibp.connecting'); }
 
-    // Cargar credenciales en el CFG global compartido con api.js (Basic Auth por request)
-    CFG.url  = base;
+    // CFG.url = origin (sólo para resolver nextLinks relativos de paginación);
+    // las credenciales van por Basic Auth en cada request (api.js).
+    try { CFG.url = new URL(url).origin; } catch { CFG.url = url; }
     CFG.user = user;
     CFG.pass = pass;
 
     try {
-      const index = await loadIbpJobIndex();
-      ibpConn = { base: CFG.url, user };
+      const index = await loadIbpJobIndex(url);
+      ibpConn = { base: url, user };
       ibpTaskIndex = index;
       closeIbpModal();
       renderIbpBar();
