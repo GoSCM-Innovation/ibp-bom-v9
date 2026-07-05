@@ -746,7 +746,7 @@ const Explorer = (function () {
     if (wasOpen) return;
     const titleKey = which === 'ibp' ? 'ex.ibp.help.title' : 'ex.cids.help.title';
     const bodyKey  = which === 'ibp' ? 'ex.ibp.help.body'  : 'ex.cids.help.body';
-    pop.innerHTML = `<div class="ex-help-pop-title">${escH(I18n.t(titleKey))}</div><div class="ex-help-pop-body">${escH(I18n.t(bodyKey))}</div>`;
+    pop.innerHTML = `<div class="ex-help-pop-title">${escH(I18n.t(titleKey))}</div><div class="ex-help-pop-body">${I18n.t(bodyKey)}</div>`;
     pop.style.display = 'block';
     _helpHandler = function (e) {
       if (!pop.contains(e.target) && !(e.target.closest && e.target.closest('.ex-help-btn'))) _closeHelpPopovers();
