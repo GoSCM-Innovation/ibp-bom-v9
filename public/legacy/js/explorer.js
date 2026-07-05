@@ -603,16 +603,22 @@ const Explorer = (function () {
 
     const steps = await fetchAllPages(appjobBase + '/JobTemplateSequenceSet', logEl);
 
-    const paramRows = await fetchAllPages(
-      appjobBase + '/JobTemplateParameterValueDataSet', logEl,
-      "startswith(JobTemplateParameterName,'P_TSKID') eq true"
-    );
+    // El filtro startswith(...) puede no estar soportado en algunos servicios;
+    // si falla, se degrada a índice vacío (0 matches) en vez de romper la conexión.
     const seqToTaskId = {};
-    paramRows.forEach(r => {
-      const seqName = (r.JobTemplateParameterName || '').replace(/^P_TSKID\s*/, '').trim();
-      const taskId  = (r.Low || '').trim();
-      if (seqName && taskId) seqToTaskId[seqName] = taskId;
-    });
+    try {
+      const paramRows = await fetchAllPages(
+        appjobBase + '/JobTemplateParameterValueDataSet', logEl,
+        "startswith(JobTemplateParameterName,'P_TSKID') eq true"
+      );
+      paramRows.forEach(r => {
+        const seqName = (r.JobTemplateParameterName || '').replace(/^P_TSKID\s*/, '').trim();
+        const taskId  = (r.Low || '').trim();
+        if (seqName && taskId) seqToTaskId[seqName] = taskId;
+      });
+    } catch (e) {
+      console.warn('[ibp] No se pudo leer P_TSKID (task→step); índice sin mapeo.', e && e.message);
+    }
 
     const index = {};
     steps.forEach(s => {
@@ -640,7 +646,7 @@ const Explorer = (function () {
 
   function _ibpMatches(jobName) {
     if (!ibpTaskIndex) return null;
-    return ibpTaskIndex[(jobName || '').toUpperCase()] || null;
+    return ibpTaskIndex[(jobName || '').toUpperCase().trim()] || null;
   }
 
   async function submitIbpConnect() {
@@ -770,7 +776,7 @@ const Explorer = (function () {
     if (showPromoted && cidsProdTasks)
       base = base.filter(p => cidsProdTasks.has((p.jobName || '').toUpperCase()));
     if (showIbpOnly && ibpTaskIndex)
-      base = base.filter(p => !!ibpTaskIndex[(p.jobName || '').toUpperCase()]);
+      base = base.filter(p => !!ibpTaskIndex[(p.jobName || '').toUpperCase().trim()]);
     return base;
   }
 
