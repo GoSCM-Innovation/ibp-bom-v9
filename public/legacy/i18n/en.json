@@ -307,7 +307,7 @@
   "ibp.title": "Connect SAP IBP",
   "ibp.subtitle": "Credentials are only used for this session and are not stored.",
   "ibp.lbl.baseUrl": "API Base URL",
-  "ibp.hint.baseUrl": "e.g. https://yourTenant-api.scmibp.ondemand.com",
+  "ibp.hint.baseUrl": "Base host only (no service path; it's added automatically). e.g. https://yourTenant-api.scmibp.ondemand.com",
   "ibp.ph.baseUrl": "https://yourTenant-api.scmibp.ondemand.com",
   "ibp.lbl.user": "Communication User",
   "ibp.ph.user": "COMM_USER",

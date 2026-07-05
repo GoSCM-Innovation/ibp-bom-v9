@@ -646,7 +646,7 @@ const Explorer = (function () {
   }
 
   async function submitIbpConnect() {
-    const base  = (document.getElementById('ibp-base')?.value || '').trim();
+    let base    = (document.getElementById('ibp-base')?.value || '').trim();
     const user  = (document.getElementById('ibp-user')?.value || '').trim();
     const pass  = (document.getElementById('ibp-pass')?.value || '').trim();
     const errEl = document.getElementById('ibp-modal-error');
@@ -656,11 +656,16 @@ const Explorer = (function () {
       if (errEl) errEl.textContent = I18n.t('ex.ibp.allRequired');
       return;
     }
+    // Normaliza a solo el host base: acepta que peguen la URL completa del
+    // servicio (…/sap/opu/odata/sap/BC_EXT_APPJOB_MANAGEMENT;v=0002) o el host
+    // sin protocolo; nos quedamos con el origin y la app agrega la ruta OData.
+    if (!/^https?:\/\//i.test(base)) base = 'https://' + base;
+    try { base = new URL(base).origin; } catch { /* el backend validará la URL */ }
     if (errEl) errEl.textContent = '';
     if (btnEl) { btnEl.disabled = true; btnEl.textContent = I18n.t('ex.ibp.connecting'); }
 
     // Cargar credenciales en el CFG global compartido con api.js (Basic Auth por request)
-    CFG.url  = base.replace(/\/+$/, '');
+    CFG.url  = base;
     CFG.user = user;
     CFG.pass = pass;
 
