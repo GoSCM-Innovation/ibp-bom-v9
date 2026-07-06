@@ -17,6 +17,7 @@ const Explorer = (function () {
   let indexes       = {};   // byTargetKey, bySourceKey, byFileWritten, byFileRead
   let chainEdges    = [];   // [{from, to, via:'table'|'file', label}]
   let selectedIdx   = null;
+  let navStack      = [];   // pila de índices de la cadena recorrida; navStack[0] = raíz ("inicio"), tope === selectedIdx
   let currentView   = 'list';
   let currentDim    = 'integration'; // 'integration'|'dst-table'|'src-table'|'dst-field'|'src-field'
   let selectedDimKey = null;
@@ -104,6 +105,7 @@ const Explorer = (function () {
     integrations   = [];
     chainEdges     = [];
     selectedIdx    = null;
+    navStack       = [];
     selectedDimKey = null;
     currentDim     = 'integration';
     ALL_DIMS.forEach(d => {
@@ -875,7 +877,7 @@ const Explorer = (function () {
       ? `<span class="ex-chain-prom" title="${escH(I18n.t('ex.cids.promotedLabel'))}">✓</span> ` : '';
     const ibpBadge = _ibpMatches(p.jobName)
       ? `<span class="ex-ibp-badge" title="${escH(I18n.t('ex.ibp.section.title'))}">IBP</span>` : '';
-    return `<div class="ex-item${selectedIdx === p._idx ? ' active' : ''}" data-idx="${p._idx}" onclick="Explorer.renderDetail(${p._idx})">
+    return `<div class="ex-item${selectedIdx === p._idx ? ' active' : ''}" data-idx="${p._idx}" onclick="Explorer.navigateTo(${p._idx}, 'root')">
       <div class="ex-name">
         <span class="ex-type-badge ${typeClass}">${escH(p.tipoIntegracion || 'MD')}</span>${promBadge}${ibpBadge}${escH(p.jobName)}${_chainBadges(new Set([p._idx]))}
       </div>
@@ -887,7 +889,7 @@ const Explorer = (function () {
   // Sub-fila de dataflow dentro de un grupo de task
   function _renderDataflowSubItem(p) {
     const dfName = p.dataflowName || p.targetTable;
-    return `<div class="ex-item ex-item-df${selectedIdx === p._idx ? ' active' : ''}" data-idx="${p._idx}" onclick="Explorer.renderDetail(${p._idx})">
+    return `<div class="ex-item ex-item-df${selectedIdx === p._idx ? ' active' : ''}" data-idx="${p._idx}" onclick="Explorer.navigateTo(${p._idx}, 'root')">
       <div class="ex-name ex-name-df">↳ ${escH(dfName)}${_chainBadges(new Set([p._idx]))}</div>
       <div class="ex-sub">${escH(p.targetTable)}</div>
     </div>`;
@@ -970,6 +972,35 @@ const Explorer = (function () {
     el.innerHTML = html;
   }
 
+  // ── Navegación con historial de la cadena recorrida ─────────
+  // navStack[0] es la raíz ("inicio") de la exploración actual y el tope
+  // siempre coincide con selectedIdx. 'root' reinicia la pila (nueva
+  // exploración desde lista/grafo/dimensión); 'push' apila (salto a un
+  // vecino Feed By / Feed To). Toda navegación de usuario pasa por aquí.
+  function navigateTo(idx, mode) {
+    if (mode === 'root') {
+      navStack = [idx];
+    } else if (navStack[navStack.length - 1] !== idx) {
+      navStack.push(idx);
+    }
+    renderDetail(idx);
+  }
+
+  // Volver al paso anterior: descarta el nodo actual y re-renderiza el
+  // previo sin re-apilar (mantiene la invariante tope === selectedIdx).
+  function navBack() {
+    if (navStack.length <= 1) return;
+    navStack.pop();
+    renderDetail(navStack[navStack.length - 1]);
+  }
+
+  // Volver a la integración inicial de la cadena (raíz de la pila).
+  function navHome() {
+    if (navStack.length <= 1) return;
+    navStack = [navStack[0]];
+    renderDetail(navStack[0]);
+  }
+
   // ── Detalle del panel derecho ────────────────────────────
   function renderDetail(idx) {
     selectedIdx = idx;
@@ -1002,7 +1033,7 @@ const Explorer = (function () {
       const promBadge = isProd ? `<span class="ex-chain-prom" title="${escH(I18n.t('ex.cids.promotedLabel'))}">✓</span>` : '';
       const dfHtml = df ? `<span class="ex-chain-df">↳ ${escH(df)}</span>` : '';
       const tip = `${dir} (${escH(e.via)}): ${escH(e.label)}${isProd ? ' · ' + escH(I18n.t('ex.cids.promotedLabel')) : ''}`;
-      return `<span class="ex-chain-pill${viaCls}${promCls}" onclick="Explorer.renderDetail(${neighborIdx})" title="${tip}">${viaIcon} ${promBadge}<span class="ex-chain-task">${escH(task)}</span>${dfHtml}</span>`;
+      return `<span class="ex-chain-pill${viaCls}${promCls}" onclick="Explorer.navigateTo(${neighborIdx}, 'push')" title="${tip}">${viaIcon} ${promBadge}<span class="ex-chain-task">${escH(task)}</span>${dfHtml}</span>`;
     }
 
     const chainsHtml = (incoming.length || outgoing.length) ? `
@@ -1016,8 +1047,15 @@ const Explorer = (function () {
       </div>` : '';
 
     // header card
+    const canGoBack  = navStack.length > 1;
+    const navBarHtml = canGoBack ? `
+        <div class="ex-navbar">
+          <button type="button" class="ex-nav-btn" onclick="Explorer.navBack()" title="${escH(I18n.t('ex.nav.backTitle'))}">◀ ${escH(I18n.t('ex.nav.back'))}</button>
+          <button type="button" class="ex-nav-btn" onclick="Explorer.navHome()" title="${escH(I18n.t('ex.nav.homeTitle'))}">⌂ ${escH(I18n.t('ex.nav.home'))}</button>
+        </div>` : '';
     const headerHtml = `
       <div class="ex-header-card">
+        ${navBarHtml}
         <div class="ex-h-title">
           <span class="ex-type-badge ex-type-${p.tipoIntegracion || 'MD'}">${escH(p.tipoIntegracion || 'MD')}</span>
           ${escH(p.jobName)}
@@ -1511,6 +1549,7 @@ const Explorer = (function () {
     if (selectedIdx !== null && !filtered.find(p => p._idx === selectedIdx)) {
       document.getElementById('ex-detail').innerHTML = `<p class="docs-hint">${escH(I18n.t('ex.empty.selectIntegration'))}</p>`;
       selectedIdx = null;
+      navStack = [];
     }
     updateSidebarHeader();
   }
@@ -1998,7 +2037,7 @@ const Explorer = (function () {
     renderSidebarList(filtered);
     updateCounter(filtered.length, integrations.length);
     updateSidebarHeader();
-    renderDetail(idx);
+    navigateTo(idx, 'root');
   }
 
   // ── Vista grafo ──────────────────────────────────────────
@@ -2100,7 +2139,7 @@ const Explorer = (function () {
     visNetwork.on('click', params => {
       if (params.nodes.length) {
         switchView('list');
-        renderDetail(params.nodes[0]);
+        navigateTo(params.nodes[0], 'root');
       }
     });
   }
@@ -2182,6 +2221,9 @@ const Explorer = (function () {
     analyze,
     removeFile,
     renderDetail,
+    navigateTo,
+    navBack,
+    navHome,
     applySearch,
     switchView,
     switchDimension,

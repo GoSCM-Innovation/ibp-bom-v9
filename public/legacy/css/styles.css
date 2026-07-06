@@ -2566,6 +2566,24 @@ button[disabled][title]:hover::after {
 .ex-header-card .ex-h-sub   { font-size: 12px; color: var(--text2); }
 .ex-header-card .ex-h-flow  { font-size: 12px; color: var(--cyan); margin-top: 4px; }
 
+/* Barra de navegación de la cadena (Atrás / Inicio) dentro del header */
+.ex-navbar { display: flex; gap: 6px; margin-bottom: 8px; }
+.ex-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text2);
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.ex-nav-btn:hover { background: var(--accent); color: #000; border-color: var(--accent); }
+
 .ex-mapping-table {
   width: 100%;
   border-collapse: collapse;
