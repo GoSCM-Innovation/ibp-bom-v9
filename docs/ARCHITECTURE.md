@@ -147,7 +147,7 @@ Dos herramientas en vanilla JS, anteriores a la app React, embebidas vía iframe
 - **Integration Explorer** (`integration-explorer.html` + `explorer.js`): explora integraciones CI-DS, marca tasks "promovidas".
 - **Mapping Dataflow Generator** (`mapping-dataflow.html` + `docs.js`): parsea dataflows y genera mapeos exportables a Excel.
 
-Cargan grandes volúmenes de datos de SAP IBP (OData, vía `/api/ibp-proxy`) y los persisten en IndexedDB (`ibp_data`). Tienen su propio i18n (`public/legacy/i18n/`). Son archivos grandes (`docs.js` y `explorer.js` superan los 90 KB) y se tratan como caja negra estable; ver deuda asociada en [DEUDA-TECNICA.md](DEUDA-TECNICA.md).
+Cargan grandes volúmenes de datos de SAP IBP (OData, vía `/api/ibp-proxy`) y los persisten en IndexedDB (`ibp_data`). Tienen su propio i18n (`public/legacy/i18n/`). Son archivos grandes (`docs.js` y `explorer.js` superan los 90 KB) y se tratan como caja negra estable; ver deuda asociada en [DEUDA-TECNICA.md](DEUDA-TECNICA.md). Documentación detallada de ambas herramientas (modos, parser CI-DS, detección de cadenas, backend) en [MODULOS-LEGACY.md](MODULOS-LEGACY.md).
 
 ## 7. Build, deploy y versionado
 

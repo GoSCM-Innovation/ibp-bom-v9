@@ -95,6 +95,7 @@ El deploy es automático en Vercel al hacer push a `master`. La configuración d
 ## Documentación
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): arquitectura, flujos de datos, módulos clave.
+- [docs/MODULOS-LEGACY.md](docs/MODULOS-LEGACY.md): las sub-apps heredadas (Mapping Dataflow Generator, Integration Explorer).
 - [CONTRIBUTING.md](CONTRIBUTING.md): cómo desarrollar, convenciones de código y commits.
 - [docs/SECURITY.md](docs/SECURITY.md): modelo de autenticación, SSRF, CORS, manejo de secretos.
 - [docs/DEUDA-TECNICA.md](docs/DEUDA-TECNICA.md): problemas conocidos y roadmap de mejora.

@@ -761,6 +761,8 @@
   "docs.xls.col.srcTable": "Source table",
   "docs.xls.col.srcField": "Source field",
   "docs.xls.col.mapping": "Mapping",
+  "docs.xls.col.ibpType": "Data type (IBP)",
+  "docs.xls.col.ibpExample": "Example (IBP)",
   "docs.xls.col.table": "Table",
   "docs.xls.col.filter": "Filter",
   "docs.xls.col.filterDesc": "Filter description",

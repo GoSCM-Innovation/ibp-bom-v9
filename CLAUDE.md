@@ -19,7 +19,7 @@ CIDS Studio: SPA de React (Vite) para monitorear y orquestar tareas de SAP CI-DS
 
 - `api/`: funciones serverless (helpers con prefijo `_`: `_auth`, `_cors`, `_ssrf`). Núcleo SOAP en `api/soap.js`; motor de orquestación en `api/orchestrate.js`.
 - `src/`: frontend React. `src/api/soapCall.js` es el cliente SOAP compartido. Componentes por feature en `src/components/`.
-- `public/legacy/`: módulos heredados en vanilla JS (Explorer, Mapping Dataflow) embebidos en iframe; tratar como caja negra.
+- `public/legacy/`: módulos heredados en vanilla JS (Explorer, Mapping Dataflow) embebidos en iframe; tratar como caja negra. Doc detallada: `docs/MODULOS-LEGACY.md`.
 - `docs/`: documentación.
 
 ## Convenciones clave

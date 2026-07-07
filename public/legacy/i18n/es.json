@@ -761,6 +761,8 @@
   "docs.xls.col.srcTable": "Tabla Origen",
   "docs.xls.col.srcField": "Campo Origen",
   "docs.xls.col.mapping": "Mapping",
+  "docs.xls.col.ibpType": "Tipo de dato (IBP)",
+  "docs.xls.col.ibpExample": "Ejemplo (IBP)",
   "docs.xls.col.table": "Tabla",
   "docs.xls.col.filter": "Filtro",
   "docs.xls.col.filterDesc": "Descripción de filtro",
