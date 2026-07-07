@@ -82,6 +82,20 @@
         <p class="drop-hint" data-i18n="ex.dropHint">Múltiples archivos permitidos · Se reutiliza el parser de Doc Generator</p>
       </div>
       <div id="ex-file-list"></div>
+
+      <!-- ATL opcional: enriquece con la orquestación real (proceso, grupos, orden) -->
+      <div class="ex-atl-upload" id="ex-atl-upload">
+        <div class="ex-atl-upload-title" data-i18n="ex.atl.uploadTitle">📄 Archivos ATL de procesos CI-DS (opcional)</div>
+        <p class="ex-atl-upload-desc" data-i18n="ex.atl.uploadDesc">Enriquece el análisis con la orquestación real: proceso, grupos paralelos/secuenciales y orden de ejecución. Se asocian por GUID o nombre del dataflow.</p>
+        <div class="drop-zone ex-atl-dz" id="ex-atl-dz">
+          <input type="file" id="ex-atl-fi" accept=".atl,.txt" multiple style="display:none">
+          <span class="drop-icon">📄</span>
+          <p class="drop-title" data-i18n="ex.atl.dropTitle">Arrastra archivos ATL aquí o haz click</p>
+          <p class="drop-hint" data-i18n-html="ex.atl.dropHint">Formato .atl o .txt &nbsp;·&nbsp; Múltiples archivos permitidos</p>
+        </div>
+        <div id="ex-atl-file-list"></div>
+      </div>
+
       <div class="btn-row ex-upload-actions">
         <button class="btn btn-primary" id="ex-analyze-btn" disabled onclick="Explorer.analyze()" data-i18n="ex.analyzeBtn">🔬 Explorar integraciones</button>
         <div class="ex-conn-bars">
@@ -114,6 +128,7 @@
           <button class="dim-btn" id="ex-dim-src-field"            onclick="Explorer.switchDimension('src-field')" data-i18n="ex.dim.srcField">📋 Campo Origen</button>
           <button class="dim-btn" id="ex-dim-filter-table"         onclick="Explorer.switchDimension('filter-table')" data-i18n="ex.dim.filterTable">🔍 Tabla Filtro/Join</button>
           <button class="dim-btn" id="ex-dim-filter-field"         onclick="Explorer.switchDimension('filter-field')" data-i18n="ex.dim.filterField">🎯 Campo Filtro/Join</button>
+          <button class="dim-btn ex-dim-atl" id="ex-dim-atl-process" style="display:none" onclick="Explorer.switchDimension('atl-process')" data-i18n="ex.dim.atlProcess">🧩 Proceso (ATL)</button>
         </div>
         <div class="ex-toolbar-row2">
           <input class="sel-search" id="ex-search" placeholder="🔍 Buscar..." data-i18n-placeholder="ex.searchPh" oninput="Explorer.applySearch(this.value)">
@@ -125,6 +140,10 @@
         </div>
         <div id="ex-cids-toggle" style="display:none"></div>
         <div id="ex-ibp-toggle" style="display:none"></div>
+        <div class="ex-atl-status-row">
+          <div id="ex-atl-bar" class="ex-atl-bar" style="display:none"></div>
+          <div id="ex-atl-toggle" style="display:none"></div>
+        </div>
         <div class="ex-pa-filter" id="ex-pa-filter" style="display:none"></div>
         <div class="ex-ds-filter" id="ex-ds-filter" style="display:none"></div>
       </div>

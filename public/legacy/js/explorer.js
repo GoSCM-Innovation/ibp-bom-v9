@@ -41,6 +41,13 @@ const Explorer = (function () {
   let ibpTaskIndex = null;   // { TASKID_UC: [{jobName, stepName, stepPos, stepType}] }
   let showIbpOnly  = false;
 
+  // ── Estado ATL (procesos CI-DS: orquestación real) ───────────
+  let exAtlFiles   = [];     // [{name, text}] archivos .atl subidos (opcional)
+  let atlProcesses = [];     // [{file, session, description, variables, groups:[{name,parallel,dataflows:[{idx,displayName,missing}]}], declared, matched, missing:[{groupName,displayName,guid}]}]
+  let atlConflicts = [];     // [{from, to, via, label, reason:'parallel'|'reverse'}] cadena heurística vs orden ATL
+  let atlLoaded    = false;
+  let showAtlConflictsOnly = false;
+
   // ── Normalización de claves para matching ───────────────
   function normTableKey(ds, tbl) {
     const d = (ds  || '').trim().toUpperCase();
@@ -95,6 +102,49 @@ const Explorer = (function () {
     if (btn) btn.disabled = exFiles.length === 0 || cidsLoading;
   }
 
+  // ── Drop zone ATL (opcional, .atl/.txt) ──────────────────
+  function initAtlDropZone() {
+    const dz = document.getElementById('ex-atl-dz');
+    const fi = document.getElementById('ex-atl-fi');
+    if (!dz || !fi) return;
+    dz.addEventListener('click', e => { if (e.target !== fi) fi.click(); });
+    dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+    dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+    dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag-over'); addAtlFiles([...e.dataTransfer.files]); });
+    fi.addEventListener('change', e => { addAtlFiles([...e.target.files]); fi.value = ''; });
+  }
+
+  function addAtlFiles(list) {
+    list.filter(f => /\.(atl|txt)$/i.test(f.name)).forEach(f => {
+      if (exAtlFiles.find(x => x.name === f.name)) return;
+      const r = new FileReader();
+      r.onload = ev => {
+        exAtlFiles.push({ name: f.name, text: ev.target.result });
+        renderAtlFiles();
+        if (integrations.length) applyAtlEnrichment();  // re-enriquecer si ya se analizó
+      };
+      r.readAsText(f);
+    });
+  }
+
+  function removeAtlFile(i) {
+    exAtlFiles.splice(i, 1);
+    renderAtlFiles();
+    if (integrations.length) applyAtlEnrichment();
+  }
+
+  function renderAtlFiles() {
+    const el = document.getElementById('ex-atl-file-list');
+    if (!el) return;
+    el.innerHTML = exAtlFiles.map((f, i) => `
+      <div class="file-tag">
+        <span class="ico">📄</span>
+        <span class="name">${escH(f.name)}</span>
+        <span class="size">${(f.text.length / 1024).toFixed(0)} KB</span>
+        <button class="rm" onclick="Explorer.removeAtlFile(${i})">✕</button>
+      </div>`).join('');
+  }
+
   // ── Análisis principal ───────────────────────────────────
   async function analyze() {
     if (analyzing) return;
@@ -146,6 +196,9 @@ const Explorer = (function () {
     renderSidebarList(filtered);
     updateCounter(filtered.length, integrations.length);
     updateSidebarHeader();
+
+    // ATL (opcional): empareja procesos CI-DS y enriquece la vista.
+    applyAtlEnrichment();
 
     const results = document.getElementById('ex-results');
     if (results) results.style.display = 'block';
@@ -776,6 +829,295 @@ const Explorer = (function () {
     setTimeout(() => { if (_helpHandler) document.addEventListener('mousedown', _helpHandler); }, 0);
   }
 
+  // ════════════════════════════════════════════════════════════
+  //  ATL — procesos CI-DS (orquestación: grupos, orden, paralelismo)
+  //  Reutiliza parseATL() (global de docs.js). Empareja cada dataflow
+  //  del ATL contra las integraciones por GUID (único) y, si falta,
+  //  por nombre de dataflow. Enriquece cada integración con su proceso,
+  //  grupo, orden y paralelismo; detecta conflictos entre las cadenas
+  //  heurísticas y el orden real declarado en el ATL, y reporta cobertura
+  //  (dataflows declarados que faltan en los ZIP / integraciones huérfanas).
+  // ════════════════════════════════════════════════════════════
+  function _resetAtlEnrichment() {
+    integrations.forEach(p => {
+      p.atlSession = ''; p.atlGroup = ''; p.atlParallel = false;
+      p.atlOrder = 0; p.atlProcessIdx = -1;
+    });
+    atlProcesses = [];
+    atlConflicts = [];
+  }
+
+  // Parsea los .atl subidos, empareja y enriquece las integraciones.
+  function applyAtlEnrichment() {
+    _resetAtlEnrichment();
+
+    if (!exAtlFiles.length || typeof parseATL !== 'function') {
+      atlLoaded = false;
+      renderAtlBar();
+      _refreshCurrentView();
+      return;
+    }
+
+    // Índices para el matching: GUID (único) y nombre de dataflow (fallback).
+    const byGuid = {};
+    const byName = {};
+    integrations.forEach(p => {
+      const g = (p.dataflowGuid || '').trim();
+      if (g && !byGuid[g]) byGuid[g] = p;
+      const nm = (p.dataflowName || '').toUpperCase().trim();
+      if (nm) (byName[nm] = byName[nm] || []).push(p);
+    });
+
+    exAtlFiles.forEach((af, pIdx) => {
+      let atl;
+      try { atl = parseATL(af.text); }
+      catch (e) { console.warn('[explorer atl] parse falló:', af.name, e && e.message); return; }
+
+      const proc = {
+        file: af.name,
+        session: atl.sessionName || af.name,
+        description: atl.description || '',
+        variables: atl.variables || [],
+        groups: [],
+        declared: 0,
+        matched: 0,
+        missing: [],
+      };
+
+      let order = 0;
+      (atl.groups || []).forEach(group => {
+        const groupName = (group.displayName || '').replace(/^FLOWof_/i, '') || group.name || '';
+        const gEntry = { name: groupName, parallel: !!group.parallel, dataflows: [] };
+        (group.dataflows || []).forEach(df => {
+          proc.declared++;
+          order++;
+          let p = null;
+          if (df.guid && byGuid[df.guid]) p = byGuid[df.guid];
+          if (!p) {
+            const cand = byName[(df.displayName || '').toUpperCase().trim()] || [];
+            if (cand.length === 1) p = cand[0];
+          }
+          if (p) {
+            proc.matched++;
+            gEntry.dataflows.push({ idx: p._idx, displayName: df.displayName, missing: false });
+            // La orquestación (grupo/orden/paralelo) se asigna al primer proceso
+            // que reclama el dataflow; evita sobrescribir si aparece en dos ATL.
+            if (p.atlProcessIdx === -1) {
+              p.atlSession    = proc.session;
+              p.atlGroup      = groupName;
+              p.atlParallel   = !!group.parallel;
+              p.atlOrder      = order;
+              p.atlProcessIdx = pIdx;
+            }
+          } else {
+            proc.missing.push({ groupName, displayName: df.displayName, guid: df.guid || '' });
+            gEntry.dataflows.push({ idx: -1, displayName: df.displayName, missing: true });
+          }
+        });
+        proc.groups.push(gEntry);
+      });
+
+      atlProcesses.push(proc);
+    });
+
+    _computeAtlConflicts();
+    // Si todos los .atl fallaron al parsear (0 procesos), tratar como sin ATL.
+    atlLoaded = atlProcesses.length > 0;
+    renderAtlBar();
+    _refreshCurrentView();
+  }
+
+  // Conflicto: una cadena heurística (A alimenta B) contradice el orden real
+  // del ATL cuando ambos pertenecen al mismo proceso y, o bien están en el
+  // mismo grupo paralelo (no debería haber dependencia entre ellos), o bien
+  // el ATL ejecuta B antes que A (orden inverso al de la dependencia de datos).
+  function _computeAtlConflicts() {
+    atlConflicts = [];
+    chainEdges.forEach(e => {
+      const a = integrations[e.from];
+      const b = integrations[e.to];
+      if (!a || !b) return;
+      if (a.atlProcessIdx === -1 || a.atlProcessIdx !== b.atlProcessIdx) return; // sólo intra-proceso
+      if (!a.atlOrder || !b.atlOrder) return;
+      if (a.atlGroup === b.atlGroup && a.atlParallel) {
+        atlConflicts.push({ from: e.from, to: e.to, via: e.via, label: e.label, reason: 'parallel' });
+      } else if (a.atlOrder > b.atlOrder) {
+        atlConflicts.push({ from: e.from, to: e.to, via: e.via, label: e.label, reason: 'reverse' });
+      }
+    });
+  }
+
+  function _atlConflictsFor(idx) {
+    return atlConflicts.filter(c => c.from === idx || c.to === idx);
+  }
+  function _atlConflictIdxSet() {
+    const s = new Set();
+    atlConflicts.forEach(c => { s.add(c.from); s.add(c.to); });
+    return s;
+  }
+  function _atlOrphans() {
+    return integrations.filter(p => p.atlProcessIdx === -1);
+  }
+  function _atlStats() {
+    let declared = 0, matched = 0, missing = 0;
+    atlProcesses.forEach(p => { declared += p.declared; matched += p.matched; missing += p.missing.length; });
+    return { processes: atlProcesses.length, declared, matched, missing, orphans: _atlOrphans().length, conflicts: atlConflicts.length };
+  }
+
+  // Re-render de la vista activa tras cambiar el estado ATL.
+  function _refreshCurrentView() {
+    const dimBtn = document.getElementById('ex-dim-atl-process');
+    if (dimBtn) dimBtn.style.display = atlLoaded ? '' : 'none';
+    // Si se descarga el ATL estando en su dimensión, volver a Integración.
+    if (!atlLoaded && currentDim === 'atl-process') { switchDimension('integration'); return; }
+    const q = (document.getElementById('ex-search') || {}).value || '';
+    if (currentDim === 'integration') {
+      applySearchIntegration(q);
+      if (selectedIdx !== null) renderDetail(selectedIdx);
+    } else if (currentDim === 'atl-process') {
+      renderAtlProcessMaster(q);
+      if (selectedIdx !== null) renderDetail(selectedIdx);
+    } else {
+      renderMasterForDim(currentDim, q);
+    }
+  }
+
+  function renderAtlBar() {
+    const bar    = document.getElementById('ex-atl-bar');
+    const toggle = document.getElementById('ex-atl-toggle');
+    if (!bar) return;
+
+    if (!atlLoaded) {
+      bar.innerHTML = ''; bar.style.display = 'none';
+      if (toggle) { toggle.innerHTML = ''; toggle.style.display = 'none'; }
+      return;
+    }
+
+    const s = _atlStats();
+    bar.style.display = '';
+    const parts = [
+      I18n.t(s.processes === 1 ? 'ex.atl.stat.processes.one' : 'ex.atl.stat.processes.many', { n: s.processes }),
+      I18n.t('ex.atl.stat.matched', { m: s.matched, t: s.declared }),
+    ];
+    if (s.missing) parts.push(I18n.t('ex.atl.stat.missing', { n: s.missing }));
+    if (s.orphans) parts.push(I18n.t('ex.atl.stat.orphans', { n: s.orphans }));
+    const pill = `<span class="ex-atl-pill" title="${escH(I18n.t('ex.atl.pill.title'))}">ATL: ${escH(parts.join(' · '))}</span>`;
+    const conflictPill = s.conflicts
+      ? `<span class="ex-atl-conflict-pill" title="${escH(I18n.t('ex.atl.conflict.title'))}">⚠ ${escH(I18n.t(s.conflicts === 1 ? 'ex.atl.stat.conflicts.one' : 'ex.atl.stat.conflicts.many', { n: s.conflicts }))}</span>`
+      : '';
+    bar.innerHTML = pill + conflictPill;
+
+    if (toggle) {
+      if (s.conflicts) {
+        toggle.style.display = '';
+        const swCls = showAtlConflictsOnly ? 'ex-toggle-switch on' : 'ex-toggle-switch';
+        toggle.innerHTML = `
+          <label class="ex-promoted-label">
+            <span class="ex-promoted-text">${escH(I18n.t('ex.atl.onlyConflictsLabel'))}</span>
+            <span class="${swCls}" onclick="Explorer.toggleAtlConflictsOnly()" title="${escH(I18n.t('ex.atl.onlyConflictsTitle'))}"><span class="ex-toggle-knob"></span></span>
+          </label>`;
+      } else {
+        showAtlConflictsOnly = false;
+        toggle.innerHTML = ''; toggle.style.display = 'none';
+      }
+    }
+  }
+
+  function toggleAtlConflictsOnly() {
+    showAtlConflictsOnly = !showAtlConflictsOnly;
+    renderAtlBar();
+    const q = (document.getElementById('ex-search') || {}).value || '';
+    if (currentDim === 'atl-process') renderAtlProcessMaster(q);
+    else applySearch(q);
+  }
+
+  // Badge de advertencia (⚠) para items involucrados en un conflicto de orden.
+  function _atlWarnBadge(idxSet) {
+    if (!atlConflicts.length) return '';
+    const hit = atlConflicts.some(c => idxSet.has(c.from) || idxSet.has(c.to));
+    return hit ? `<span class="ex-atl-warn" title="${escH(I18n.t('ex.atl.conflict.title'))}">⚠</span>` : '';
+  }
+
+  // Master de la dimensión "Proceso (ATL)": agrupa por proceso → grupo, en
+  // orden de ejecución, con distintivo paralelo/secuencial. Los dataflows
+  // declarados en el ATL pero ausentes de los ZIP se muestran como "faltante".
+  function renderAtlProcessMaster(query) {
+    const el = document.getElementById('ex-master');
+    if (!el) return;
+    const q = (query || '').trim().toLowerCase();
+    const conflictIdx = _atlConflictIdxSet();
+    const baseIdx = new Set(computeBaseFiltered().map(p => p._idx));
+    const matchQ = p => !q || `${p.jobName} ${p.dataflowName} ${p.targetTable}`.toLowerCase().includes(q);
+
+    const visibleIdx = new Set();  // integraciones distintas mostradas (una df compartida aparece en varios procesos)
+    let html = '';
+
+    atlProcesses.forEach((proc, pIdx) => {
+      let procHtml = '';
+      // Procesos sin capa PLAN: un único grupo sin nombre → no repetir cabecera.
+      const singleUnnamed = proc.groups.length === 1 && !proc.groups[0].name;
+      proc.groups.forEach(g => {
+        const rows = g.dataflows.map(d => {
+          if (d.missing) {
+            if (showAtlConflictsOnly) return '';
+            const name = d.displayName || I18n.t('ex.atl.group.unnamed');
+            if (q && !name.toLowerCase().includes(q)) return '';
+            // Las filas "faltante" son placeholders (no integraciones): no cuentan
+            // para el contador visible/total.
+            return `<div class="ex-item ex-atl-missing" title="${escH(I18n.t('ex.atl.missing.title'))}">
+              <div class="ex-name ex-name-df">↳ ${escH(name)} <span class="ex-atl-missing-badge">${escH(I18n.t('ex.atl.missing.badge'))}</span></div>
+            </div>`;
+          }
+          const p = integrations[d.idx];
+          if (!p || !baseIdx.has(p._idx) || !matchQ(p)) return '';
+          if (showAtlConflictsOnly && !conflictIdx.has(p._idx)) return '';
+          visibleIdx.add(p._idx);
+          const warn   = conflictIdx.has(p._idx) ? `<span class="ex-atl-warn" title="${escH(I18n.t('ex.atl.conflict.title'))}">⚠</span> ` : '';
+          const dfName = p.dataflowName || p.targetTable;
+          return `<div class="ex-item ex-item-df${selectedIdx === p._idx ? ' active' : ''}" data-idx="${p._idx}" onclick="Explorer.navigateTo(${p._idx}, 'root')">
+            <div class="ex-name ex-name-df">↳ ${warn}${escH(dfName)}${_chainBadges(new Set([p._idx]))}</div>
+            <div class="ex-sub">${escH(p.targetTable)}</div>
+          </div>`;
+        }).join('');
+        if (!rows.trim()) return;
+        if (singleUnnamed) { procHtml += rows; return; }
+        const badge = g.parallel
+          ? `<span class="ex-atl-par ex-atl-par-parallel" title="${escH(I18n.t('ex.atl.parallel.title'))}">${escH(I18n.t('ex.atl.parallel.badge'))}</span>`
+          : `<span class="ex-atl-par ex-atl-par-seq" title="${escH(I18n.t('ex.atl.sequential.title'))}">${escH(I18n.t('ex.atl.sequential.badge'))}</span>`;
+        procHtml += `<div class="ex-atl-group-head">${escH(g.name || I18n.t('ex.atl.group.unnamed'))} ${badge}</div>${rows}`;
+      });
+      if (!procHtml.trim()) return;
+      const secId = 'ex-atlp-' + pIdx;
+      html += `
+        <div class="ex-proj-header ex-atl-proc-header" onclick="var b=document.getElementById('${secId}');b.classList.toggle('collapsed');this.querySelector('.ex-arr').textContent=b.classList.contains('collapsed')?'▶':'▼';">
+          <span>${escH(proc.session)} <span style="font-weight:400">(${proc.matched}/${proc.declared})</span></span>
+          <span class="ex-arr">▼</span>
+        </div>
+        <div class="ex-proj-body" id="${secId}">${procHtml}</div>`;
+    });
+
+    // Huérfanos: integraciones sin proceso ATL asociado.
+    if (!showAtlConflictsOnly) {
+      const orphans = _atlOrphans().filter(p => baseIdx.has(p._idx) && matchQ(p));
+      if (orphans.length) {
+        orphans.forEach(o => visibleIdx.add(o._idx));
+        const secId = 'ex-atlp-orphans';
+        html += `
+          <div class="ex-proj-header ex-atl-proc-header" onclick="var b=document.getElementById('${secId}');b.classList.toggle('collapsed');this.querySelector('.ex-arr').textContent=b.classList.contains('collapsed')?'▶':'▼';">
+            <span>${escH(I18n.t('ex.atl.noProcess'))} <span style="font-weight:400">(${orphans.length})</span></span>
+            <span class="ex-arr">▼</span>
+          </div>
+          <div class="ex-proj-body" id="${secId}">${_renderTaskItems(orphans)}</div>`;
+      }
+    }
+
+    el.innerHTML = html.trim()
+      ? html
+      : `<p style="padding:12px;color:var(--text2);font-size:13px;">${escH(I18n.t('ex.empty.noResults'))}</p>`;
+    updateCounter(visibleIdx.size, integrations.length);
+    updateSidebarHeader();
+  }
+
   // ── Filtro Planning Area ─────────────────────────────────
   function computeBaseFiltered() {
     let base = integrations.slice();
@@ -789,6 +1131,10 @@ const Explorer = (function () {
       base = base.filter(p => cidsProdTasks.has((p.jobName || '').toUpperCase()));
     if (showIbpOnly && ibpTaskIndex)
       base = base.filter(p => !!ibpTaskIndex[(p.jobName || '').toUpperCase().trim()]);
+    if (showAtlConflictsOnly && atlConflicts.length) {
+      const inConflict = _atlConflictIdxSet();
+      base = base.filter(p => inConflict.has(p._idx));
+    }
     return base;
   }
 
@@ -879,7 +1225,7 @@ const Explorer = (function () {
       ? `<span class="ex-ibp-badge" title="${escH(I18n.t('ex.ibp.section.title'))}">IBP</span>` : '';
     return `<div class="ex-item${selectedIdx === p._idx ? ' active' : ''}" data-idx="${p._idx}" onclick="Explorer.navigateTo(${p._idx}, 'root')">
       <div class="ex-name">
-        <span class="ex-type-badge ${typeClass}">${escH(p.tipoIntegracion || 'MD')}</span>${promBadge}${ibpBadge}${escH(p.jobName)}${_chainBadges(new Set([p._idx]))}
+        <span class="ex-type-badge ${typeClass}">${escH(p.tipoIntegracion || 'MD')}</span>${promBadge}${ibpBadge}${escH(p.jobName)}${_chainBadges(new Set([p._idx]))}${_atlWarnBadge(new Set([p._idx]))}
       </div>
       ${p.dataflowName && p.dataflowName !== p.jobName ? `<div class="ex-sub ex-sub-df">↳ ${escH(p.dataflowName)}</div>` : ''}
       <div class="ex-sub">${escH(p.targetTable)}</div>
@@ -890,7 +1236,7 @@ const Explorer = (function () {
   function _renderDataflowSubItem(p) {
     const dfName = p.dataflowName || p.targetTable;
     return `<div class="ex-item ex-item-df${selectedIdx === p._idx ? ' active' : ''}" data-idx="${p._idx}" onclick="Explorer.navigateTo(${p._idx}, 'root')">
-      <div class="ex-name ex-name-df">↳ ${escH(dfName)}${_chainBadges(new Set([p._idx]))}</div>
+      <div class="ex-name ex-name-df">↳ ${escH(dfName)}${_chainBadges(new Set([p._idx]))}${_atlWarnBadge(new Set([p._idx]))}</div>
       <div class="ex-sub">${escH(p.targetTable)}</div>
     </div>`;
   }
@@ -910,7 +1256,7 @@ const Explorer = (function () {
       <div class="ex-task-head" onclick="var b=document.getElementById('${grpId}');b.classList.toggle('collapsed');this.querySelector('.ex-tarr').textContent=b.classList.contains('collapsed')?'▶':'▼';">
         <div class="ex-name">
           <span class="ex-type-badge ${typeClass}">${escH(p0.tipoIntegracion || 'MD')}</span>${promBadge}${ibpBadge}${escH(jobName)}
-          <span class="ex-df-count">${dfs.length}</span>${_chainBadges(idxSet)}
+          <span class="ex-df-count">${dfs.length}</span>${_chainBadges(idxSet)}${_atlWarnBadge(idxSet)}
         </div>
         <span class="ex-tarr">${hasActive ? '▼' : '▶'}</span>
       </div>
@@ -1174,7 +1520,49 @@ const Explorer = (function () {
       ibpHtml = buildSection(I18n.t('ex.ibp.section.title'), matches.length, body);
     }
 
-    det.innerHTML = headerHtml + chainsHtml + ibpHtml + diagramHtml + mappingsHtml + filtersHtml + lookupsHtml + varsHtml;
+    // ATL · Proceso CI-DS (orquestación) — sólo si la integración está en un ATL
+    let atlHtml = '';
+    if (atlLoaded && p.atlProcessIdx >= 0 && atlProcesses[p.atlProcessIdx]) {
+      const proc = atlProcesses[p.atlProcessIdx];
+      const parBadge = p.atlParallel
+        ? `<span class="ex-atl-par ex-atl-par-parallel">${escH(I18n.t('ex.atl.parallel.badge'))}</span>`
+        : `<span class="ex-atl-par ex-atl-par-seq">${escH(I18n.t('ex.atl.sequential.badge'))}</span>`;
+      const conflicts = _atlConflictsFor(idx);
+      const conflictHtml = conflicts.length ? `
+        <div class="ex-atl-conflicts">
+          <div class="ex-atl-conflicts-title">⚠ ${escH(I18n.t('ex.atl.conflict.sectionTitle'))}</div>
+          ${conflicts.map(c => {
+            const other     = integrations[c.from === idx ? c.to : c.from];
+            const otherName = other ? (other.dataflowName || other.jobName) : '';
+            const dir       = c.from === idx ? I18n.t('ex.label.feedTo') : I18n.t('ex.label.feedBy');
+            const reason    = I18n.t(c.reason === 'parallel' ? 'ex.atl.conflict.parallel' : 'ex.atl.conflict.reverse');
+            return `<div class="ex-atl-conflict-row">${escH(dir)} <b>${escH(otherName)}</b> · ${escH(c.via)} — ${escH(reason)}</div>`;
+          }).join('')}
+        </div>` : '';
+      const vars = proc.variables || [];
+      const varsRows = vars.length
+        ? vars.map(v => `
+            <div class="ex-var-row">
+              <span class="ex-var-name">${escH(v.name)}</span>
+              <span class="ex-var-val">${escH(v.type || '')}${v.default ? ' = ' + escH(v.default) : ''}</span>
+            </div>`).join('')
+        : `<p style="color:var(--text2);font-size:12px;">${escH(I18n.t('ex.atl.noVars'))}</p>`;
+      const groupLine = p.atlGroup
+        ? `<div><span class="ex-atl-k">${escH(I18n.t('ex.atl.group'))}:</span> ${escH(p.atlGroup)} ${parBadge}</div>`
+        : '';
+      const body = `
+        <div class="ex-atl-detail-grid">
+          <div><span class="ex-atl-k">${escH(I18n.t('ex.atl.process'))}:</span> <b>${escH(p.atlSession)}</b></div>
+          ${groupLine}
+          <div><span class="ex-atl-k">${escH(I18n.t('ex.atl.order'))}:</span> ${escH(String(p.atlOrder || '—'))}</div>
+        </div>
+        ${conflictHtml}
+        <div class="ex-atl-vars-title">${escH(I18n.t('ex.atl.processVars'))} <span style="color:var(--text2);font-weight:400">(${vars.length})</span></div>
+        ${varsRows}`;
+      atlHtml = buildSection(I18n.t('ex.atl.section.title'), proc.declared, body);
+    }
+
+    det.innerHTML = headerHtml + chainsHtml + atlHtml + ibpHtml + diagramHtml + mappingsHtml + filtersHtml + lookupsHtml + varsHtml;
 
     // El network del diagrama se renderiza lazy al expandir la sección (ver onclick en diagramHtml).
 
@@ -1683,6 +2071,9 @@ const Explorer = (function () {
     if (currentDim === 'integration') {
       count = (filtered || []).length;
       label = I18n.t('ex.list.tasks');
+    } else if (currentDim === 'atl-process') {
+      count = atlProcesses.length;
+      label = I18n.t('ex.dim.atlProcess');
     } else {
       count = _currentDimEntries.length;
       label = dimLabel(currentDim) || currentDim;
@@ -1737,7 +2128,7 @@ const Explorer = (function () {
   function updateCounter(visible, total) {
     const el = document.getElementById('ex-counter');
     if (!el || visible === null) return;
-    if (currentDim !== 'integration') {
+    if (currentDim !== 'integration' && currentDim !== 'atl-process') {
       const dimKeyMap = {
         'dst-table':    'ex.dim.counter.dstTable',
         'src-table':    'ex.dim.counter.srcTable',
@@ -1775,7 +2166,7 @@ const Explorer = (function () {
   function dimLabel(dim) {
     return DIM_LABEL_KEY[dim] ? I18n.t(DIM_LABEL_KEY[dim]) : '';
   }
-  const ALL_DIMS = ['integration','dst-table','src-table','dst-field','src-field','filter-table','filter-field'];
+  const ALL_DIMS = ['integration','dst-table','src-table','dst-field','src-field','filter-table','filter-field','atl-process'];
 
   function switchDimension(dim) {
     currentDim     = dim;
@@ -1801,6 +2192,7 @@ const Explorer = (function () {
 
   function renderMasterForDim(dim, query) {
     if (dim === 'integration') { applySearchIntegration(query); return; }
+    if (dim === 'atl-process') { renderAtlProcessMaster(query); return; }
     const mapKey = DIM_MAP_KEY[dim];
     if (!mapKey) return;
     renderMasterDimItems(indexes[mapKey], dim, query);
@@ -1821,7 +2213,7 @@ const Explorer = (function () {
     const isField  = dim === 'dst-field'    || dim === 'src-field'    || dim === 'filter-field';
     const isFilter = dim === 'filter-table' || dim === 'filter-field';
 
-    const paSet = (activePA.size > 0 || (showPromoted && cidsProdTasks))
+    const paSet = (activePA.size > 0 || (showPromoted && cidsProdTasks) || (showAtlConflictsOnly && atlConflicts.length))
       ? new Set(computeBaseFiltered().map(p => p._idx))
       : null;
 
@@ -2189,8 +2581,9 @@ const Explorer = (function () {
   // ── Init ─────────────────────────────────────────────────
   function init() {
     initDropZone();
+    initAtlDropZone();
     initMasterResizer();
-    I18n.ready.then(() => { renderCidsBar(); renderIbpBar(); });
+    I18n.ready.then(() => { renderCidsBar(); renderIbpBar(); renderAtlBar(); });
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape') { closeCidsModal(); closeIbpModal(); _closeHelpPopovers(); }
     });
@@ -2203,11 +2596,15 @@ const Explorer = (function () {
       if (!integrations || !integrations.length) return;
       renderCidsBar();
       renderIbpBar();
+      renderAtlBar();
       renderPlanAreaFilter();
       renderDSFilter();
       const q = (document.getElementById('ex-search') || {}).value || '';
       if (currentDim === 'integration') {
         applySearch(q);
+        if (selectedIdx !== null) renderDetail(selectedIdx);
+      } else if (currentDim === 'atl-process') {
+        renderAtlProcessMaster(q);
         if (selectedIdx !== null) renderDetail(selectedIdx);
       } else {
         renderMasterForDim(currentDim, q);
@@ -2244,6 +2641,8 @@ const Explorer = (function () {
     submitIbpConnect,
     ibpDisconnect,
     toggleIbpOnly,
+    removeAtlFile,
+    toggleAtlConflictsOnly,
     toggleHelpPopover,
     renderDataflowDiagram,
     renderDataflowNodeDetail,
