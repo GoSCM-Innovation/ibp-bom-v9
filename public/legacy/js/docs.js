@@ -19,22 +19,28 @@ let atlFiles  = [];             // [{name, text}] uploaded ATL files
 let atlParsed = [];             // parsed ATL structures
 
 // ════════════════════════════════════════════════════════════
-//  IBP FIELD DESCRIPTIONS — fetched from OData $metadata
+//  IBP METADATA — fetched from OData $metadata
 //  Queries MASTER_DATA_API_SRV and PLANNING_DATA_API_SRV in
-//  parallel; extracts Property[Name] → sap:label mappings.
-//  Returns {} silently when no IBP connection is available.
+//  parallel and extracts, en una sola pasada:
+//    - descs:      Property[Name] → sap:label  (descripciones legibles)
+//    - types:      Property[Name].toUpperCase() → tipo formato HANA (NVARCHAR(36), DECIMAL(18,6)…)
+//    - roles:      Property[Name].toUpperCase() → sap:aggregation-role (dimension | measure)
+//    - entitySets: [{ name, nameUC, service }] (para resolver la entidad
+//                  destino y traer una fila de ejemplo)
+//  Devuelve estructuras vacías silenciosamente si no hay conexión IBP.
 // ════════════════════════════════════════════════════════════
-async function fetchIbpFieldDescriptions() {
-  if (typeof CFG === 'undefined' || !CFG.url || !CFG.user || !CFG.pass) return {};
+async function fetchIbpMeta() {
+  const empty = { descs: {}, types: {}, roles: {}, entitySets: [], entityProps: {} };
+  if (typeof CFG === 'undefined' || !CFG.url || !CFG.user || !CFG.pass) return empty;
   const services = ['MASTER_DATA_API_SRV', 'PLANNING_DATA_API_SRV'];
-  const descs = {};
+  const descs = {}, types = {}, roles = {}, entitySets = [], entityProps = {};
   const results = await Promise.allSettled(
     services.map(svc => {
       return fetch('/api/ibp-proxy', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ kind: 'xml', base: CFG.url, service: svc, user: CFG.user, password: CFG.pass })
-      }).then(r => r.ok ? r.text() : Promise.reject(r.status));
+      }).then(r => r.ok ? r.text().then(t => ({ svc, t })) : Promise.reject(r.status));
     })
   );
   let anyFulfilled = false;
@@ -42,13 +48,48 @@ async function fetchIbpFieldDescriptions() {
   for (const r of results) {
     if (r.status !== 'fulfilled') { lastError = r.reason; continue; }
     anyFulfilled = true;
-    const xml = new DOMParser().parseFromString(r.value, 'text/xml');
+    const { svc, t } = r.value;
+    const xml = new DOMParser().parseFromString(t, 'text/xml');
     xml.querySelectorAll('Property').forEach(p => {
       const name  = p.getAttribute('Name');
+      if (!name) return;
       const label = p.getAttribute('sap:label') || '';
+      const type  = p.getAttribute('Type') || '';
+      const role  = p.getAttribute('sap:aggregation-role') || '';
       // MASTER_DATA_API_SRV is processed first — don't overwrite with PLANNING_DATA
-      if (name && label && !descs[name]) descs[name] = label;
+      if (label && !descs[name]) descs[name] = label;
+      const nameUC = name.toUpperCase();
+      if (type && !(nameUC in types)) {
+        types[nameUC] = formatEdmType(type, p.getAttribute('MaxLength'), p.getAttribute('Precision'), p.getAttribute('Scale'));
+      }
+      if (role && !(nameUC in roles)) roles[nameUC] = role;
     });
+    xml.querySelectorAll('EntitySet').forEach(es => {
+      const name = es.getAttribute('Name');
+      if (!name) return;
+      entitySets.push({ name, nameUC: name.toUpperCase(), service: svc });
+    });
+    // Propiedades reales por entity set — solo para planning data, donde el
+    // $select es obligatorio y debe usar nombres de propiedad existentes
+    // (KEYFIGUREDATE y otros campos de staging de CI-DS no existen en la entidad).
+    if (svc === 'PLANNING_DATA_API_SRV') {
+      const propsByType = {};
+      xml.querySelectorAll('EntityType').forEach(et => {
+        const tn = et.getAttribute('Name');
+        if (!tn) return;
+        const set = new Set();
+        et.querySelectorAll('Property').forEach(p => {
+          const n = p.getAttribute('Name');
+          if (n) set.add(n.toUpperCase());
+        });
+        propsByType[tn] = set;
+      });
+      xml.querySelectorAll('EntitySet').forEach(es => {
+        const en = es.getAttribute('Name');
+        const tref = (es.getAttribute('EntityType') || '').split('.').pop();
+        if (en && propsByType[tref]) entityProps[en.toUpperCase()] = propsByType[tref];
+      });
+    }
   }
   // Hay CFG, pero TODAS las llamadas al proxy fallaron (p. ej. 404 si /api no está
   // disponible bajo `npm run dev`, 401, o IBP inalcanzable). Propagar el motivo real
@@ -57,7 +98,260 @@ async function fetchIbpFieldDescriptions() {
     const reason = typeof lastError === 'number' ? `HTTP ${lastError}` : (lastError?.message || 'desconocido');
     throw new Error(reason);
   }
-  return descs;
+  // Diagnóstico: muestra entity sets de master data que contienen 'PRODUCT'
+  // (revela el patrón de nombres <prefijo><MDT> del tenant).
+  if (typeof docsLog === 'function') {
+    const mdAll = entitySets.filter(e => e.service === 'MASTER_DATA_API_SRV');
+    const sample = mdAll.filter(e => e.nameUC.includes('PRODUCT')).slice(0, 20).map(e => e.name);
+    docsLog(`ℹ Entity sets MD=${mdAll.length} · con 'PRODUCT': ${sample.join(', ') || '(ninguno)'}`, 'l-line');
+  }
+  return { descs, types, roles, entitySets, entityProps };
+}
+
+// ── Mapear un tipo OData (Edm.*) + facetas al tipo HANA equivalente ──────────
+// Ej.: Edm.String MaxLength 36 → NVARCHAR(36); Edm.Decimal P18 S6 → DECIMAL(18,6).
+function formatEdmType(type, maxLength, precision, scale) {
+  if (!type) return '';
+  const t = type.replace(/^Edm\./, '');
+  switch (t) {
+    case 'String':         return maxLength ? `NVARCHAR(${maxLength})` : 'NVARCHAR';
+    case 'Binary':         return maxLength ? `VARBINARY(${maxLength})` : 'VARBINARY';
+    case 'Decimal':
+      if (precision && (scale !== null && scale !== undefined)) return `DECIMAL(${precision},${scale})`;
+      if (precision) return `DECIMAL(${precision})`;
+      return 'DECIMAL';
+    case 'Byte':           return 'TINYINT';
+    case 'SByte':          return 'TINYINT';
+    case 'Int16':          return 'SMALLINT';
+    case 'Int32':          return 'INTEGER';
+    case 'Int64':          return 'BIGINT';
+    case 'Single':         return 'REAL';
+    case 'Double':         return 'DOUBLE';
+    case 'Boolean':        return 'BOOLEAN';
+    case 'DateTime':       return 'TIMESTAMP';
+    case 'DateTimeOffset': return 'TIMESTAMP';
+    case 'Time':           return 'TIME';
+    case 'Guid':           return 'NVARCHAR(36)';
+    default:               return t.toUpperCase();
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+//  IBP PLANNING AREAS — listado para el selector del panel de conexión
+//  Deriva las planning areas del $metadata de PLANNING_DATA_API_SRV:
+//  cada PA expone los entity sets <PA>, <PA>Trans, <PA>Message. Tomamos
+//  los entity sets con sufijo "Trans" cuyo base existe (excluye los
+//  especiales KeyFigureDeltaDefinitionSet / ValueResultSet). Global:
+//  la invoca el script inline de mapping-dataflow.html al conectar.
+// ════════════════════════════════════════════════════════════
+async function fetchPlanningAreaList() {
+  if (typeof CFG === 'undefined' || !CFG.url || !CFG.user || !CFG.pass) return [];
+  let resp;
+  try {
+    resp = await fetch('/api/ibp-proxy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ kind: 'xml', base: CFG.url, service: 'PLANNING_DATA_API_SRV', user: CFG.user, password: CFG.pass })
+    });
+  } catch { return []; }
+  if (!resp.ok) return [];
+  const xml = new DOMParser().parseFromString(await resp.text(), 'text/xml');
+  const names = new Set();
+  xml.querySelectorAll('EntitySet').forEach(es => {
+    const n = es.getAttribute('Name');
+    if (n) names.add(n);
+  });
+  const pas = [];
+  names.forEach(n => {
+    if (!n.endsWith('Trans')) return;
+    const base = n.slice(0, -'Trans'.length);
+    if (base && names.has(base)) pas.push(base);
+  });
+  return pas.sort((a, b) => a.localeCompare(b));
+}
+
+// ── Resolver la entidad OData destino para traer una fila de ejemplo ──────────
+// Devuelve { service, entitySet, planArea } o null. Conservador: prefiere null
+// (ejemplo en blanco) antes que un valor de la tabla equivocada.
+// PA efectiva = CFG.pa (selector) || parsed.planArea ($G_PLAN_AREA).
+function resolveTargetEntity(parsed, entitySets) {
+  if (!entitySets || !entitySets.length) return null;
+  const tipo     = (parsed.tipoIntegracion || '').toUpperCase();
+  const planArea = ((typeof CFG !== 'undefined' && CFG.pa) || parsed.planArea || '').trim();
+  if (tipo === 'FILE' || !planArea) return null;
+  const planAreaUC = planArea.toUpperCase();
+
+  // KF / planning data: el entity set es el nombre del planning area.
+  // NO se cae a master data (evita matches equivocados que dan 404 de segmento).
+  if (tipo === 'KF') {
+    const hit = entitySets.find(e => e.service === 'PLANNING_DATA_API_SRV' && e.nameUC === planAreaUC);
+    return hit ? { service: hit.service, entitySet: hit.name, planArea } : null;
+  }
+
+  // Master data: la tabla destino es el datastore de staging de CI-DS
+  // (p. ej. SOPMD_STAG_AS1PRODUCT); el entity set OData es <prefijo><MDT>
+  // (p. ej. AS1PRODUCT). Se normaliza quitando el prefijo de staging y se casa.
+  const targetUC = (parsed.targetTable || '').toUpperCase();
+  if (!targetUC) return null;
+  const core = targetUC
+    .replace(/^SOPMD_STAG_/, '')
+    .replace(/^SOPDD_STAGING_KFTAB_/, '');
+
+  const mdSets = entitySets.filter(e =>
+    e.service === 'MASTER_DATA_API_SRV' && !e.nameUC.endsWith('TRANS') && !e.nameUC.endsWith('MESSAGE'));
+  const pick = e => ({ service: e.service, entitySet: e.name, planArea });
+
+  // 1) exacto (core, o el nombre completo por si acaso)
+  let hit = mdSets.find(e => e.nameUC === core) || mdSets.find(e => e.nameUC === targetUC);
+  if (hit) return pick(hit);
+
+  // 2) el entity set termina con el core (prefijo de PA delante del MDT)
+  let ends = mdSets.filter(e => e.nameUC.endsWith(core));
+  if (ends.length === 1) return pick(ends[0]);
+  if (ends.length > 1) {
+    const byPa = ends.filter(e => e.nameUC.includes(planAreaUC));
+    if (byPa.length === 1) return pick(byPa[0]);
+  }
+
+  // 3) el core termina con el entity set (entity set = MDT sin prefijo); elige el más largo
+  const ends2 = mdSets
+    .filter(e => e.nameUC.length >= 4 && core.endsWith(e.nameUC))
+    .sort((a, b) => b.nameUC.length - a.nameUC.length);
+  if (ends2.length === 1 || (ends2.length > 1 && ends2[0].nameUC.length > ends2[1].nameUC.length)) {
+    return pick(ends2[0]);
+  }
+  return null;
+}
+
+// ── Traer una fila real ($top=1) de la entidad destino. Nunca lanza ──────────
+// PLANNINGAREA es query param obligatorio en MASTER_DATA / PLANNING_DATA API.
+// $select es obligatorio en planning data (la entidad del PA exige "al menos un
+// atributo o key figure"); selectFields lista los campos destino a traer.
+// Devuelve { row:{FIELD_UC:value}|null, status, detail, url } para poder loguear.
+async function fetchIbpSampleRow(service, entitySet, planArea, selectFields) {
+  const sel = (selectFields && selectFields.length) ? '&$select=' + selectFields.join(',') : '';
+  const query = '$top=1&$format=json' + sel + '&PLANNINGAREA=' + encodeURIComponent(planArea);
+  const url = `${CFG.url}/sap/opu/odata/IBP/${service}/${entitySet}?${query}`;
+  try {
+    const resp = await fetch('/api/ibp-proxy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ kind: 'json', base: CFG.url, service, path: entitySet, query, user: CFG.user, password: CFG.pass })
+    });
+    const data = await resp.json().catch(() => null);
+    if (!resp.ok) {
+      const detail = (data && (data.detail || data.error)) || ('HTTP ' + resp.status);
+      return { row: null, status: resp.status, detail, url };
+    }
+    const rows = (data.d && data.d.results) ? data.d.results : (data.value || []);
+    const r = rows[0];
+    if (!r) return { row: null, status: 200, detail: 'respuesta sin filas', url };
+    const out = {};
+    Object.keys(r).forEach(k => { out[k.toUpperCase()] = r[k]; });
+    return { row: out, status: 200, detail: '', url };
+  } catch (e) {
+    return { row: null, status: 0, detail: e.message || 'error de red', url };
+  }
+}
+
+// ── Formatear un valor de ejemplo para la celda del Excel ────────────────────
+function formatIbpExample(v) {
+  if (v === null || v === undefined) return '';
+  if (typeof v === 'object') return '';               // deferred / navegación → omitir
+  if (typeof v === 'string') {
+    const m = v.match(/^\/Date\((-?\d+)(?:[+-]\d+)?\)\/$/);  // OData V2 legacy date
+    if (m) return new Date(+m[1]).toISOString().slice(0, 10);
+    return v;
+  }
+  return String(v);
+}
+
+// ── Enriquecer los mappings de una integración con datos de IBP ──────────────
+// Rellena, por cada mapping: dstDesc (label) e ibpType (tipo del $metadata, ambos
+// globales) e ibpExample (valor de una fila real).
+//   - sampleCache  evita reconsultar la misma entidad (clave entidad+PA+select).
+//   - fieldExample (campo→valor, global) reusa ejemplos entre datastores: un mismo
+//     campo (PRDID, CUSTID…) tiene el mismo valor de ejemplo en cualquier tabla. Si
+//     ya conocemos el ejemplo de todos los campos de la integración, no se consulta.
+//     Y los campos atributo de un KF que falla (conversión de moneda) se rellenan
+//     igual desde lo ya cacheado en master data.
+async function enrichMappingsFromIbp(parsed, meta, sampleCache, fieldExample, fieldDesc) {
+  const tgt = resolveTargetEntity(parsed, meta.entitySets);
+  const distinct = [...new Set(parsed.mappings.map(m => m.dstField).filter(Boolean))];
+  let sample = null;
+
+  if (tgt) {
+    const missing = distinct.filter(f => !(f.toUpperCase() in fieldExample));
+    if (missing.length === 0) {
+      // Ya tenemos ejemplo de todos los campos → no se consulta.
+      docsLog(`→ Ejemplo IBP [${parsed.jobName || tgt.entitySet}]: campos ya cacheados — sin consulta`, 'l-line');
+    } else {
+      let selectFields = [];
+      let doQuery = true;
+      if (tgt.service === 'PLANNING_DATA_API_SRV') {
+        // planning exige $select con propiedades EXISTENTES de la entidad; se descartan
+        // los campos de staging que no existen (p. ej. KEYFIGUREDATE). Debe quedar ≥1.
+        const props = (meta.entityProps || {})[tgt.entitySet.toUpperCase()];
+        selectFields = props ? distinct.filter(f => props.has(f.toUpperCase())) : distinct;
+        doQuery = selectFields.length > 0;
+      }
+      // master data: selectFields vacío → sin $select (se trae la fila completa)
+      const key = tgt.service + '|' + tgt.entitySet + '|' + tgt.planArea + '|' + selectFields.join(',');
+      docsLog(`→ Ejemplo IBP [${parsed.jobName || tgt.entitySet}]: ${tgt.service}/${tgt.entitySet} · PA=${tgt.planArea} · $select=${selectFields.join(',') || '(fila completa)'}`, 'l-info');
+      if (!doQuery) {
+        docsLog(`   ⚠ sin campos válidos para $select — se omite`, 'l-warn');
+      } else if (!(key in sampleCache)) {
+        const res = await fetchIbpSampleRow(tgt.service, tgt.entitySet, tgt.planArea, selectFields);
+        sampleCache[key] = res.row;
+        docsLog(`   GET ${res.url}`, 'l-line');
+        if (res.row) {
+          docsLog(`   ✔ fila obtenida (${Object.keys(res.row).length} campos)`, 'l-ok');
+          // Cachear cada valor por nombre de campo para reusarlo en otras integraciones.
+          Object.keys(res.row).forEach(k => {
+            if (k in fieldExample) return;
+            const v = formatIbpExample(res.row[k]);
+            if (v !== '') fieldExample[k] = v;
+          });
+        } else {
+          docsLog(`   ⚠ sin fila [${res.status}] ${res.detail}`, 'l-warn');
+        }
+      }
+      sample = (doQuery && (key in sampleCache)) ? sampleCache[key] : null;
+    }
+  } else if ((parsed.tipoIntegracion || '').toUpperCase() !== 'FILE') {
+    const pa = ((typeof CFG !== 'undefined' && CFG.pa) || parsed.planArea || '');
+    docsLog(`→ Ejemplo IBP [${parsed.jobName || parsed.targetTable}]: sin entidad resuelta (tabla=${parsed.targetTable || '?'}, tipo=${parsed.tipoIntegracion || '?'}, PA=${pa || '(ninguna)'})`, 'l-warn');
+  }
+
+  parsed.mappings.forEach(m => {
+    const fUC = (m.dstField || '').toUpperCase();
+    // descripción: la del XML alimenta el cache; si falta, se rellena desde el cache
+    // (sembrado con las labels de $metadata + las descripciones ya vistas en otros XML).
+    if (m.dstDesc && fUC && !(fUC in fieldDesc)) fieldDesc[fUC] = m.dstDesc;
+    if (!m.dstDesc && (fUC in fieldDesc)) m.dstDesc = fieldDesc[fUC];
+    m.ibpType = meta.types[fUC] || '';
+    // ejemplo: valor de la fila de esta entidad; si no, el cacheado global por campo.
+    let ex = sample ? formatIbpExample(sample[fUC]) : '';
+    if (!ex && (fUC in fieldExample)) ex = fieldExample[fUC];
+    m.ibpExample = ex;
+  });
+}
+
+// ── Pasada final: rellenar descripción/ejemplo que quedaron vacíos con el cache
+// ya calentado (campos vistos después de procesar las primeras integraciones).
+function backfillFromCache(items, fieldDesc, fieldExample) {
+  let nDesc = 0, nEx = 0;
+  items.forEach(it => {
+    const parsed = it && it.parsed;
+    if (!parsed || !parsed.mappings) return;
+    parsed.mappings.forEach(m => {
+      const fUC = (m.dstField || '').toUpperCase();
+      if (!fUC) return;
+      if (!m.dstDesc && (fUC in fieldDesc))   { m.dstDesc = fieldDesc[fUC];   nDesc++; }
+      if (!m.ibpExample && (fUC in fieldExample)) { m.ibpExample = fieldExample[fUC]; nEx++; }
+    });
+  });
+  docsLog(`↺ Backfill desde cache: +${nDesc} descripciones, +${nEx} ejemplos`, 'l-ok');
 }
 
 // ════════════════════════════════════════════════════════════
@@ -997,7 +1291,7 @@ function buildParamSheet(rows, jobsMode) {
 function buildIntegrationSheet(parsed) {
   const sb = new SheetBuilder();
   const { jobName, jobDesc, srcDSName, dstDSName, mappings, filters, lookups, variables } = parsed;
-  const N = 7; // cols A-G
+  const N = 9; // cols A-I (G + Tipo de dato IBP + Ejemplo IBP)
 
   // Helper: fila vacía
   const emptyRow = () => sb.addRow(Array(N).fill({v:'', s:XF.DEFAULT}), 6);
@@ -1013,6 +1307,8 @@ function buildIntegrationSheet(parsed) {
     {v:I18n.t('docs.xls.col.srcTable'),        s:XF.T1_HDR},
     {v:I18n.t('docs.xls.col.srcField'),        s:XF.T1_HDR},
     {v:I18n.t('docs.xls.col.mapping'),         s:XF.T1_HDR},
+    {v:I18n.t('docs.xls.col.ibpType'),         s:XF.T1_HDR},
+    {v:I18n.t('docs.xls.col.ibpExample'),      s:XF.T1_HDR},
   ], 22);
 
   // ── Datos tabla 1
@@ -1021,7 +1317,8 @@ function buildIntegrationSheet(parsed) {
       {v:'', s:XF.DEFAULT},
       {v:I18n.t('docs.xls.empty.noMappings'), s:XF.T1_DATA},
       {v:'', s:XF.T1_DATA},{v:'', s:XF.T1_DATA},
-      {v:'', s:XF.T1_DATA},{v:'', s:XF.T1_DATA},{v:'', s:XF.T1_DATA}
+      {v:'', s:XF.T1_DATA},{v:'', s:XF.T1_DATA},{v:'', s:XF.T1_DATA},
+      {v:'', s:XF.T1_DATA},{v:'', s:XF.T1_DATA}
     ], 18);
   } else {
     mappings.forEach((m, i) => {
@@ -1037,6 +1334,8 @@ function buildIntegrationSheet(parsed) {
         {v: m.srcTable || '',   s:XF.T1_DATA},
         {v: m.srcField || '',   s:XF.T1_DATA},
         {v: m.ops || '',        s:XF.T1_DATA},
+        {v: m.ibpType || '',    s:XF.T1_DATA},
+        {v: m.ibpExample || '', s:XF.T1_DATA},
       ], 18);
     });
   }
@@ -1128,8 +1427,8 @@ function buildIntegrationSheet(parsed) {
     });
   }
 
-  // Col widths: A=4.6, B=22.4, C=29.1, D=62.3, E=41.7, F=41.7, G=40.4
-  sb.setColWidths([4.6, 22.4, 29.1, 62.3, 41.7, 41.7, 40.4]);
+  // Col widths: A=4.6, B=22.4, C=29.1, D=62.3, E=41.7, F=41.7, G=40.4, H=tipo, I=ejemplo
+  sb.setColWidths([4.6, 22.4, 29.1, 62.3, 41.7, 41.7, 40.4, 18, 30]);
   return sb;
 }
 
@@ -1381,12 +1680,12 @@ async function buildExcel() {
     docsLog(I18n.t('docs.log.atlProcessed', { n: Object.keys(atlEnrich).length }), 'l-ok');
   }
 
-  // ── Fetch IBP field descriptions (MASTER_DATA_API_SRV + PLANNING_DATA_API_SRV)
+  // ── Fetch IBP metadata (MASTER_DATA_API_SRV + PLANNING_DATA_API_SRV)
   docsLog(I18n.t('docs.log.fetchingIbpDescs'), 'l-info');
-  let ibpDescs = {};
+  let meta = { descs: {}, types: {}, roles: {}, entitySets: [], entityProps: {} };
   try {
-    ibpDescs = await fetchIbpFieldDescriptions();
-    const n = Object.keys(ibpDescs).length;
+    meta = await fetchIbpMeta();
+    const n = Object.keys(meta.descs).length;
     docsLog(
       n > 0
         ? I18n.t('docs.log.ibpDescsOk', {n})
@@ -1401,19 +1700,27 @@ async function buildExcel() {
   const sheets   = [];
   const paramRows = [];
   let totalJobs = 0, totalMaps = 0, totalFilts = 0;
+  const sampleCache = {};   // "service|entitySet|PA|select" -> row | null
+  const fieldExample = {};  // FIELD_UC -> valor de ejemplo (reuso entre datastores)
+  const fieldDesc = {};     // FIELD_UC -> descripción (sembrado con labels de $metadata)
+  Object.keys(meta.descs).forEach(k => { fieldDesc[k.toUpperCase()] = meta.descs[k]; });
 
+  // Fase 1: enriquecer (calienta los caches); las hojas se construyen después.
   for (const item of selected) {
     const { parsed, paramRow } = item;
-    // Enrich dstDesc with IBP labels when the XML carried no description
-    parsed.mappings.forEach(m => {
-      if (!m.dstDesc && ibpDescs[m.dstField]) m.dstDesc = ibpDescs[m.dstField];
-    });
+    await enrichMappingsFromIbp(parsed, meta, sampleCache, fieldExample, fieldDesc);
     totalJobs++;
     totalMaps  += parsed.mappings.length;
     totalFilts += parsed.filters.length;
     paramRows.push(paramRow);
-    const sb = buildIntegrationSheet(parsed);
-    sheets.push({ name: paramRow.sheetName, sb });
+  }
+
+  // Fase 2: pasada hacia atrás rellenando lo vacío con el cache ya completo.
+  backfillFromCache(selected, fieldDesc, fieldExample);
+
+  // Fase 3: construir las hojas de detalle (en el orden de selección).
+  for (const item of selected) {
+    sheets.push({ name: item.paramRow.sheetName, sb: buildIntegrationSheet(item.parsed) });
   }
 
   docsLog(I18n.t('docs.log.generatingSheet', { sheet: I18n.t('xls.sheet.parameters') }), 'l-info');
@@ -2397,10 +2704,10 @@ async function generateFromJobs() {
 
   // ── Build Excel
   docsLog(I18n.t('docs.log.fetchingIbpDescs'), 'l-info');
-  let ibpDescs = {};
+  let meta = { descs: {}, types: {}, roles: {}, entitySets: [], entityProps: {} };
   try {
-    ibpDescs = await fetchIbpFieldDescriptions();
-    const n = Object.keys(ibpDescs).length;
+    meta = await fetchIbpMeta();
+    const n = Object.keys(meta.descs).length;
     docsLog(n > 0 ? I18n.t('docs.log.ibpDescsOk', {n}) : I18n.t('docs.log.ibpDescsEmpty'), n > 0 ? 'l-ok' : 'l-warn');
   } catch (e) { docsLog(I18n.t('docs.log.ibpQueryFailed', { err: e.message }), 'l-warn'); }
   setP(70);
@@ -2408,6 +2715,10 @@ async function generateFromJobs() {
   const sheets = [];
   const paramRows = [];
   let totalJobs = 0, totalMaps = 0, totalFilts = 0;
+  const sampleCache = {};   // "service|entitySet|PA|select" -> row | null
+  const fieldExample = {};  // FIELD_UC -> valor de ejemplo (reuso entre datastores)
+  const fieldDesc = {};     // FIELD_UC -> descripción (sembrado con labels de $metadata)
+  Object.keys(meta.descs).forEach(k => { fieldDesc[k.toUpperCase()] = meta.descs[k]; });
 
   // ── Collect non-CI-DS steps as informational rows (no detail sheet)
   const nonDIRows = [];
@@ -2443,12 +2754,11 @@ async function generateFromJobs() {
     return a._sortOrder - b._sortOrder;
   });
 
+  // Fase 1: enriquecer (calienta los caches) y armar paramRows en orden.
   for (const row of allRows) {
     if (!row.isNonDI) {
       const { parsed, paramRow } = row;
-      parsed.mappings.forEach(m => {
-        if (!m.dstDesc && ibpDescs[m.dstField]) m.dstDesc = ibpDescs[m.dstField];
-      });
+      await enrichMappingsFromIbp(parsed, meta, sampleCache, fieldExample, fieldDesc);
       totalJobs++;
       totalMaps += parsed.mappings.length;
       totalFilts += parsed.filters.length;
@@ -2458,10 +2768,18 @@ async function generateFromJobs() {
       paramRow.ibpStepType = row.ibpStepType || '';
       paramRow.isNonDI     = false;
       paramRows.push(paramRow);
-      const sb = buildIntegrationSheet(parsed);
-      sheets.push({ name: paramRow.sheetName, sb });
     } else {
       paramRows.push(row);
+    }
+  }
+
+  // Fase 2: pasada hacia atrás rellenando lo vacío con el cache ya completo.
+  backfillFromCache(allRows.filter(r => !r.isNonDI), fieldDesc, fieldExample);
+
+  // Fase 3: construir las hojas de detalle (mismo orden que paramRows).
+  for (const row of allRows) {
+    if (!row.isNonDI) {
+      sheets.push({ name: row.paramRow.sheetName, sb: buildIntegrationSheet(row.parsed) });
     }
   }
 

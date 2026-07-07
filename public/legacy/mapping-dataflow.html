@@ -85,6 +85,12 @@
           <input id="ibp-pass" type="password" autocomplete="current-password">
         </div>
         <div class="ibp-field">
+          <label for="ibp-pa">Planning Area <span style="font-weight:400;color:var(--text2);font-size:11px;">(para los ejemplos de datos)</span></label>
+          <select id="ibp-pa" disabled>
+            <option value="">— conecta para cargar —</option>
+          </select>
+        </div>
+        <div class="ibp-field">
           <button class="btn btn-primary" id="ibp-conn-btn" type="button">Usar conexión</button>
         </div>
       </div>
@@ -309,7 +315,29 @@
   <!-- Connection wiring: store SAP IBP credentials into the global CFG used by api.js/docs.js -->
   <script>
     (function () {
-      function applyConn() {
+      // Carga las planning areas del tenant y llena el <select>. CFG.pa = PA elegida,
+      // fuente primaria del query param PLANNINGAREA para los ejemplos de datos.
+      async function loadPlanningAreas(statusEl) {
+        var sel = document.getElementById('ibp-pa');
+        if (!sel || typeof fetchPlanningAreaList !== 'function') return;
+        sel.disabled = true;
+        sel.innerHTML = '<option value="">— cargando… —</option>';
+        var pas = [];
+        try { pas = await fetchPlanningAreaList(); } catch (e) { pas = []; }
+        CFG.pa = '';
+        if (!pas.length) {
+          sel.innerHTML = '<option value="">— sin planning areas —</option>';
+          sel.disabled = true;
+          statusEl.textContent += ' No se pudieron cargar planning areas; se usará la $G_PLAN_AREA de cada integración.';
+          return;
+        }
+        sel.innerHTML = '<option value="">— elegir —</option>' +
+          pas.map(function (p) { return '<option value="' + p + '">' + p + '</option>'; }).join('');
+        sel.disabled = false;
+        statusEl.textContent += ' ' + pas.length + ' planning areas cargadas — elige una para los ejemplos.';
+      }
+
+      async function applyConn() {
         var base = (document.getElementById('ibp-base').value || '').trim().replace(/\/+$/, '');
         var user = (document.getElementById('ibp-user').value || '').trim();
         var pass = document.getElementById('ibp-pass').value || '';
@@ -320,12 +348,15 @@
           return;
         }
         // CFG is the global declared in state.js
-        CFG.url = base; CFG.user = user; CFG.pass = pass;
+        CFG.url = base; CFG.user = user; CFG.pass = pass; CFG.pa = '';
         statusEl.textContent = '✓ Conexión cargada para ' + base + ' (las credenciales solo viven en esta sesión).';
         statusEl.style.color = 'var(--green)';
+        await loadPlanningAreas(statusEl);
       }
       document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('ibp-conn-btn').addEventListener('click', applyConn);
+        var sel = document.getElementById('ibp-pa');
+        if (sel) sel.addEventListener('change', function () { CFG.pa = sel.value || ''; });
       });
     })();
   </script>

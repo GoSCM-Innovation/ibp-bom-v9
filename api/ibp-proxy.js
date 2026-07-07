@@ -43,6 +43,21 @@ function validateEntityPath(entityPath) {
   return null
 }
 
+// Extrae un mensaje legible del cuerpo de error de SAP (JSON OData V2 o texto).
+// Se reenvía al cliente para diagnóstico del módulo legacy (herramienta interna).
+function extractSapError(text) {
+  if (!text) return ''
+  try {
+    const j = JSON.parse(text)
+    const msg = j?.error?.message
+    const val = (msg && typeof msg === 'object') ? msg.value : msg
+    const code = j?.error?.code
+    return [code, val].filter(Boolean).join(': ').substring(0, 400)
+  } catch {
+    return text.substring(0, 400)
+  }
+}
+
 async function sapFetch(url, accept, user, password, timeoutMs) {
   const auth = Buffer.from(`${user}:${password}`).toString('base64')
   const controller = new AbortController()
@@ -89,7 +104,7 @@ export default async function handler(req, res) {
       if (!resp.ok) {
         const text = await resp.text()
         console.error('[ibp-proxy:json] SAP error', resp.status, text.substring(0, 200))
-        return res.status(resp.status).json({ error: `Error al conectar con SAP IBP (${resp.status})` })
+        return res.status(resp.status).json({ error: `Error al conectar con SAP IBP (${resp.status})`, detail: extractSapError(text) })
       }
       return res.json(await resp.json())
     }
