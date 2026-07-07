@@ -1053,6 +1053,8 @@ const Explorer = (function () {
 
     atlProcesses.forEach((proc, pIdx) => {
       let procHtml = '';
+      // Procesos sin capa PLAN: un único grupo sin nombre → no repetir cabecera.
+      const singleUnnamed = proc.groups.length === 1 && !proc.groups[0].name;
       proc.groups.forEach(g => {
         const rows = g.dataflows.map(d => {
           if (d.missing) {
@@ -1076,6 +1078,7 @@ const Explorer = (function () {
           </div>`;
         }).join('');
         if (!rows.trim()) return;
+        if (singleUnnamed) { procHtml += rows; return; }
         const badge = g.parallel
           ? `<span class="ex-atl-par ex-atl-par-parallel" title="${escH(I18n.t('ex.atl.parallel.title'))}">${escH(I18n.t('ex.atl.parallel.badge'))}</span>`
           : `<span class="ex-atl-par ex-atl-par-seq" title="${escH(I18n.t('ex.atl.sequential.title'))}">${escH(I18n.t('ex.atl.sequential.badge'))}</span>`;
@@ -1542,10 +1545,13 @@ const Explorer = (function () {
               <span class="ex-var-val">${escH(v.type || '')}${v.default ? ' = ' + escH(v.default) : ''}</span>
             </div>`).join('')
         : `<p style="color:var(--text2);font-size:12px;">${escH(I18n.t('ex.atl.noVars'))}</p>`;
+      const groupLine = p.atlGroup
+        ? `<div><span class="ex-atl-k">${escH(I18n.t('ex.atl.group'))}:</span> ${escH(p.atlGroup)} ${parBadge}</div>`
+        : '';
       const body = `
         <div class="ex-atl-detail-grid">
           <div><span class="ex-atl-k">${escH(I18n.t('ex.atl.process'))}:</span> <b>${escH(p.atlSession)}</b></div>
-          <div><span class="ex-atl-k">${escH(I18n.t('ex.atl.group'))}:</span> ${escH(p.atlGroup || '—')} ${parBadge}</div>
+          ${groupLine}
           <div><span class="ex-atl-k">${escH(I18n.t('ex.atl.order'))}:</span> ${escH(String(p.atlOrder || '—'))}</div>
         </div>
         ${conflictHtml}

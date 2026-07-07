@@ -1803,6 +1803,7 @@ function parseATL(text) {
   let description = '';
   const variables = [];
   const groupOrder = [];  // ordered plan full names from SESSION body
+  const sessionDataflows = []; // dataflows llamados directamente desde SESSION (sin PLAN)
   const globalDefaults = {};
 
   // Regex patterns
@@ -1873,11 +1874,20 @@ function parseATL(text) {
 
     // ── Inside SESSION block
     if (inSession) {
+      // Sección DECLARE (opcional): recolecta variables GLOBAL.
       if (/^\s*DECLARE\b/.test(line)) { sessionDeclare = true; continue; }
-      if (sessionDeclare) {
+      if (sessionDeclare && !inSessionBody) {
         const gv = line.match(reGlobal);
         if (gv) { variables.push({ name: gv[1], type: gv[2] }); continue; }
-        if (/^BEGIN/.test(line)) { sessionDeclare = false; inSessionBody = true; continue; }
+        // no continue: el BEGIN se maneja abajo
+      }
+
+      // El primer BEGIN (haya o no DECLARE previo) abre el cuerpo de la sesión.
+      // Algunas sesiones no declaran variables, así que no puede depender de DECLARE.
+      if (!inSessionBody && /^BEGIN\b/.test(line)) {
+        sessionDeclare = false;
+        inSessionBody = true;
+        continue;
       }
 
       if (inSessionBody) {
@@ -1888,6 +1898,19 @@ function parseATL(text) {
         if (cpMatch) {
           groupOrder.push(cpMatch[1]);
           if (plans[cpMatch[1]]) plans[cpMatch[1]].displayName = pendingDisplayName || '';
+          pendingDisplayName = '';
+          continue;
+        }
+
+        // CALL DATAFLOW directo desde la SESSION (sin capa PLAN): la task es una
+        // secuencia plana de dataflows. Se capturan como un grupo implícito.
+        const sdfMatch = line.match(reCallDataflow);
+        if (sdfMatch) {
+          sessionDataflows.push({
+            fullName:    sdfMatch[1],
+            guid:        sdfMatch[2] || '',
+            displayName: pendingDisplayName || sdfMatch[1]
+          });
           pendingDisplayName = '';
           continue;
         }
@@ -1922,6 +1945,17 @@ function parseATL(text) {
       dataflows: p.dataflows
     };
   });
+
+  // Sesiones sin capa PLAN: los dataflows llamados directamente forman un
+  // grupo implícito (secuencial), en el orden de llamada.
+  if (sessionDataflows.length) {
+    groups.push({
+      name: '',
+      displayName: '',
+      parallel: false,
+      dataflows: sessionDataflows
+    });
+  }
 
   return {
     sessionName: sessionDisplayName || sessionName,
