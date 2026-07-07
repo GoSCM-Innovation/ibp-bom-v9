@@ -1372,7 +1372,10 @@ async function buildExcel() {
       const atl = parseATL(f.text);
       const matched = matchATLtoIntegrations(atl, parsedIntegrations);
       for (const m of matched) {
-        if (m.atlGroup && m.atlGroup !== ATL_NO_GROUP) {
+        // Incluye matches sin grupo (procesos sin capa PLAN, atlGroup==='') para
+        // registrar la sesión ATL, consistente con el modo Jobs. Solo se excluyen
+        // las integraciones no emparejadas (ATL_NO_GROUP).
+        if (m.atlGroup !== ATL_NO_GROUP) {
           atlEnrich[m.sheetName] = { atlGroup: m.atlGroup, atlSession: atl.sessionName };
         }
       }

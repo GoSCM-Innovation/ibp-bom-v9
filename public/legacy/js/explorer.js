@@ -921,7 +921,8 @@ const Explorer = (function () {
     });
 
     _computeAtlConflicts();
-    atlLoaded = true;
+    // Si todos los .atl fallaron al parsear (0 procesos), tratar como sin ATL.
+    atlLoaded = atlProcesses.length > 0;
     renderAtlBar();
     _refreshCurrentView();
   }
@@ -1048,7 +1049,7 @@ const Explorer = (function () {
     const baseIdx = new Set(computeBaseFiltered().map(p => p._idx));
     const matchQ = p => !q || `${p.jobName} ${p.dataflowName} ${p.targetTable}`.toLowerCase().includes(q);
 
-    let visibleCount = 0;
+    const visibleIdx = new Set();  // integraciones distintas mostradas (una df compartida aparece en varios procesos)
     let html = '';
 
     atlProcesses.forEach((proc, pIdx) => {
@@ -1061,7 +1062,8 @@ const Explorer = (function () {
             if (showAtlConflictsOnly) return '';
             const name = d.displayName || I18n.t('ex.atl.group.unnamed');
             if (q && !name.toLowerCase().includes(q)) return '';
-            visibleCount++;
+            // Las filas "faltante" son placeholders (no integraciones): no cuentan
+            // para el contador visible/total.
             return `<div class="ex-item ex-atl-missing" title="${escH(I18n.t('ex.atl.missing.title'))}">
               <div class="ex-name ex-name-df">↳ ${escH(name)} <span class="ex-atl-missing-badge">${escH(I18n.t('ex.atl.missing.badge'))}</span></div>
             </div>`;
@@ -1069,7 +1071,7 @@ const Explorer = (function () {
           const p = integrations[d.idx];
           if (!p || !baseIdx.has(p._idx) || !matchQ(p)) return '';
           if (showAtlConflictsOnly && !conflictIdx.has(p._idx)) return '';
-          visibleCount++;
+          visibleIdx.add(p._idx);
           const warn   = conflictIdx.has(p._idx) ? `<span class="ex-atl-warn" title="${escH(I18n.t('ex.atl.conflict.title'))}">⚠</span> ` : '';
           const dfName = p.dataflowName || p.targetTable;
           return `<div class="ex-item ex-item-df${selectedIdx === p._idx ? ' active' : ''}" data-idx="${p._idx}" onclick="Explorer.navigateTo(${p._idx}, 'root')">
@@ -1098,7 +1100,7 @@ const Explorer = (function () {
     if (!showAtlConflictsOnly) {
       const orphans = _atlOrphans().filter(p => baseIdx.has(p._idx) && matchQ(p));
       if (orphans.length) {
-        visibleCount += orphans.length;
+        orphans.forEach(o => visibleIdx.add(o._idx));
         const secId = 'ex-atlp-orphans';
         html += `
           <div class="ex-proj-header ex-atl-proc-header" onclick="var b=document.getElementById('${secId}');b.classList.toggle('collapsed');this.querySelector('.ex-arr').textContent=b.classList.contains('collapsed')?'▶':'▼';">
@@ -1112,7 +1114,7 @@ const Explorer = (function () {
     el.innerHTML = html.trim()
       ? html
       : `<p style="padding:12px;color:var(--text2);font-size:13px;">${escH(I18n.t('ex.empty.noResults'))}</p>`;
-    updateCounter(visibleCount, integrations.length);
+    updateCounter(visibleIdx.size, integrations.length);
     updateSidebarHeader();
   }
 
