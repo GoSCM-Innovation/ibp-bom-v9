@@ -509,10 +509,163 @@ const Explorer = (function () {
     return taskSet;
   }
 
+  // ══ Perfiles de conexión guardados (localStorage, por navegador) ══════════
+  // Persistencia local y aislada: NO toca las conexiones de la SPA React
+  // (ibp_connections) ni el store server-side. La contraseña solo se guarda si
+  // el usuario activa "recordar contraseña" en ese perfil (texto plano en el
+  // navegador, como el resto de credenciales — ver docs/DEUDA-TECNICA.md).
+  const PROFILE_STORE = {
+    cids: { list: 'explorer.cids.profiles', last: 'explorer.cids.lastProfileId' },
+    ibp:  { list: 'explorer.ibp.profiles',  last: 'explorer.ibp.lastProfileId'  },
+  };
+  function _genProfileId() {
+    try { if (window.crypto && crypto.randomUUID) return crypto.randomUUID(); } catch (_) {}
+    return 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  }
+  function _loadProfiles(kind) {
+    try {
+      const arr = JSON.parse(localStorage.getItem(PROFILE_STORE[kind].list) || '[]');
+      return Array.isArray(arr) ? arr : [];
+    } catch (_) { return []; }
+  }
+  function _saveProfiles(kind, arr) {
+    try { localStorage.setItem(PROFILE_STORE[kind].list, JSON.stringify(arr)); } catch (_) {}
+  }
+  function _getLastProfileId(kind) {
+    try { return localStorage.getItem(PROFILE_STORE[kind].last) || ''; } catch (_) { return ''; }
+  }
+  function _setLastProfileId(kind, id) {
+    try {
+      if (id) localStorage.setItem(PROFILE_STORE[kind].last, id);
+      else localStorage.removeItem(PROFILE_STORE[kind].last);
+    } catch (_) {}
+  }
+  // Upsert por nombre (case-insensitive): guardar con un nombre ya existente
+  // actualiza ese perfil en vez de duplicarlo. Devuelve el id resultante.
+  function _upsertProfile(kind, profile) {
+    const arr = _loadProfiles(kind);
+    const nameNorm = (profile.name || '').trim().toLowerCase();
+    const i = arr.findIndex(p => (p.name || '').trim().toLowerCase() === nameNorm);
+    if (i >= 0) { profile.id = arr[i].id; arr[i] = profile; }
+    else { arr.push(profile); }
+    _saveProfiles(kind, arr);
+    return profile.id;
+  }
+  function _deleteProfile(kind, id) {
+    _saveProfiles(kind, _loadProfiles(kind).filter(p => p.id !== id));
+    if (_getLastProfileId(kind) === id) _setLastProfileId(kind, '');
+  }
+  // Rellena un <select> con las conexiones guardadas + opción "nueva". Muestra u
+  // oculta el grupo según haya perfiles. Devuelve el id preseleccionado ('' = nueva).
+  function _renderProfileSelect(kind, groupId, selectId) {
+    const group = document.getElementById(groupId);
+    const sel   = document.getElementById(selectId);
+    if (!sel || !group) return '';
+    const arr = _loadProfiles(kind);
+    if (!arr.length) {
+      group.style.display = 'none';
+      sel.innerHTML = '';
+      return '';
+    }
+    const last  = _getLastProfileId(kind);
+    const preId = arr.some(p => p.id === last) ? last : '';
+    const opts  = ['<option value="">' + escH(I18n.t('conn.saved.new')) + '</option>']
+      .concat(arr.map(p => `<option value="${escH(p.id)}"${p.id === preId ? ' selected' : ''}>${escH(p.name || p.id)}</option>`));
+    sel.innerHTML = opts.join('');
+    group.style.display = '';
+    return preId;
+  }
+
   function openCidsModal() {
     const m = document.getElementById('cids-modal');
     if (m) m.style.display = 'flex';
-    setTimeout(() => { const f = document.getElementById('cids-hciUrl'); if (f) f.focus(); }, 50);
+    resetCidsSaveUi();
+    const preId = _renderProfileSelect('cids', 'cids-saved-group', 'cids-saved-select');
+    if (preId) applyCidsProfile(preId);
+    setTimeout(() => {
+      const focusPass = preId && !((document.getElementById('cids-password') || {}).value);
+      const f = document.getElementById(focusPass ? 'cids-password' : 'cids-hciUrl');
+      if (f) f.focus();
+    }, 50);
+  }
+
+  function resetCidsSaveUi() {
+    const chk  = document.getElementById('cids-save-chk');
+    const opts = document.getElementById('cids-save-opts');
+    const pass = document.getElementById('cids-save-pass');
+    const name = document.getElementById('cids-save-name');
+    if (chk)  chk.checked  = false;
+    if (pass) pass.checked = false;
+    if (name) name.value   = '';
+    if (opts) opts.style.display = 'none';
+  }
+
+  function toggleCidsSaveOpts() {
+    const chk  = document.getElementById('cids-save-chk');
+    const opts = document.getElementById('cids-save-opts');
+    if (opts) opts.style.display = chk && chk.checked ? '' : 'none';
+    if (chk && chk.checked) {
+      const name = document.getElementById('cids-save-name');
+      if (name && !name.value.trim()) name.value = (document.getElementById('cids-orgName') || {}).value || '';
+    }
+  }
+
+  // Rellena el formulario CI-DS desde un perfil guardado. '' = "nueva conexión"
+  // (limpia los campos). Si el perfil trae contraseña, la precarga.
+  function applyCidsProfile(id) {
+    const setV = (elId, v) => { const e = document.getElementById(elId); if (e) e.value = v; };
+    if (!id) {
+      setV('cids-hciUrl', ''); setV('cids-orgName', ''); setV('cids-user', ''); setV('cids-password', '');
+      const prod = document.getElementById('cids-isProd'); if (prod) prod.checked = true;
+      resetCidsSaveUi();
+      return;
+    }
+    const p = _loadProfiles('cids').find(x => x.id === id);
+    if (!p) return;
+    setV('cids-hciUrl', p.hciUrl || '');
+    setV('cids-orgName', p.orgName || '');
+    setV('cids-user', p.user || '');
+    setV('cids-password', p.password || '');
+    const prod = document.getElementById('cids-isProd'); if (prod) prod.checked = p.isProduction !== false;
+    // Preparar "guardar" para que reconectar actualice este mismo perfil.
+    const chk  = document.getElementById('cids-save-chk');
+    const opts = document.getElementById('cids-save-opts');
+    const name = document.getElementById('cids-save-name');
+    const pass = document.getElementById('cids-save-pass');
+    if (chk)  chk.checked  = true;
+    if (opts) opts.style.display = '';
+    if (name) name.value   = p.name || '';
+    if (pass) pass.checked = !!p.password;
+    const errEl = document.getElementById('cids-modal-error'); if (errEl) errEl.textContent = '';
+  }
+
+  function deleteCidsProfile() {
+    const sel = document.getElementById('cids-saved-select');
+    const id  = sel ? sel.value : '';
+    if (!id) return;
+    const p = _loadProfiles('cids').find(x => x.id === id);
+    if (!confirm(I18n.t('conn.saved.confirmDelete', { name: (p && p.name) || '' }))) return;
+    _deleteProfile('cids', id);
+    const preId = _renderProfileSelect('cids', 'cids-saved-group', 'cids-saved-select');
+    applyCidsProfile(preId);
+  }
+
+  // Guarda/actualiza el perfil CI-DS tras un login exitoso, si "guardar" está marcado.
+  function _persistCidsProfile(creds) {
+    const chk = document.getElementById('cids-save-chk');
+    if (!chk || !chk.checked) return;
+    const rememberPass = !!((document.getElementById('cids-save-pass') || {}).checked);
+    const name = ((document.getElementById('cids-save-name') || {}).value || '').trim() || creds.orgName || 'CI-DS';
+    const profile = {
+      id: _genProfileId(),
+      name,
+      hciUrl: creds.hciUrl,
+      orgName: creds.orgName,
+      isProduction: creds.isProduction,
+      user: creds.user,
+    };
+    if (rememberPass) profile.password = creds.password;
+    _setLastProfileId('cids', _upsertProfile('cids', profile));
   }
 
   function closeCidsModal() {
@@ -548,6 +701,7 @@ const Explorer = (function () {
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
 
       cidsConn = { hciUrl, orgName, isProduction, sessionId: data.sessionId };
+      _persistCidsProfile({ hciUrl, orgName, isProduction, user, password });
       closeCidsModal();
       renderCidsBar();
 
@@ -632,7 +786,86 @@ const Explorer = (function () {
   function openIbpModal() {
     const m = document.getElementById('ibp-modal');
     if (m) m.style.display = 'flex';
-    setTimeout(() => { const f = document.getElementById('ibp-base'); if (f) f.focus(); }, 50);
+    resetIbpSaveUi();
+    const preId = _renderProfileSelect('ibp', 'ibp-saved-group', 'ibp-saved-select');
+    if (preId) applyIbpProfile(preId);
+    setTimeout(() => {
+      const focusPass = preId && !((document.getElementById('ibp-pass') || {}).value);
+      const f = document.getElementById(focusPass ? 'ibp-pass' : 'ibp-base');
+      if (f) f.focus();
+    }, 50);
+  }
+
+  function resetIbpSaveUi() {
+    const chk  = document.getElementById('ibp-save-chk');
+    const opts = document.getElementById('ibp-save-opts');
+    const pass = document.getElementById('ibp-save-pass');
+    const name = document.getElementById('ibp-save-name');
+    if (chk)  chk.checked  = false;
+    if (pass) pass.checked = false;
+    if (name) name.value   = '';
+    if (opts) opts.style.display = 'none';
+  }
+
+  function toggleIbpSaveOpts() {
+    const chk  = document.getElementById('ibp-save-chk');
+    const opts = document.getElementById('ibp-save-opts');
+    if (opts) opts.style.display = chk && chk.checked ? '' : 'none';
+    if (chk && chk.checked) {
+      const name = document.getElementById('ibp-save-name');
+      if (name && !name.value.trim()) {
+        let host = '';
+        try { host = new URL(((document.getElementById('ibp-base') || {}).value || '').trim()).hostname; } catch (_) {}
+        name.value = host || '';
+      }
+    }
+  }
+
+  function applyIbpProfile(id) {
+    const setV = (elId, v) => { const e = document.getElementById(elId); if (e) e.value = v; };
+    if (!id) {
+      setV('ibp-base', ''); setV('ibp-user', ''); setV('ibp-pass', '');
+      resetIbpSaveUi();
+      return;
+    }
+    const p = _loadProfiles('ibp').find(x => x.id === id);
+    if (!p) return;
+    setV('ibp-base', p.base || '');
+    setV('ibp-user', p.user || '');
+    setV('ibp-pass', p.password || '');
+    const chk  = document.getElementById('ibp-save-chk');
+    const opts = document.getElementById('ibp-save-opts');
+    const name = document.getElementById('ibp-save-name');
+    const pass = document.getElementById('ibp-save-pass');
+    if (chk)  chk.checked  = true;
+    if (opts) opts.style.display = '';
+    if (name) name.value   = p.name || '';
+    if (pass) pass.checked = !!p.password;
+    const errEl = document.getElementById('ibp-modal-error'); if (errEl) errEl.textContent = '';
+  }
+
+  function deleteIbpProfile() {
+    const sel = document.getElementById('ibp-saved-select');
+    const id  = sel ? sel.value : '';
+    if (!id) return;
+    const p = _loadProfiles('ibp').find(x => x.id === id);
+    if (!confirm(I18n.t('conn.saved.confirmDelete', { name: (p && p.name) || '' }))) return;
+    _deleteProfile('ibp', id);
+    const preId = _renderProfileSelect('ibp', 'ibp-saved-group', 'ibp-saved-select');
+    applyIbpProfile(preId);
+  }
+
+  // Guarda/actualiza el perfil IBP tras una conexión exitosa, si "guardar" está marcado.
+  function _persistIbpProfile(creds) {
+    const chk = document.getElementById('ibp-save-chk');
+    if (!chk || !chk.checked) return;
+    const rememberPass = !!((document.getElementById('ibp-save-pass') || {}).checked);
+    let host = '';
+    try { host = new URL(creds.base).hostname; } catch (_) {}
+    const name = ((document.getElementById('ibp-save-name') || {}).value || '').trim() || host || 'SAP IBP';
+    const profile = { id: _genProfileId(), name, base: creds.base, user: creds.user };
+    if (rememberPass) profile.password = creds.pass;
+    _setLastProfileId('ibp', _upsertProfile('ibp', profile));
   }
 
   function closeIbpModal() {
@@ -743,6 +976,7 @@ const Explorer = (function () {
       }
       ibpConn = { base: url, user };
       ibpTaskIndex = index;
+      _persistIbpProfile({ base: url, user, pass });
       closeIbpModal();
       renderIbpBar();
       const q = (document.getElementById('ex-search') || {}).value || '';
@@ -2636,11 +2870,17 @@ const Explorer = (function () {
     submitCidsConnect,
     cidsDisconnect,
     togglePromoted,
+    applyCidsProfile,
+    deleteCidsProfile,
+    toggleCidsSaveOpts,
     openIbpModal,
     closeIbpModal,
     submitIbpConnect,
     ibpDisconnect,
     toggleIbpOnly,
+    applyIbpProfile,
+    deleteIbpProfile,
+    toggleIbpSaveOpts,
     removeAtlFile,
     toggleAtlConflictsOnly,
     toggleHelpPopover,

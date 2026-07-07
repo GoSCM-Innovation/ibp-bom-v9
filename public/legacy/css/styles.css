@@ -3743,6 +3743,30 @@ button[disabled][title]:hover::after {
   margin-top: 18px;
 }
 
+/* ── Conexiones guardadas / guardar conexión (modales CI-DS e IBP) ── */
+.cids-saved-group { margin-bottom: 16px; }
+.cids-saved-row { display: flex; gap: 8px; align-items: center; }
+.cids-saved-row select { flex: 1; cursor: pointer; }
+.cids-saved-del {
+  flex: none;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text2);
+  font-size: 13px;
+  line-height: 1;
+  padding: 8px 11px;
+  cursor: pointer;
+  transition: border-color .15s, color .15s;
+}
+.cids-saved-del:hover { border-color: var(--red); color: var(--red); }
+.cids-save-block {
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+  padding-top: 14px;
+}
+.cids-save-opts { margin-top: 6px; }
+
 /* ── SAP IBP connection (bar + toggle) ──────────────────────────── */
 #ex-ibp-bar {
   display: flex;
