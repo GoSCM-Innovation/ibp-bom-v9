@@ -24,16 +24,15 @@ let atlParsed = [];             // parsed ATL structures
 //  parallel and extracts, en una sola pasada:
 //    - descs:      Property[Name] → sap:label  (descripciones legibles)
 //    - types:      Property[Name].toUpperCase() → tipo formato HANA (NVARCHAR(36), DECIMAL(18,6)…)
-//    - roles:      Property[Name].toUpperCase() → sap:aggregation-role (dimension | measure)
 //    - entitySets: [{ name, nameUC, service }] (para resolver la entidad
 //                  destino y traer una fila de ejemplo)
 //  Devuelve estructuras vacías silenciosamente si no hay conexión IBP.
 // ════════════════════════════════════════════════════════════
 async function fetchIbpMeta() {
-  const empty = { descs: {}, types: {}, roles: {}, entitySets: [], entityProps: {} };
+  const empty = { descs: {}, types: {}, entitySets: [], entityProps: {} };
   if (typeof CFG === 'undefined' || !CFG.url || !CFG.user || !CFG.pass) return empty;
   const services = ['MASTER_DATA_API_SRV', 'PLANNING_DATA_API_SRV'];
-  const descs = {}, types = {}, roles = {}, entitySets = [], entityProps = {};
+  const descs = {}, types = {}, entitySets = [], entityProps = {};
   const results = await Promise.allSettled(
     services.map(svc => {
       return fetch('/api/ibp-proxy', {
@@ -55,14 +54,12 @@ async function fetchIbpMeta() {
       if (!name) return;
       const label = p.getAttribute('sap:label') || '';
       const type  = p.getAttribute('Type') || '';
-      const role  = p.getAttribute('sap:aggregation-role') || '';
       // MASTER_DATA_API_SRV is processed first — don't overwrite with PLANNING_DATA
       if (label && !descs[name]) descs[name] = label;
       const nameUC = name.toUpperCase();
       if (type && !(nameUC in types)) {
         types[nameUC] = formatEdmType(type, p.getAttribute('MaxLength'), p.getAttribute('Precision'), p.getAttribute('Scale'));
       }
-      if (role && !(nameUC in roles)) roles[nameUC] = role;
     });
     xml.querySelectorAll('EntitySet').forEach(es => {
       const name = es.getAttribute('Name');
@@ -98,14 +95,7 @@ async function fetchIbpMeta() {
     const reason = typeof lastError === 'number' ? `HTTP ${lastError}` : (lastError?.message || 'desconocido');
     throw new Error(reason);
   }
-  // Diagnóstico: muestra entity sets de master data que contienen 'PRODUCT'
-  // (revela el patrón de nombres <prefijo><MDT> del tenant).
-  if (typeof docsLog === 'function') {
-    const mdAll = entitySets.filter(e => e.service === 'MASTER_DATA_API_SRV');
-    const sample = mdAll.filter(e => e.nameUC.includes('PRODUCT')).slice(0, 20).map(e => e.name);
-    docsLog(`ℹ Entity sets MD=${mdAll.length} · con 'PRODUCT': ${sample.join(', ') || '(ninguno)'}`, 'l-line');
-  }
-  return { descs, types, roles, entitySets, entityProps };
+  return { descs, types, entitySets, entityProps };
 }
 
 // ── Mapear un tipo OData (Edm.*) + facetas al tipo HANA equivalente ──────────
@@ -282,10 +272,8 @@ async function enrichMappingsFromIbp(parsed, meta, sampleCache, fieldExample, fi
 
   if (tgt) {
     const missing = distinct.filter(f => !(f.toUpperCase() in fieldExample));
-    if (missing.length === 0) {
-      // Ya tenemos ejemplo de todos los campos → no se consulta.
-      docsLog(`→ Ejemplo IBP [${parsed.jobName || tgt.entitySet}]: campos ya cacheados — sin consulta`, 'l-line');
-    } else {
+    // Si ya conocemos el ejemplo de todos los campos, no se consulta (silencioso).
+    if (missing.length > 0) {
       let selectFields = [];
       let doQuery = true;
       if (tgt.service === 'PLANNING_DATA_API_SRV') {
@@ -297,15 +285,14 @@ async function enrichMappingsFromIbp(parsed, meta, sampleCache, fieldExample, fi
       }
       // master data: selectFields vacío → sin $select (se trae la fila completa)
       const key = tgt.service + '|' + tgt.entitySet + '|' + tgt.planArea + '|' + selectFields.join(',');
-      docsLog(`→ Ejemplo IBP [${parsed.jobName || tgt.entitySet}]: ${tgt.service}/${tgt.entitySet} · PA=${tgt.planArea} · $select=${selectFields.join(',') || '(fila completa)'}`, 'l-info');
+      const label = parsed.jobName || tgt.entitySet;
       if (!doQuery) {
-        docsLog(`   ⚠ sin campos válidos para $select — se omite`, 'l-warn');
+        docsLog(`⚠ Ejemplo IBP [${label}]: ${tgt.entitySet} sin campos válidos para $select`, 'l-warn');
       } else if (!(key in sampleCache)) {
         const res = await fetchIbpSampleRow(tgt.service, tgt.entitySet, tgt.planArea, selectFields);
         sampleCache[key] = res.row;
-        docsLog(`   GET ${res.url}`, 'l-line');
         if (res.row) {
-          docsLog(`   ✔ fila obtenida (${Object.keys(res.row).length} campos)`, 'l-ok');
+          docsLog(`✔ Ejemplo IBP [${label}]: ${tgt.entitySet} (${Object.keys(res.row).length} campos)`, 'l-ok');
           // Cachear cada valor por nombre de campo para reusarlo en otras integraciones.
           Object.keys(res.row).forEach(k => {
             if (k in fieldExample) return;
@@ -313,14 +300,15 @@ async function enrichMappingsFromIbp(parsed, meta, sampleCache, fieldExample, fi
             if (v !== '') fieldExample[k] = v;
           });
         } else {
-          docsLog(`   ⚠ sin fila [${res.status}] ${res.detail}`, 'l-warn');
+          docsLog(`⚠ Ejemplo IBP [${label}]: ${tgt.entitySet} — [${res.status}] ${res.detail}`, 'l-warn');
+          docsLog(`   GET ${res.url}`, 'l-line');
         }
       }
       sample = (doQuery && (key in sampleCache)) ? sampleCache[key] : null;
     }
   } else if ((parsed.tipoIntegracion || '').toUpperCase() !== 'FILE') {
     const pa = ((typeof CFG !== 'undefined' && CFG.pa) || parsed.planArea || '');
-    docsLog(`→ Ejemplo IBP [${parsed.jobName || parsed.targetTable}]: sin entidad resuelta (tabla=${parsed.targetTable || '?'}, tipo=${parsed.tipoIntegracion || '?'}, PA=${pa || '(ninguna)'})`, 'l-warn');
+    docsLog(`⚠ Ejemplo IBP [${parsed.jobName || parsed.targetTable}]: sin entidad resuelta (tabla=${parsed.targetTable || '?'}, tipo=${parsed.tipoIntegracion || '?'}, PA=${pa || '(ninguna)'})`, 'l-warn');
   }
 
   parsed.mappings.forEach(m => {
@@ -1682,7 +1670,7 @@ async function buildExcel() {
 
   // ── Fetch IBP metadata (MASTER_DATA_API_SRV + PLANNING_DATA_API_SRV)
   docsLog(I18n.t('docs.log.fetchingIbpDescs'), 'l-info');
-  let meta = { descs: {}, types: {}, roles: {}, entitySets: [], entityProps: {} };
+  let meta = { descs: {}, types: {}, entitySets: [], entityProps: {} };
   try {
     meta = await fetchIbpMeta();
     const n = Object.keys(meta.descs).length;
@@ -2704,7 +2692,7 @@ async function generateFromJobs() {
 
   // ── Build Excel
   docsLog(I18n.t('docs.log.fetchingIbpDescs'), 'l-info');
-  let meta = { descs: {}, types: {}, roles: {}, entitySets: [], entityProps: {} };
+  let meta = { descs: {}, types: {}, entitySets: [], entityProps: {} };
   try {
     meta = await fetchIbpMeta();
     const n = Object.keys(meta.descs).length;

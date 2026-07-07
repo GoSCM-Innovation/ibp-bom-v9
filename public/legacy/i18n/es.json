@@ -479,8 +479,6 @@
   "docs.log.ibpDescsOk": "✔ {n} descripciones de campos obtenidas de IBP",
   "docs.log.ibpDescsEmpty": "⚠ Sin descripciones IBP",
   "docs.log.noIbpFallback": "⚠ Sin conexión a IBP — se usarán descripciones del XML",
-  "docs.log.ibpSampleOk": "✔ Fila de ejemplo obtenida de {entity} (PA {pa})",
-  "docs.log.ibpSampleEmpty": "⚠ Sin fila de ejemplo para {entity} (PA {pa})",
   "docs.log.ibpQueryFailed": "⚠ No se pudo consultar IBP: {err}",
   "docs.log.done": "✅ Listo — {jobs} jobs · {maps} mapeos · {filts} filtros",
   "docs.log.doneZj": "✅ Listo — {ints} integraciones · {maps} mapeos · {filts} filtros",

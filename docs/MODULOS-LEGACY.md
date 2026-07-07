@@ -54,7 +54,7 @@ Se migraron desde el repositorio `ibp-bom-v7` (una app vanilla JS de GoSCM servi
 
 Genera un Excel de documentación a partir de exports ZIP de proyectos SAP CI-DS: por cada dataflow extrae mapeos, filtros, lookups y variables, y los vuelca a una planilla.
 
-La conexión a SAP IBP es **opcional** (panel en la propia página → rellena `CFG.url`/`CFG.user`/`CFG.pass`). Usa Basic Auth con un communication user y sirve para dos cosas: enriquecer las descripciones de campos y habilitar los modos basados en Application Jobs.
+La conexión a SAP IBP es **opcional** (panel en la propia página → rellena `CFG.url`/`CFG.user`/`CFG.pass`; al conectar se cargan las planning areas del tenant en un selector que fija `CFG.pa`). Usa Basic Auth con un communication user y sirve para tres cosas: enriquecer las descripciones y tipos de campo, traer una fila de datos real como ejemplo, y habilitar los modos basados en Application Jobs.
 
 ### Parser CI-DS compartido
 
@@ -62,7 +62,7 @@ Definido en `docs.js` y reutilizado también por el Explorer:
 - `parseBatchCsv(zip)`: extrae `batch.csv` del ZIP → metadatos de datastores por XML.
 - `parseIntegration(xmlStr, batchEntry)`: parsea el XML de la integración → array de objetos `parsed`.
 
-Campos relevantes del objeto `parsed`: `jobName`, `dataflowName`, `dataflowGuid`, `tipoIntegracion` (`MD` \| `KF` \| `FILE`), `targetTable`, `srcDSName`, `dstDSName`, `fileLoaderFileName`, `mappings`, `filters`, `lookups`, `variables`.
+Campos relevantes del objeto `parsed`: `jobName`, `dataflowName`, `dataflowGuid`, `tipoIntegracion` (`MD` \| `KF` \| `FILE`), `targetTable`, `srcDSName`, `dstDSName`, `fileLoaderFileName`, `mappings`, `filters`, `lookups`, `variables`, `planArea` (de `$G_PLAN_AREA`, fallback del `PLANNINGAREA`).
 
 ### Modos
 
@@ -72,20 +72,25 @@ Campos relevantes del objeto `parsed`: `jobName`, `dataflowName`, `dataflowGuid`
 
 ### Enriquecimiento desde IBP
 
-- `fetchIbpFieldDescriptions()`: pide el `$metadata` de `MASTER_DATA_API_SRV` y `PLANNING_DATA_API_SRV` en paralelo y extrae las etiquetas (`sap:label`) de los campos. Si hay conexión cargada pero las llamadas fallan, propaga el motivo real (p. ej. `HTTP 404`) para que el log lo muestre, en vez de un genérico "Sin conexión a IBP".
+- `fetchIbpMeta()`: pide el `$metadata` de `MASTER_DATA_API_SRV` y `PLANNING_DATA_API_SRV` en paralelo y, en una sola pasada, devuelve `{ descs, types, roles, entitySets, entityProps }`: descripciones (`sap:label`), tipos formateados a estilo HANA (`formatEdmType`: `Edm.String`+`MaxLength` → `NVARCHAR(36)`, `Edm.Decimal` P/S → `DECIMAL(18,6)`…), rol de agregación (`dimension`/`measure`), la lista de entity sets y las propiedades reales por entidad de planning. Si hay conexión pero todas las llamadas fallan, propaga el motivo real (p. ej. `HTTP 404`) en vez de un genérico "Sin conexión a IBP".
+- **Columnas "Tipo de dato (IBP)" y "Ejemplo (IBP)"** en la hoja de detalle: el tipo sale de `types`; el ejemplo es un valor real traído con `$top=1`.
+  - `fetchPlanningAreaList()` (llamada desde el script inline del HTML al conectar) deriva las planning areas del `$metadata` de planning (entity sets con sufijo `Trans` cuyo base existe) y llena el selector → `CFG.pa`.
+  - `resolveTargetEntity(parsed, entitySets)` resuelve la entidad OData destino: en **KF** es el planning area (`CFG.pa`/`$G_PLAN_AREA`); en **MD** normaliza la tabla de staging de CI-DS (`SOPMD_STAG_…`) y la casa contra los entity sets (`AS1<MDT>`). `PLANNINGAREA` es query param obligatorio.
+  - `fetchIbpSampleRow(...)` trae la fila (planning exige `$select` con propiedades existentes — descarta `KEYFIGUREDATE` y demás campos de staging inexistentes; MD trae la fila completa). Los KF con conversión de moneda (`CURRTOID`) fallan y quedan en blanco.
+  - `enrichMappingsFromIbp(...)` + `backfillFromCache(...)`: cachean por nombre de campo (`fieldExample`, `fieldDesc`) para reusar valores/descripciones entre datastores y evitar consultas repetidas; una pasada final rellena lo que quedó vacío con el cache ya completo.
 - Resolución de `P_TSKID`: una sola consulta a `JobTemplateParameterValueDataSet` con filtro `startswith(JobTemplateParameterName,'P_TSKID')` devuelve el nombre técnico del task CI-DS de cada step, invariable aunque el usuario haya renombrado el paso en IBP.
 
 ### Salida
 
-El `.xlsx` se construye **a mano como OOXML** (`SheetBuilder` + `assembleXlsx`, empaquetado con JSZip), fiel a la plantilla `plantilla_documentador.xlsx`. Tiene una hoja "Parámetros" (resumen; las columnas varían según el modo) y una hoja de detalle por integración (mapeos, filtros, lookups). Se descarga como `SAP_CIDS_Documentacion_<fecha>.xlsx` (`downloadExcel`).
+El `.xlsx` se construye **a mano como OOXML** (`SheetBuilder` + `assembleXlsx`, empaquetado con JSZip), fiel a la plantilla `plantilla_documentador.xlsx`. Tiene una hoja "Parámetros" (resumen; las columnas varían según el modo) y una hoja de detalle por integración (mapeos con Tipo de dato + Ejemplo de IBP, filtros, variables, lookups). Se descarga como `SAP_CIDS_Documentacion_<fecha>.xlsx` (`downloadExcel`).
 
 ### Backend
 
-Todas las llamadas a IBP pasan por [api/ibp-proxy.js](../api/ibp-proxy.js) (`apiJson`/`apiXml`/`apiJsonNext` → `kind: 'json' | 'xml' | 'next'`). El proxy hace Basic Auth saliente con el communication user, valida el host (HTTPS + sufijo `.ondemand.com` + rechazo de IPs privadas + chequeo SSRF por DNS) y solo permite los servicios `MASTER_DATA_API_SRV`, `PLANNING_DATA_API_SRV` y `BC_EXT_APPJOB_MANAGEMENT`.
+Todas las llamadas a IBP pasan por [api/ibp-proxy.js](../api/ibp-proxy.js) (`apiJson`/`apiXml`/`apiJsonNext` → `kind: 'json' | 'xml' | 'next'`). El proxy hace Basic Auth saliente con el communication user, valida el host (HTTPS + sufijo `.ondemand.com` + rechazo de IPs privadas + chequeo SSRF por DNS) y solo permite los servicios `MASTER_DATA_API_SRV`, `PLANNING_DATA_API_SRV` y `BC_EXT_APPJOB_MANAGEMENT`. En error de la rama `json` reenvía el mensaje real de SAP en `detail` (`extractSapError`) para diagnóstico en el log.
 
 ### Funciones principales
 
-`generate`, `buildExcel`, `downloadExcel`, `switchDocsMode`, `fetchAndDisplayJobs`, `generateFromJobs`, `generateZipJobs`, `parseBatchCsv`, `parseIntegration`, `parseATL`, `matchATLtoIntegrations`, `fetchIbpFieldDescriptions`, `assembleXlsx`, `buildParamSheet`, `buildIntegrationSheet`, `SheetBuilder`.
+`generate`, `buildExcel`, `downloadExcel`, `switchDocsMode`, `fetchAndDisplayJobs`, `generateFromJobs`, `generateZipJobs`, `parseBatchCsv`, `parseIntegration`, `parseATL`, `matchATLtoIntegrations`, `fetchIbpMeta`, `fetchPlanningAreaList`, `resolveTargetEntity`, `fetchIbpSampleRow`, `formatEdmType`, `formatIbpExample`, `enrichMappingsFromIbp`, `backfillFromCache`, `assembleXlsx`, `buildParamSheet`, `buildIntegrationSheet`, `SheetBuilder`.
 
 ## 5. Integration Explorer (`explorer.js`)
 
