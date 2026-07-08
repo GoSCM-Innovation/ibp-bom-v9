@@ -525,7 +525,13 @@ const Explorer = (function () {
   function _loadProfiles(kind) {
     try {
       const arr = JSON.parse(localStorage.getItem(PROFILE_STORE[kind].list) || '[]');
-      return Array.isArray(arr) ? arr : [];
+      if (!Array.isArray(arr)) return [];
+      // Saneo: las contraseñas nunca se almacenan. Si un perfil quedó guardado con
+      // una versión previa que sí las guardaba, se elimina y se reescribe limpio.
+      let hadPass = false;
+      arr.forEach(p => { if (p && 'password' in p) { delete p.password; hadPass = true; } });
+      if (hadPass) _saveProfiles(kind, arr);
+      return arr;
     } catch (_) { return []; }
   }
   function _saveProfiles(kind, arr) {
@@ -592,10 +598,8 @@ const Explorer = (function () {
   function resetCidsSaveUi() {
     const chk  = document.getElementById('cids-save-chk');
     const opts = document.getElementById('cids-save-opts');
-    const pass = document.getElementById('cids-save-pass');
     const name = document.getElementById('cids-save-name');
     if (chk)  chk.checked  = false;
-    if (pass) pass.checked = false;
     if (name) name.value   = '';
     if (opts) opts.style.display = 'none';
   }
@@ -625,17 +629,16 @@ const Explorer = (function () {
     setV('cids-hciUrl', p.hciUrl || '');
     setV('cids-orgName', p.orgName || '');
     setV('cids-user', p.user || '');
-    setV('cids-password', p.password || '');
+    setV('cids-password', '');
     const prod = document.getElementById('cids-isProd'); if (prod) prod.checked = p.isProduction !== false;
-    // Preparar "guardar" para que reconectar actualice este mismo perfil.
+    // Preparar "guardar" para que reconectar actualice este mismo perfil. La
+    // contraseña nunca se precarga: siempre se escribe al conectar.
     const chk  = document.getElementById('cids-save-chk');
     const opts = document.getElementById('cids-save-opts');
     const name = document.getElementById('cids-save-name');
-    const pass = document.getElementById('cids-save-pass');
     if (chk)  chk.checked  = true;
     if (opts) opts.style.display = '';
     if (name) name.value   = p.name || '';
-    if (pass) pass.checked = !!p.password;
     const errEl = document.getElementById('cids-modal-error'); if (errEl) errEl.textContent = '';
   }
 
@@ -650,22 +653,20 @@ const Explorer = (function () {
     applyCidsProfile(preId);
   }
 
-  // Guarda/actualiza el perfil CI-DS tras un login exitoso, si "guardar" está marcado.
+  // Guarda/actualiza el perfil CI-DS tras un login exitoso, si "guardar" está
+  // marcado. La contraseña nunca se persiste.
   function _persistCidsProfile(creds) {
     const chk = document.getElementById('cids-save-chk');
     if (!chk || !chk.checked) return;
-    const rememberPass = !!((document.getElementById('cids-save-pass') || {}).checked);
     const name = ((document.getElementById('cids-save-name') || {}).value || '').trim() || creds.orgName || 'CI-DS';
-    const profile = {
+    _setLastProfileId('cids', _upsertProfile('cids', {
       id: _genProfileId(),
       name,
       hciUrl: creds.hciUrl,
       orgName: creds.orgName,
       isProduction: creds.isProduction,
       user: creds.user,
-    };
-    if (rememberPass) profile.password = creds.password;
-    _setLastProfileId('cids', _upsertProfile('cids', profile));
+    }));
   }
 
   function closeCidsModal() {
@@ -701,7 +702,7 @@ const Explorer = (function () {
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
 
       cidsConn = { hciUrl, orgName, isProduction, sessionId: data.sessionId };
-      _persistCidsProfile({ hciUrl, orgName, isProduction, user, password });
+      _persistCidsProfile({ hciUrl, orgName, isProduction, user });
       closeCidsModal();
       renderCidsBar();
 
@@ -799,10 +800,8 @@ const Explorer = (function () {
   function resetIbpSaveUi() {
     const chk  = document.getElementById('ibp-save-chk');
     const opts = document.getElementById('ibp-save-opts');
-    const pass = document.getElementById('ibp-save-pass');
     const name = document.getElementById('ibp-save-name');
     if (chk)  chk.checked  = false;
-    if (pass) pass.checked = false;
     if (name) name.value   = '';
     if (opts) opts.style.display = 'none';
   }
@@ -832,15 +831,13 @@ const Explorer = (function () {
     if (!p) return;
     setV('ibp-base', p.base || '');
     setV('ibp-user', p.user || '');
-    setV('ibp-pass', p.password || '');
+    setV('ibp-pass', '');
     const chk  = document.getElementById('ibp-save-chk');
     const opts = document.getElementById('ibp-save-opts');
     const name = document.getElementById('ibp-save-name');
-    const pass = document.getElementById('ibp-save-pass');
     if (chk)  chk.checked  = true;
     if (opts) opts.style.display = '';
     if (name) name.value   = p.name || '';
-    if (pass) pass.checked = !!p.password;
     const errEl = document.getElementById('ibp-modal-error'); if (errEl) errEl.textContent = '';
   }
 
@@ -855,17 +852,15 @@ const Explorer = (function () {
     applyIbpProfile(preId);
   }
 
-  // Guarda/actualiza el perfil IBP tras una conexión exitosa, si "guardar" está marcado.
+  // Guarda/actualiza el perfil IBP tras una conexión exitosa, si "guardar" está
+  // marcado. La contraseña nunca se persiste.
   function _persistIbpProfile(creds) {
     const chk = document.getElementById('ibp-save-chk');
     if (!chk || !chk.checked) return;
-    const rememberPass = !!((document.getElementById('ibp-save-pass') || {}).checked);
     let host = '';
     try { host = new URL(creds.base).hostname; } catch (_) {}
     const name = ((document.getElementById('ibp-save-name') || {}).value || '').trim() || host || 'SAP IBP';
-    const profile = { id: _genProfileId(), name, base: creds.base, user: creds.user };
-    if (rememberPass) profile.password = creds.pass;
-    _setLastProfileId('ibp', _upsertProfile('ibp', profile));
+    _setLastProfileId('ibp', _upsertProfile('ibp', { id: _genProfileId(), name, base: creds.base, user: creds.user }));
   }
 
   function closeIbpModal() {
@@ -976,7 +971,7 @@ const Explorer = (function () {
       }
       ibpConn = { base: url, user };
       ibpTaskIndex = index;
-      _persistIbpProfile({ base: url, user, pass });
+      _persistIbpProfile({ base: url, user });
       closeIbpModal();
       renderIbpBar();
       const q = (document.getElementById('ex-search') || {}).value || '';

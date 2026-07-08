@@ -356,8 +356,7 @@
   "conn.save.check": "Guardar esta conexión para reutilizarla",
   "conn.save.name": "Nombre de la conexión",
   "conn.save.namePh": "ej. Prod, QA…",
-  "conn.save.rememberPass": "Recordar contraseña en este navegador",
-  "conn.save.passWarn": "La contraseña se guardará sin cifrar en este navegador. Evítalo en equipos compartidos.",
+  "conn.save.passNote": "La contraseña no se guarda; la escribes al conectar.",
 
   "common.loading": "Cargando…",
   "common.starting": "Iniciando...",

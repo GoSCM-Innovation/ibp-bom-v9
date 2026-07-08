@@ -356,8 +356,7 @@
   "conn.save.check": "Save this connection to reuse it",
   "conn.save.name": "Connection name",
   "conn.save.namePh": "e.g. Prod, QA…",
-  "conn.save.rememberPass": "Remember password in this browser",
-  "conn.save.passWarn": "The password will be stored unencrypted in this browser. Avoid on shared computers.",
+  "conn.save.passNote": "The password is not saved; you enter it when connecting.",
 
   "common.loading": "Loading…",
   "common.starting": "Starting...",
