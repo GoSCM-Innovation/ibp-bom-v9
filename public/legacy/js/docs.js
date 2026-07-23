@@ -221,10 +221,15 @@ function resolveTargetEntity(parsed, entitySets) {
 // PLANNINGAREA es query param obligatorio en MASTER_DATA / PLANNING_DATA API.
 // $select es obligatorio en planning data (la entidad del PA exige "al menos un
 // atributo o key figure"); selectFields lista los campos destino a traer.
+// Se traen varias filas ($top=N) y, por cada campo, se toma el PRIMER valor no
+// vacío entre ellas: así el ejemplo no queda en blanco cuando la primera fila no
+// tiene valor para ese campo (que haría parecer la documentación incompleta).
+// El "row" devuelto es un compuesto de valores reales por campo, no una fila única.
+// topN es el tamaño de la muestra (por defecto 50; se escala a 200 si faltan campos).
 // Devuelve { row:{FIELD_UC:value}|null, status, detail, url } para poder loguear.
-async function fetchIbpSampleRow(service, entitySet, planArea, selectFields) {
+async function fetchIbpSampleRow(service, entitySet, planArea, selectFields, topN) {
   const sel = (selectFields && selectFields.length) ? '&$select=' + selectFields.join(',') : '';
-  const query = '$top=1&$format=json' + sel + '&PLANNINGAREA=' + encodeURIComponent(planArea);
+  const query = '$top=' + (topN || 50) + '&$format=json' + sel + '&PLANNINGAREA=' + encodeURIComponent(planArea);
   const url = `${CFG.url}/sap/opu/odata/IBP/${service}/${entitySet}?${query}`;
   try {
     const resp = await fetch('/api/ibp-proxy', {
@@ -238,13 +243,45 @@ async function fetchIbpSampleRow(service, entitySet, planArea, selectFields) {
       return { row: null, status: resp.status, detail, url };
     }
     const rows = (data.d && data.d.results) ? data.d.results : (data.value || []);
-    const r = rows[0];
-    if (!r) return { row: null, status: 200, detail: 'respuesta sin filas', url };
+    if (!rows.length) return { row: null, status: 200, detail: 'respuesta sin filas', url };
+    // Compuesto: primer valor NO vacío de cada campo a lo largo de las filas.
     const out = {};
-    Object.keys(r).forEach(k => { out[k.toUpperCase()] = r[k]; });
+    for (const r of rows) {
+      for (const k of Object.keys(r)) {
+        const ku = k.toUpperCase();
+        if (ku in out) continue;
+        if (formatIbpExample(r[k]) !== '') out[ku] = r[k];
+      }
+    }
     return { row: out, status: 200, detail: '', url };
   } catch (e) {
     return { row: null, status: 0, detail: e.message || 'error de red', url };
+  }
+}
+
+// ── Consulta dirigida (solo master data): trae UN valor NO vacío de un campo,
+// filtrando `CAMPO ne ''`. Se usa como respaldo cuando la consulta masiva dejó
+// ese campo vacío (dato disperso). Devuelve el valor crudo o null. Nunca lanza.
+// (En planning no aplica: seleccionar un solo atributo lo rechaza el servicio.)
+async function fetchFieldExampleMD(entitySet, planArea, field) {
+  const filter = encodeURIComponent(field + " ne ''");
+  const query = '$top=1&$format=json&$select=' + field + '&$filter=' + filter +
+                '&PLANNINGAREA=' + encodeURIComponent(planArea);
+  try {
+    const resp = await fetch('/api/ibp-proxy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ kind: 'json', base: CFG.url, service: 'MASTER_DATA_API_SRV', path: entitySet, query, user: CFG.user, password: CFG.pass })
+    });
+    if (!resp.ok) return null;
+    const data = await resp.json().catch(() => null);
+    const rows = (data && data.d && data.d.results) ? data.d.results : ((data && data.value) || []);
+    const r = rows[0];
+    if (!r) return null;
+    const v = r[field] !== undefined ? r[field] : r[Object.keys(r).find(k => k.toUpperCase() === field.toUpperCase())];
+    return (formatIbpExample(v) !== '') ? v : null;
+  } catch {
+    return null;
   }
 }
 
@@ -269,7 +306,7 @@ function formatIbpExample(v) {
 //     ya conocemos el ejemplo de todos los campos de la integración, no se consulta.
 //     Y los campos atributo de un KF que falla (conversión de moneda) se rellenan
 //     igual desde lo ya cacheado en master data.
-async function enrichMappingsFromIbp(parsed, meta, sampleCache, fieldExample, fieldDesc) {
+async function enrichMappingsFromIbp(parsed, meta, sampleCache, fieldExample, fieldDesc, fieldTried) {
   const tgt = resolveTargetEntity(parsed, meta.entitySets);
   const distinct = [...new Set(parsed.mappings.map(m => m.dstField).filter(Boolean))];
   let sample = null;
@@ -288,27 +325,54 @@ async function enrichMappingsFromIbp(parsed, meta, sampleCache, fieldExample, fi
         doQuery = selectFields.length > 0;
       }
       // master data: selectFields vacío → sin $select (se trae la fila completa)
-      const key = tgt.service + '|' + tgt.entitySet + '|' + tgt.planArea + '|' + selectFields.join(',');
       const label = parsed.jobName || tgt.entitySet;
       if (!doQuery) {
         docsLog(`⚠ Ejemplo IBP [${label}]: ${tgt.entitySet} sin campos válidos para $select`, 'l-warn');
-      } else if (!(key in sampleCache)) {
-        const res = await fetchIbpSampleRow(tgt.service, tgt.entitySet, tgt.planArea, selectFields);
-        sampleCache[key] = res.row;
-        if (res.row) {
-          docsLog(`✔ Ejemplo IBP [${label}]: ${tgt.entitySet} (${Object.keys(res.row).length} campos)`, 'l-ok');
-          // Cachear cada valor por nombre de campo para reusarlo en otras integraciones.
-          Object.keys(res.row).forEach(k => {
-            if (k in fieldExample) return;
-            const v = formatIbpExample(res.row[k]);
-            if (v !== '') fieldExample[k] = v;
-          });
-        } else {
-          docsLog(`⚠ Ejemplo IBP [${label}]: ${tgt.entitySet} — [${res.status}] ${res.detail}`, 'l-warn');
-          docsLog(`   GET ${res.url}`, 'l-line');
+      } else {
+        // Campos que necesitamos rellenar para esta entidad.
+        const needed = (tgt.service === 'PLANNING_DATA_API_SRV') ? selectFields : distinct;
+        // Muestra escalable: 50 y, si aún faltan campos, 200. Si con 200 tampoco → en blanco.
+        for (const topN of [50, 200]) {
+          const key = tgt.service + '|' + tgt.entitySet + '|' + tgt.planArea + '|' + selectFields.join(',') + '|' + topN;
+          if (!(key in sampleCache)) {
+            const res = await fetchIbpSampleRow(tgt.service, tgt.entitySet, tgt.planArea, selectFields, topN);
+            sampleCache[key] = res.row;
+            if (res.row) {
+              docsLog(`✔ Ejemplo IBP [${label}]: ${tgt.entitySet} (${Object.keys(res.row).length} campos, top ${topN})`, 'l-ok');
+              // Cachear cada valor por nombre de campo para reusarlo en otras integraciones.
+              Object.keys(res.row).forEach(k => {
+                if (k in fieldExample) return;
+                const v = formatIbpExample(res.row[k]);
+                if (v !== '') fieldExample[k] = v;
+              });
+            } else {
+              docsLog(`⚠ Ejemplo IBP [${label}]: ${tgt.entitySet} — [${res.status}] ${res.detail} (top ${topN})`, 'l-warn');
+              docsLog(`   GET ${res.url}`, 'l-line');
+            }
+          }
+          // Acumular en el compuesto de esta entidad (lo ya visto tiene prioridad).
+          const r = sampleCache[key];
+          if (r) sample = Object.assign({}, r, sample || {});
+          // Si ya no falta ningún campo, no escalar a 200.
+          if (needed.every(f => (f.toUpperCase() in fieldExample))) break;
         }
       }
-      sample = (doQuery && (key in sampleCache)) ? sampleCache[key] : null;
+    }
+
+    // Respaldo dirigido (master data): para los campos de texto que siguen vacíos,
+    // consultar UN valor no vacío con $filter=CAMPO ne ''. Una vez por campo (global).
+    if (tgt.service === 'MASTER_DATA_API_SRV') {
+      for (const f of distinct) {
+        const fUC = f.toUpperCase();
+        if (fUC in fieldExample || fieldTried.has(fUC)) continue;
+        if (!(meta.types[fUC] || '').startsWith('NVARCHAR')) continue; // solo texto
+        fieldTried.add(fUC);
+        const v = await fetchFieldExampleMD(tgt.entitySet, tgt.planArea, f);
+        if (v !== null && formatIbpExample(v) !== '') {
+          fieldExample[fUC] = formatIbpExample(v);
+          docsLog(`   ↳ ejemplo dirigido ${f} = ${fieldExample[fUC]}`, 'l-line');
+        }
+      }
     }
   } else if ((parsed.tipoIntegracion || '').toUpperCase() !== 'FILE') {
     const pa = ((typeof CFG !== 'undefined' && CFG.pa) || parsed.planArea || '');
@@ -1695,15 +1759,16 @@ async function buildExcel() {
   const sheets   = [];
   const paramRows = [];
   let totalJobs = 0, totalMaps = 0, totalFilts = 0;
-  const sampleCache = {};   // "service|entitySet|PA|select" -> row | null
+  const sampleCache = {};   // "service|entitySet|PA|select|topN" -> row | null
   const fieldExample = {};  // FIELD_UC -> valor de ejemplo (reuso entre datastores)
   const fieldDesc = {};     // FIELD_UC -> descripción (sembrado con labels de $metadata)
+  const fieldTried = new Set();  // FIELD_UC ya intentados con consulta dirigida (evita repetir)
   Object.keys(meta.descs).forEach(k => { fieldDesc[k.toUpperCase()] = meta.descs[k]; });
 
   // Fase 1: enriquecer (calienta los caches); las hojas se construyen después.
   for (const item of selected) {
     const { parsed, paramRow } = item;
-    await enrichMappingsFromIbp(parsed, meta, sampleCache, fieldExample, fieldDesc);
+    await enrichMappingsFromIbp(parsed, meta, sampleCache, fieldExample, fieldDesc, fieldTried);
     totalJobs++;
     totalMaps  += parsed.mappings.length;
     totalFilts += parsed.filters.length;
@@ -2744,9 +2809,10 @@ async function generateFromJobs() {
   const sheets = [];
   const paramRows = [];
   let totalJobs = 0, totalMaps = 0, totalFilts = 0;
-  const sampleCache = {};   // "service|entitySet|PA|select" -> row | null
+  const sampleCache = {};   // "service|entitySet|PA|select|topN" -> row | null
   const fieldExample = {};  // FIELD_UC -> valor de ejemplo (reuso entre datastores)
   const fieldDesc = {};     // FIELD_UC -> descripción (sembrado con labels de $metadata)
+  const fieldTried = new Set();  // FIELD_UC ya intentados con consulta dirigida (evita repetir)
   Object.keys(meta.descs).forEach(k => { fieldDesc[k.toUpperCase()] = meta.descs[k]; });
 
   // ── Collect non-CI-DS steps as informational rows (no detail sheet)
@@ -2787,7 +2853,7 @@ async function generateFromJobs() {
   for (const row of allRows) {
     if (!row.isNonDI) {
       const { parsed, paramRow } = row;
-      await enrichMappingsFromIbp(parsed, meta, sampleCache, fieldExample, fieldDesc);
+      await enrichMappingsFromIbp(parsed, meta, sampleCache, fieldExample, fieldDesc, fieldTried);
       totalJobs++;
       totalMaps += parsed.mappings.length;
       totalFilts += parsed.filters.length;
