@@ -221,10 +221,15 @@ function resolveTargetEntity(parsed, entitySets) {
 // PLANNINGAREA es query param obligatorio en MASTER_DATA / PLANNING_DATA API.
 // $select es obligatorio en planning data (la entidad del PA exige "al menos un
 // atributo o key figure"); selectFields lista los campos destino a traer.
+// Se traen varias filas ($top=N) y, por cada campo, se toma el PRIMER valor no
+// vacío entre ellas: así el ejemplo no queda en blanco cuando la primera fila no
+// tiene valor para ese campo (que haría parecer la documentación incompleta).
+// El "row" devuelto es un compuesto de valores reales por campo, no una fila única.
 // Devuelve { row:{FIELD_UC:value}|null, status, detail, url } para poder loguear.
+const SAMPLE_ROWS = 50;
 async function fetchIbpSampleRow(service, entitySet, planArea, selectFields) {
   const sel = (selectFields && selectFields.length) ? '&$select=' + selectFields.join(',') : '';
-  const query = '$top=1&$format=json' + sel + '&PLANNINGAREA=' + encodeURIComponent(planArea);
+  const query = '$top=' + SAMPLE_ROWS + '&$format=json' + sel + '&PLANNINGAREA=' + encodeURIComponent(planArea);
   const url = `${CFG.url}/sap/opu/odata/IBP/${service}/${entitySet}?${query}`;
   try {
     const resp = await fetch('/api/ibp-proxy', {
@@ -238,10 +243,16 @@ async function fetchIbpSampleRow(service, entitySet, planArea, selectFields) {
       return { row: null, status: resp.status, detail, url };
     }
     const rows = (data.d && data.d.results) ? data.d.results : (data.value || []);
-    const r = rows[0];
-    if (!r) return { row: null, status: 200, detail: 'respuesta sin filas', url };
+    if (!rows.length) return { row: null, status: 200, detail: 'respuesta sin filas', url };
+    // Compuesto: primer valor NO vacío de cada campo a lo largo de las filas.
     const out = {};
-    Object.keys(r).forEach(k => { out[k.toUpperCase()] = r[k]; });
+    for (const r of rows) {
+      for (const k of Object.keys(r)) {
+        const ku = k.toUpperCase();
+        if (ku in out) continue;
+        if (formatIbpExample(r[k]) !== '') out[ku] = r[k];
+      }
+    }
     return { row: out, status: 200, detail: '', url };
   } catch (e) {
     return { row: null, status: 0, detail: e.message || 'error de red', url };
