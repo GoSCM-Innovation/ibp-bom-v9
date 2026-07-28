@@ -33,3 +33,4 @@ dist-ssr
 
 # Project-internal docs (not for public repos)
 docs/*.wsdl
+test_files/
