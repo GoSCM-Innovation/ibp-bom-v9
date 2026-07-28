@@ -582,7 +582,11 @@ function parseTransforms(dfEl) {
 //   1. "quoted"."field" or "quoted".field   — BW InfoObjects, e.g. "/BI0/PSALES_OFF".SALES_OFF
 //   2. unquoted."quoted-field"              — e.g. Transform3."/BIC/ZCUSTOMER"
 //   3. unquoted.unquoted                    — standard SAP, e.g. MARA.MATNR
-const _REF = /(?:"([^"]+)"\s*\.\s*(?:"([^"]+)"|([A-Za-z_\/][A-Za-z0-9_\/]*)))|(?:\b([A-Za-z_][A-Za-z0-9_]*)\s*\.\s*"([^"]+)")|(?:\b([A-Za-z_][A-Za-z0-9_]*)\s*\.\s*([A-Za-z_\/][A-Za-z0-9_\/]*))/g;
+// El nombre de campo SIN comillas no puede contener "/": en una división sin
+// espacios (Transform6.VGW01/Transform6.BMSCH) el "/" se tragaba el operador y
+// la referencia siguiente, dejando la expresión sin expandir. Los nombres con
+// "/" (BW InfoObjects, /SPMEAT/…) siempre vienen entrecomillados → casos 1 y 2.
+const _REF = /(?:"([^"]+)"\s*\.\s*(?:"([^"]+)"|([A-Za-z_][A-Za-z0-9_]*)))|(?:\b([A-Za-z_][A-Za-z0-9_]*)\s*\.\s*"([^"]+)")|(?:\b([A-Za-z_][A-Za-z0-9_]*)\s*\.\s*([A-Za-z_][A-Za-z0-9_]*))/g;
 
 // Extract { schema, field } from a regex match of _REF
 function refFromMatch(m) {
@@ -591,10 +595,54 @@ function refFromMatch(m) {
   return { schema: m[6], field: m[7] };                                    // unquoted.unquoted
 }
 
+// ¿La sub-expresión ya es un átomo (una referencia, un literal o una llamada a
+// función completa)? Si no lo es, hay que envolverla en paréntesis al
+// sustituirla: expandir "Transform8.BMSCH" (= "T5.BMSCH * (MARM.UMREZ/…)")
+// dentro de "VGW01 / Transform8.BMSCH" sin paréntesis cambia la semántica
+// (a/b*c en vez de a/(b*c)).
+function _isAtomicExpr(s) {
+  const t = (s || '').trim();
+  if (!t) return true;
+  // Referencia TABLA.CAMPO / identificador / número / literal entrecomillado
+  const ATOM = /^(?:"[^"]+"|'[^']*'|-?\d+(?:\.\d+)?|[A-Za-z_][A-Za-z0-9_]*)(?:\s*\.\s*(?:"[^"]+"|[A-Za-z_][A-Za-z0-9_]*))*$/;
+  if (ATOM.test(t)) return true;
+  // Llamada a función completa — func(...) — o expresión ya entre paréntesis
+  const open = t.indexOf('(');
+  if (open === -1 || !t.endsWith(')')) return false;
+  const head = t.slice(0, open).trim();
+  if (head && !/^[A-Za-z_][A-Za-z0-9_]*$/.test(head)) return false;
+  let depth = 0;
+  for (let i = open; i < t.length; i++) {
+    if (t[i] === '(') depth++;
+    else if (t[i] === ')') { depth--; if (depth === 0) return i === t.length - 1; }
+  }
+  return false;
+}
+
+// Quita el par de paréntesis exterior cuando envuelve TODA la expresión.
+// Solo se usa al final (depth 0): los paréntesis que añade expandExpr son
+// necesarios dentro de una expresión mayor, pero sobran en el nivel superior.
+function _stripOuterParens(s) {
+  let t = (s || '').trim();
+  for (;;) {
+    if (!t.startsWith('(') || !t.endsWith(')')) return t;
+    let depth = 0, q = '';
+    for (let i = 0; i < t.length; i++) {
+      const c = t[i];
+      if (q) { if (c === q) q = ''; continue; }
+      if (c === "'" || c === '"') { q = c; continue; }
+      if (c === '(') depth++;
+      else if (c === ')') { depth--; if (depth === 0 && i < t.length - 1) return t; }
+    }
+    if (depth !== 0) return t;
+    t = t.slice(1, -1).trim();
+  }
+}
+
 function expandExpr(expr, ts, depth) {
   if (depth === undefined) depth = 0;
   if (depth > 30 || !expr) return expr || '';
-  return expr.replace(_REF, function() {
+  const out = expr.replace(_REF, function() {
     const args = Array.from(arguments);
     const r = refFromMatch(args);
     if (!(r.schema in ts)) return args[0];        // real table ref → keep as is
@@ -611,8 +659,10 @@ function expandExpr(expr, ts, depth) {
       return tp[2] + '.' + tp[3];
     }
 
-    return expandExpr(f.proj, ts, depth + 1);
+    const sub = expandExpr(f.proj, ts, depth + 1);
+    return _isAtomicExpr(sub) ? sub : '(' + sub + ')';
   });
+  return depth === 0 ? _stripOuterParens(out) : out;
 }
 
 function processField(proj, ts, schemaMap) {
@@ -621,13 +671,19 @@ function processField(proj, ts, schemaMap) {
   // Fully expand all transform refs into real-table expressions
   const expanded = expandExpr(proj, ts);
 
-  // Collect all real-table refs from expanded expression
+  // Collect all real-table refs from expanded expression (sin repetidos: un
+  // mismo campo puede aparecer varias veces en ifthenelse/decode y la columna
+  // "Campo Origen" solo debe listar los campos utilizados, una vez cada uno)
   const refs = [];
+  const seenRef = new Set();
   const re = new RegExp(_REF.source, 'g');
   let m;
   while ((m = re.exec(expanded)) !== null) {
     const r = refFromMatch(Array.from(m));
     if (r.schema in ts) continue;   // still a transform → skip
+    const key = r.schema + '.' + r.field;
+    if (seenRef.has(key)) continue;
+    seenRef.add(key);
     refs.push({ tbl: r.schema, fld: r.field });
   }
 
