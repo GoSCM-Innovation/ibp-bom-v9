@@ -64,9 +64,10 @@ const Explorer = (function () {
   // ── Normalización de claves para matching ───────────────
   function normTableKey(ds, tbl) {
     const d = (ds  || '').trim().toUpperCase();
-    // No stripping de path: los nombres de tabla SAP con namespace ABAP (/SPMEAT/CUTK,
-    // /BIC/AZPP_RVO022, etc.) deben preservarse completos. El stripping de rutas de
-    // archivo se maneja en normFileKey; detectChains usa su propia variable local aTblNorm.
+    // No stripping de path: los nombres de tabla SAP con namespace ABAP
+    // (/NAMESPACE/TABLA, /BIC/…) deben preservarse completos. El stripping de rutas
+    // de archivo se maneja en normFileKey; detectChains usa su propia variable local
+    // aTblNorm.
     const t = (tbl || '').trim().toUpperCase();
     return d + '::' + t;
   }

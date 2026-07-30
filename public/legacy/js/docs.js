@@ -583,9 +583,10 @@ function parseTransforms(dfEl) {
 //   2. unquoted."quoted-field"              — e.g. Transform3."/BIC/ZCUSTOMER"
 //   3. unquoted.unquoted                    — standard SAP, e.g. MARA.MATNR
 // El nombre de campo SIN comillas no puede contener "/": en una división sin
-// espacios (Transform6.VGW01/Transform6.BMSCH) el "/" se tragaba el operador y
-// la referencia siguiente, dejando la expresión sin expandir. Los nombres con
-// "/" (BW InfoObjects, /SPMEAT/…) siempre vienen entrecomillados → casos 1 y 2.
+// espacios (TransformN.CAMPO_A/TransformN.CAMPO_B) el "/" se tragaba el operador
+// y la referencia siguiente, dejando la expresión sin expandir. Los nombres con
+// "/" (namespaces ABAP, InfoObjects BW) siempre vienen entrecomillados en el
+// XMI, así que los cubren los casos 1 y 2.
 const _REF = /(?:"([^"]+)"\s*\.\s*(?:"([^"]+)"|([A-Za-z_][A-Za-z0-9_]*)))|(?:\b([A-Za-z_][A-Za-z0-9_]*)\s*\.\s*"([^"]+)")|(?:\b([A-Za-z_][A-Za-z0-9_]*)\s*\.\s*([A-Za-z_][A-Za-z0-9_]*))/g;
 
 // Extract { schema, field } from a regex match of _REF
@@ -597,8 +598,8 @@ function refFromMatch(m) {
 
 // ¿La sub-expresión ya es un átomo (una referencia, un literal o una llamada a
 // función completa)? Si no lo es, hay que envolverla en paréntesis al
-// sustituirla: expandir "Transform8.BMSCH" (= "T5.BMSCH * (MARM.UMREZ/…)")
-// dentro de "VGW01 / Transform8.BMSCH" sin paréntesis cambia la semántica
+// sustituirla: si "T2.CAMPO_B" proyecta "T1.CAMPO_B * (T3.X/T3.Y)", expandirlo
+// dentro de "T2.CAMPO_A / T2.CAMPO_B" sin paréntesis cambia la semántica
 // (a/b*c en vez de a/(b*c)).
 function _isAtomicExpr(s) {
   const t = (s || '').trim();
@@ -2797,9 +2798,9 @@ async function generateFromJobs() {
 
   // ── Match ATL to integrations and order
   // Each ATL is matched to integrations whose parsed.jobName starts with
-  // atl.sessionName + '_' (e.g. "IBP_002_PROCESS_MASTER_DATA_MD_CURRENCY" matches
-  // session "IBP_002_PROCESS_MASTER_DATA"). This prevents collisions when multiple
-  // processes share a dataflow name.
+  // atl.sessionName + '_' (i.e. task "<SESSION>_<SUFFIX>" matches session
+  // "<SESSION>"). This prevents collisions when multiple processes share a
+  // dataflow name.
   // For column H (ibpJobName): ATL[i] is associated with selectedJob[i].
   // In job mode, ATL is required — without it we cannot know which integrations
   // ATL is optional — jobs with only direct tasks (no processes) don't need it.
