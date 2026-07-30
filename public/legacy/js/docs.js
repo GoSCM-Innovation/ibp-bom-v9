@@ -845,6 +845,58 @@ function parseDataflowDiagram(dfEl, dsIdx) {
   return { nodes, edges };
 }
 
+// ── Scripts pre/post-load del Job ────────────────────────────────────────────
+// Viven en <workflow:Job> como <elements xmi:type="workflow:Script">, con el
+// cuerpo en el atributo `expression`. NO están en el <dataflow:DataFlow>, así
+// que el resto del parser (que entra por el DataFlow) no los ve.
+//
+// CI-DS nombra el slot NAME_SCRIPT_PRELOAD / NAME_SCRIPT_POSTLOAD. Para decidir
+// pre vs post se usa, en este orden:
+//   1. <connections> del Job: Script → DataFlowReference ⇒ pre, la inversa ⇒ post.
+//      Es la señal autoritativa: define cuándo corre realmente el script.
+//   2. El nombre del slot, cuando dice PRE/POST explícitamente.
+//   3. El orden de los <elements> respecto al DataFlowReference (evidencia débil:
+//      muchos jobs no traen <connections> y el orden es incidental).
+// Si nada resuelve, `kind` queda vacío y la UI lo muestra como indeterminado.
+function parseJobScripts(jobEl) {
+  const els = [];
+  for (const c of jobEl.children) {
+    if (c.localName === 'elements') els.push({ type: xmiType(c), el: c });
+  }
+  const dfPos = [];
+  els.forEach((e, i) => { if (e.type.includes('DataFlowReference')) dfPos.push(i); });
+
+  // <connections sourceElement="/3/@elements.0" targetElement="/3/@elements.1"/>
+  const edges = [];
+  for (const c of jobEl.children) {
+    if (c.localName !== 'connections') continue;
+    const s = (c.getAttribute('sourceElement') || '').match(/elements\.(\d+)/);
+    const t = (c.getAttribute('targetElement') || '').match(/elements\.(\d+)/);
+    if (s && t) edges.push({ from: +s[1], to: +t[1] });
+  }
+  const isDf = i => dfPos.includes(i);
+
+  const scripts = [];
+  els.forEach((e, i) => {
+    if (!e.type.includes('Script')) return;
+    const name = e.el.getAttribute('displayName') || '';
+    let kind = '';
+    if (edges.some(g => g.from === i && isDf(g.to)))      kind = 'pre';
+    else if (edges.some(g => g.to === i && isDf(g.from))) kind = 'post';
+    else if (/POST/i.test(name))                          kind = 'post';
+    else if (/PRE/i.test(name))                           kind = 'pre';
+    else if (dfPos.some(d => d > i))                      kind = 'pre';
+    else if (dfPos.some(d => d < i))                      kind = 'post';
+    scripts.push({
+      name,
+      kind,
+      description: e.el.getAttribute('description') || '',
+      expression:  (e.el.getAttribute('expression') || '').replace(/&#xA;/g, '\n'),
+    });
+  });
+  return scripts;
+}
+
 /**
  * Parse one <dataflow:DataFlow> element.
  * Fix #8: now returns an ARRAY of results (one per writer element found),
@@ -1012,11 +1064,12 @@ function parseIntegration(xmlStr, batchEntry) {
   const ffIdx = buildFfIdx(root);
 
   // Job metadata
-  let jobName = '', jobDesc = '';
+  let jobName = '', jobDesc = '', jobScripts = [];
   for (const c of root.children) {
     if (c.localName === 'Job') {
       jobName = c.getAttribute('name') || '';
       jobDesc = getProp(c, 'Description') || c.getAttribute('description') || '';
+      jobScripts = parseJobScripts(c);
       break;
     }
   }
@@ -1083,6 +1136,9 @@ function parseIntegration(xmlStr, batchEntry) {
       lookups:     r.lookups,
       diagram:     r.diagram || { nodes: [], edges: [] },
       variables,
+      // Scripts pre/post-load: son del Job, así que todos los dataflows de un
+      // mismo XML comparten la misma lista.
+      jobScripts,
       planArea,
     });
   }
