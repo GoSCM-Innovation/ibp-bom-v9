@@ -29,6 +29,7 @@ const Explorer = (function () {
   let activePA      = new Set(); // PAs seleccionados; vacío = todos
   let activeSrcDS   = new Set(); // Datastores origen seleccionados; vacío = todos
   let activeDstDS   = new Set(); // Datastores destino seleccionados; vacío = todos
+  let showScriptsOnly = false;   // solo integraciones con script pre/post-load con contenido
 
   // ── Estado CI-DS ─────────────────────────────────────────────
   let cidsConn      = null;  // { hciUrl, orgName, isProduction, sessionId }
@@ -48,12 +49,25 @@ const Explorer = (function () {
   let atlLoaded    = false;
   let showAtlConflictsOnly = false;
 
+  // ── Scripts pre/post-load del Job (parseados en docs.js) ─────
+  // El slot puede existir vacío: CI-DS lo crea al abrir el editor de scripts
+  // aunque no se escriba nada. El filtro y el badge cuentan solo los que tienen
+  // contenido; el detalle sí lista los vacíos, marcados como tales, porque saber
+  // que el slot existe también es información.
+  function _jobScripts(p) {
+    return (p && Array.isArray(p.jobScripts)) ? p.jobScripts : [];
+  }
+  function _hasScripts(p) {
+    return _jobScripts(p).some(s => (s.expression || '').trim().length > 0);
+  }
+
   // ── Normalización de claves para matching ───────────────
   function normTableKey(ds, tbl) {
     const d = (ds  || '').trim().toUpperCase();
-    // No stripping de path: los nombres de tabla SAP con namespace ABAP (/SPMEAT/CUTK,
-    // /BIC/AZPP_RVO022, etc.) deben preservarse completos. El stripping de rutas de
-    // archivo se maneja en normFileKey; detectChains usa su propia variable local aTblNorm.
+    // No stripping de path: los nombres de tabla SAP con namespace ABAP
+    // (/NAMESPACE/TABLA, /BIC/…) deben preservarse completos. El stripping de rutas
+    // de archivo se maneja en normFileKey; detectChains usa su propia variable local
+    // aTblNorm.
     const t = (tbl || '').trim().toUpperCase();
     return d + '::' + t;
   }
@@ -187,11 +201,13 @@ const Explorer = (function () {
 
     buildIndexes();
     detectChains();
-    activePA    = new Set();
-    activeSrcDS = new Set();
-    activeDstDS = new Set();
+    activePA        = new Set();
+    activeSrcDS     = new Set();
+    activeDstDS     = new Set();
+    showScriptsOnly = false;
     renderPlanAreaFilter();
     renderDSFilter();
+    renderScriptFilter();
     filtered = integrations.slice();
     renderSidebarList(filtered);
     updateCounter(filtered.length, integrations.length);
@@ -341,6 +357,7 @@ const Explorer = (function () {
         ...p.variables.map(v => v.name),
         ...lookupTables,
         ...p.lookups.map(l => l.func),
+        ..._jobScripts(p).flatMap(s => [s.name, s.expression]),
       ].filter(Boolean).join(' ').toLowerCase();
       indexes.searchTokens.push({ idx: p._idx, tokens });
     });
@@ -1364,7 +1381,39 @@ const Explorer = (function () {
       const inConflict = _atlConflictIdxSet();
       base = base.filter(p => inConflict.has(p._idx));
     }
+    if (showScriptsOnly)
+      base = base.filter(_hasScripts);
     return base;
+  }
+
+  // ── Filtro "solo con script pre/post-load" ───────────────
+  // El toggle solo aparece si algún ZIP cargado trae scripts con contenido;
+  // si no, no hay nada que filtrar y ocuparía espacio en la toolbar.
+  function renderScriptFilter() {
+    const el = document.getElementById('ex-script-toggle');
+    if (!el) return;
+    const n = integrations.filter(_hasScripts).length;
+    if (!n) {
+      showScriptsOnly = false;
+      el.innerHTML = '';
+      el.style.display = 'none';
+      return;
+    }
+    el.style.display = '';
+    const swCls = showScriptsOnly ? 'ex-toggle-switch on' : 'ex-toggle-switch';
+    el.innerHTML = `
+      <label class="ex-promoted-label">
+        <span class="ex-promoted-text">📜 ${escH(I18n.t('ex.script.onlyLabel'))} <span class="ex-script-count">${n}</span></span>
+        <span class="${swCls}" onclick="Explorer.toggleScriptsOnly()" title="${escH(I18n.t('ex.script.onlyTitle'))}"><span class="ex-toggle-knob"></span></span>
+      </label>`;
+  }
+
+  function toggleScriptsOnly() {
+    showScriptsOnly = !showScriptsOnly;
+    renderScriptFilter();
+    const q = (document.getElementById('ex-search') || {}).value || '';
+    if (currentDim === 'atl-process') renderAtlProcessMaster(q);
+    else applySearch(q);
   }
 
   function renderPlanAreaFilter() {
@@ -1445,6 +1494,12 @@ const Explorer = (function () {
     return !!(cidsProdTasks && cidsProdTasks.has((jobName || '').toUpperCase()));
   }
 
+  // Badge 📜 para tasks con script pre/post-load con contenido
+  function _scriptBadge(list) {
+    return list.some(_hasScripts)
+      ? `<span class="ex-script-badge" title="${escH(I18n.t('ex.script.badgeTitle'))}">📜</span>` : '';
+  }
+
   // Fila simple (task con un solo dataflow)
   function _renderIntegrationItem(p) {
     const typeClass = `ex-type-${p.tipoIntegracion || 'MD'}`;
@@ -1454,7 +1509,7 @@ const Explorer = (function () {
       ? `<span class="ex-ibp-badge" title="${escH(I18n.t('ex.ibp.section.title'))}">IBP</span>` : '';
     return `<div class="ex-item${selectedIdx === p._idx ? ' active' : ''}" data-idx="${p._idx}" onclick="Explorer.navigateTo(${p._idx}, 'root')">
       <div class="ex-name">
-        <span class="ex-type-badge ${typeClass}">${escH(p.tipoIntegracion || 'MD')}</span>${promBadge}${ibpBadge}${escH(p.jobName)}${_chainBadges(new Set([p._idx]))}${_atlWarnBadge(new Set([p._idx]))}
+        <span class="ex-type-badge ${typeClass}">${escH(p.tipoIntegracion || 'MD')}</span>${promBadge}${ibpBadge}${_scriptBadge([p])}${escH(p.jobName)}${_chainBadges(new Set([p._idx]))}${_atlWarnBadge(new Set([p._idx]))}
       </div>
       ${p.dataflowName && p.dataflowName !== p.jobName ? `<div class="ex-sub ex-sub-df">↳ ${escH(p.dataflowName)}</div>` : ''}
       <div class="ex-sub">${escH(p.targetTable)}</div>
@@ -1484,7 +1539,7 @@ const Explorer = (function () {
     return `<div class="ex-task-group">
       <div class="ex-task-head" onclick="var b=document.getElementById('${grpId}');b.classList.toggle('collapsed');this.querySelector('.ex-tarr').textContent=b.classList.contains('collapsed')?'▶':'▼';">
         <div class="ex-name">
-          <span class="ex-type-badge ${typeClass}">${escH(p0.tipoIntegracion || 'MD')}</span>${promBadge}${ibpBadge}${escH(jobName)}
+          <span class="ex-type-badge ${typeClass}">${escH(p0.tipoIntegracion || 'MD')}</span>${promBadge}${ibpBadge}${_scriptBadge(dfs)}${escH(jobName)}
           <span class="ex-df-count">${dfs.length}</span>${_chainBadges(idxSet)}${_atlWarnBadge(idxSet)}
         </div>
         <span class="ex-tarr">${hasActive ? '▼' : '▶'}</span>
@@ -1641,6 +1696,28 @@ const Explorer = (function () {
         <div class="ex-h-sub" style="margin-top:2px;">${escH(I18n.t('ex.label.zip'))}: ${escH(p._zipName)}</div>
       </div>`;
 
+    // scripts pre/post-load del Job (corren fuera del dataflow, así que van
+    // arriba del diagrama: el preload es lo primero que ejecuta la task)
+    const jobScripts = _jobScripts(p);
+    const scriptsHtml = jobScripts.length ? buildSection(I18n.t('ex.script.section.title'), jobScripts.length,
+      jobScripts.map(s => {
+        const code    = (s.expression || '').trim();
+        const kindKey = s.kind === 'post' ? 'ex.script.post' : s.kind === 'pre' ? 'ex.script.pre' : 'ex.script.unknown';
+        const kindCls = s.kind === 'post' ? ' is-post' : s.kind === 'pre' ? ' is-pre' : '';
+        return `
+          <div class="ex-script-item${code ? '' : ' is-empty'}">
+            <div class="ex-script-head">
+              <span class="ex-script-kind${kindCls}">${escH(I18n.t(kindKey))}</span>
+              <span class="ex-script-name">${escH(s.name || '—')}</span>
+            </div>
+            ${s.description ? `<div class="ex-script-desc">${escH(s.description)}</div>` : ''}
+            ${code
+              ? `<pre class="ex-script-code">${escH(code)}</pre>`
+              : `<p class="ex-script-empty">${escH(I18n.t('ex.script.emptyBody'))}</p>`}
+          </div>`;
+      }).join('')
+    ) : '';
+
     // diagrama tipo CI-DS (nodos + connections del DataFlow)
     // Sección colapsada por defecto. El network se instancia solo al expandir
     // — instanciar vis.Network sobre un contenedor con display:none produciría
@@ -1791,7 +1868,7 @@ const Explorer = (function () {
       atlHtml = buildSection(I18n.t('ex.atl.section.title'), proc.declared, body);
     }
 
-    det.innerHTML = headerHtml + chainsHtml + atlHtml + ibpHtml + diagramHtml + mappingsHtml + filtersHtml + lookupsHtml + varsHtml;
+    det.innerHTML = headerHtml + chainsHtml + atlHtml + ibpHtml + scriptsHtml + diagramHtml + mappingsHtml + filtersHtml + lookupsHtml + varsHtml;
 
     // El network del diagrama se renderiza lazy al expandir la sección (ver onclick en diagramHtml).
 
@@ -2442,7 +2519,7 @@ const Explorer = (function () {
     const isField  = dim === 'dst-field'    || dim === 'src-field'    || dim === 'filter-field';
     const isFilter = dim === 'filter-table' || dim === 'filter-field';
 
-    const paSet = (activePA.size > 0 || (showPromoted && cidsProdTasks) || (showAtlConflictsOnly && atlConflicts.length))
+    const paSet = (activePA.size > 0 || (showPromoted && cidsProdTasks) || (showAtlConflictsOnly && atlConflicts.length) || showScriptsOnly)
       ? new Set(computeBaseFiltered().map(p => p._idx))
       : null;
 
@@ -2812,7 +2889,7 @@ const Explorer = (function () {
     initDropZone();
     initAtlDropZone();
     initMasterResizer();
-    I18n.ready.then(() => { renderCidsBar(); renderIbpBar(); renderAtlBar(); });
+    I18n.ready.then(() => { renderCidsBar(); renderIbpBar(); renderAtlBar(); renderScriptFilter(); });
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape') { closeCidsModal(); closeIbpModal(); _closeHelpPopovers(); }
     });
@@ -2828,6 +2905,7 @@ const Explorer = (function () {
       renderAtlBar();
       renderPlanAreaFilter();
       renderDSFilter();
+      renderScriptFilter();
       const q = (document.getElementById('ex-search') || {}).value || '';
       if (currentDim === 'integration') {
         applySearch(q);
@@ -2860,6 +2938,7 @@ const Explorer = (function () {
     togglePA,
     toggleSrcDS,
     toggleDstDS,
+    toggleScriptsOnly,
     openCidsModal,
     closeCidsModal,
     submitCidsConnect,

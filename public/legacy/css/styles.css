@@ -3966,6 +3966,40 @@ button[disabled][title]:hover::after {
 .ex-atl-conflict-row { font-size: 12px; color: var(--text1); margin-bottom: 3px; }
 .ex-atl-conflict-row:last-child { margin-bottom: 0; }
 
+/* ── Scripts pre/post-load del Job ──────────────────────────────── */
+/* Verde #34d399: los scripts corren fuera del dataflow, así que no comparten
+   color con lookups (violeta) ni con los avisos ATL (ámbar). */
+.ex-script-badge { font-size: 11px; margin-right: 4px; vertical-align: middle; }
+.ex-script-count {
+  font-size: 10px; font-weight: 700; color: var(--green, #34d399);
+  border: 1px solid var(--green, #34d399); border-radius: 3px; padding: 0 4px; margin-left: 2px;
+}
+.ex-script-item {
+  margin-bottom: 8px;
+  padding: 8px;
+  background: var(--bg3);
+  border-radius: 4px;
+  border-left: 3px solid var(--green, #34d399);
+}
+.ex-script-item:last-child { margin-bottom: 0; }
+.ex-script-item.is-empty { border-left-color: var(--text3); opacity: .75; }
+.ex-script-head { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.ex-script-kind {
+  font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
+  border-radius: 3px; padding: 0 4px; white-space: nowrap;
+  color: var(--text3); border: 1px solid var(--border);
+}
+.ex-script-kind.is-pre  { color: var(--green, #34d399); border-color: var(--green, #34d399); }
+.ex-script-kind.is-post { color: var(--cyan, #29ABE2); border-color: var(--cyan, #29ABE2); }
+.ex-script-name { font-size: 10px; color: var(--text2); word-break: break-all; }
+.ex-script-desc { font-size: 11px; color: var(--text2); margin-bottom: 4px; }
+.ex-script-code {
+  font-family: 'Consolas', 'Monaco', monospace; font-size: 11px;
+  white-space: pre-wrap; word-break: break-word;
+  color: var(--green, #34d399); margin: 0;
+}
+.ex-script-empty { font-size: 11px; color: var(--text3); font-style: italic; margin: 0; }
+
 /* ═══════════════════════════════════════════════════════════════
    FIELD MAP — Panel de corrección de campos
    ═══════════════════════════════════════════════════════════════ */

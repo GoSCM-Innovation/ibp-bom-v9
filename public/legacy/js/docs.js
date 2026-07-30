@@ -583,9 +583,10 @@ function parseTransforms(dfEl) {
 //   2. unquoted."quoted-field"              — e.g. Transform3."/BIC/ZCUSTOMER"
 //   3. unquoted.unquoted                    — standard SAP, e.g. MARA.MATNR
 // El nombre de campo SIN comillas no puede contener "/": en una división sin
-// espacios (Transform6.VGW01/Transform6.BMSCH) el "/" se tragaba el operador y
-// la referencia siguiente, dejando la expresión sin expandir. Los nombres con
-// "/" (BW InfoObjects, /SPMEAT/…) siempre vienen entrecomillados → casos 1 y 2.
+// espacios (TransformN.CAMPO_A/TransformN.CAMPO_B) el "/" se tragaba el operador
+// y la referencia siguiente, dejando la expresión sin expandir. Los nombres con
+// "/" (namespaces ABAP, InfoObjects BW) siempre vienen entrecomillados en el
+// XMI, así que los cubren los casos 1 y 2.
 const _REF = /(?:"([^"]+)"\s*\.\s*(?:"([^"]+)"|([A-Za-z_][A-Za-z0-9_]*)))|(?:\b([A-Za-z_][A-Za-z0-9_]*)\s*\.\s*"([^"]+)")|(?:\b([A-Za-z_][A-Za-z0-9_]*)\s*\.\s*([A-Za-z_][A-Za-z0-9_]*))/g;
 
 // Extract { schema, field } from a regex match of _REF
@@ -597,8 +598,8 @@ function refFromMatch(m) {
 
 // ¿La sub-expresión ya es un átomo (una referencia, un literal o una llamada a
 // función completa)? Si no lo es, hay que envolverla en paréntesis al
-// sustituirla: expandir "Transform8.BMSCH" (= "T5.BMSCH * (MARM.UMREZ/…)")
-// dentro de "VGW01 / Transform8.BMSCH" sin paréntesis cambia la semántica
+// sustituirla: si "T2.CAMPO_B" proyecta "T1.CAMPO_B * (T3.X/T3.Y)", expandirlo
+// dentro de "T2.CAMPO_A / T2.CAMPO_B" sin paréntesis cambia la semántica
 // (a/b*c en vez de a/(b*c)).
 function _isAtomicExpr(s) {
   const t = (s || '').trim();
@@ -845,6 +846,58 @@ function parseDataflowDiagram(dfEl, dsIdx) {
   return { nodes, edges };
 }
 
+// ── Scripts pre/post-load del Job ────────────────────────────────────────────
+// Viven en <workflow:Job> como <elements xmi:type="workflow:Script">, con el
+// cuerpo en el atributo `expression`. NO están en el <dataflow:DataFlow>, así
+// que el resto del parser (que entra por el DataFlow) no los ve.
+//
+// CI-DS nombra el slot NAME_SCRIPT_PRELOAD / NAME_SCRIPT_POSTLOAD. Para decidir
+// pre vs post se usa, en este orden:
+//   1. <connections> del Job: Script → DataFlowReference ⇒ pre, la inversa ⇒ post.
+//      Es la señal autoritativa: define cuándo corre realmente el script.
+//   2. El nombre del slot, cuando dice PRE/POST explícitamente.
+//   3. El orden de los <elements> respecto al DataFlowReference (evidencia débil:
+//      muchos jobs no traen <connections> y el orden es incidental).
+// Si nada resuelve, `kind` queda vacío y la UI lo muestra como indeterminado.
+function parseJobScripts(jobEl) {
+  const els = [];
+  for (const c of jobEl.children) {
+    if (c.localName === 'elements') els.push({ type: xmiType(c), el: c });
+  }
+  const dfPos = [];
+  els.forEach((e, i) => { if (e.type.includes('DataFlowReference')) dfPos.push(i); });
+
+  // <connections sourceElement="/3/@elements.0" targetElement="/3/@elements.1"/>
+  const edges = [];
+  for (const c of jobEl.children) {
+    if (c.localName !== 'connections') continue;
+    const s = (c.getAttribute('sourceElement') || '').match(/elements\.(\d+)/);
+    const t = (c.getAttribute('targetElement') || '').match(/elements\.(\d+)/);
+    if (s && t) edges.push({ from: +s[1], to: +t[1] });
+  }
+  const isDf = i => dfPos.includes(i);
+
+  const scripts = [];
+  els.forEach((e, i) => {
+    if (!e.type.includes('Script')) return;
+    const name = e.el.getAttribute('displayName') || '';
+    let kind = '';
+    if (edges.some(g => g.from === i && isDf(g.to)))      kind = 'pre';
+    else if (edges.some(g => g.to === i && isDf(g.from))) kind = 'post';
+    else if (/POST/i.test(name))                          kind = 'post';
+    else if (/PRE/i.test(name))                           kind = 'pre';
+    else if (dfPos.some(d => d > i))                      kind = 'pre';
+    else if (dfPos.some(d => d < i))                      kind = 'post';
+    scripts.push({
+      name,
+      kind,
+      description: e.el.getAttribute('description') || '',
+      expression:  (e.el.getAttribute('expression') || '').replace(/&#xA;/g, '\n'),
+    });
+  });
+  return scripts;
+}
+
 /**
  * Parse one <dataflow:DataFlow> element.
  * Fix #8: now returns an ARRAY of results (one per writer element found),
@@ -1012,11 +1065,12 @@ function parseIntegration(xmlStr, batchEntry) {
   const ffIdx = buildFfIdx(root);
 
   // Job metadata
-  let jobName = '', jobDesc = '';
+  let jobName = '', jobDesc = '', jobScripts = [];
   for (const c of root.children) {
     if (c.localName === 'Job') {
       jobName = c.getAttribute('name') || '';
       jobDesc = getProp(c, 'Description') || c.getAttribute('description') || '';
+      jobScripts = parseJobScripts(c);
       break;
     }
   }
@@ -1083,6 +1137,9 @@ function parseIntegration(xmlStr, batchEntry) {
       lookups:     r.lookups,
       diagram:     r.diagram || { nodes: [], edges: [] },
       variables,
+      // Scripts pre/post-load: son del Job, así que todos los dataflows de un
+      // mismo XML comparten la misma lista.
+      jobScripts,
       planArea,
     });
   }
@@ -2741,9 +2798,9 @@ async function generateFromJobs() {
 
   // ── Match ATL to integrations and order
   // Each ATL is matched to integrations whose parsed.jobName starts with
-  // atl.sessionName + '_' (e.g. "IBP_002_PROCESS_MASTER_DATA_MD_CURRENCY" matches
-  // session "IBP_002_PROCESS_MASTER_DATA"). This prevents collisions when multiple
-  // processes share a dataflow name.
+  // atl.sessionName + '_' (i.e. task "<SESSION>_<SUFFIX>" matches session
+  // "<SESSION>"). This prevents collisions when multiple processes share a
+  // dataflow name.
   // For column H (ibpJobName): ATL[i] is associated with selectedJob[i].
   // In job mode, ATL is required — without it we cannot know which integrations
   // ATL is optional — jobs with only direct tasks (no processes) don't need it.
