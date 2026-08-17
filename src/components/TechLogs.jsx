@@ -1,13 +1,5 @@
 import { useState } from 'react'
 
-export function useTechLogs() {
-  const [logs, setLogs] = useState([])
-  function addLog(entry) {
-    setLogs(p => [{ ...entry, ts: Date.now() }, ...p].slice(0, 50))
-  }
-  return [logs, addLog]
-}
-
 function groupLogs(logs) {
   const groups = []
   for (const log of logs) {

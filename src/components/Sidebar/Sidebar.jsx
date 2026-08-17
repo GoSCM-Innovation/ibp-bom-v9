@@ -42,7 +42,7 @@ export default function Sidebar({ connections, activeId, openConnIds = [], onSel
     if (!dndEnabled) return
     setDragId(id)
     e.dataTransfer.effectAllowed = 'move'
-    try { e.dataTransfer.setData('text/plain', id) } catch {}
+    try { e.dataTransfer.setData('text/plain', id) } catch { /* algunos navegadores lo bloquean en dragstart */ }
   }
   function handleDragOver(e, id) {
     if (!dndEnabled || dragId === null) return

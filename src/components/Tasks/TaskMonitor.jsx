@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
-import TechLogs, { useTechLogs } from '../TechLogs'
+import TechLogs from '../TechLogs'
+import { useTechLogs } from '../../hooks/useTechLogs'
 import ProgressBar from '../ui/ProgressBar'
 import PromotedBadge from '../ui/PromotedBadge'
 import { usePromotedTasksContext, isTaskPromoted } from '../../hooks/usePromotedTasks'

@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import ProgressBar from '../ui/ProgressBar'
-import { getTzMode, setTzMode, toInputDate, inputDateToDate, formatEpochMs, dayLabelEpoch, TZ_OPTIONS } from '../../utils/dateUtils'
+import { getTzMode, setTzMode, toInputDate, inputDateToDate, dayLabelEpoch, TZ_OPTIONS } from '../../utils/dateUtils'
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend,
 } from 'recharts'
-import TechLogs, { useTechLogs } from '../TechLogs'
+import TechLogs from '../TechLogs'
+import { useTechLogs } from '../../hooks/useTechLogs'
 import { soapCall } from '../../api/soapCall'
 
 const REFRESH_MS = 5 * 60 * 1000
@@ -30,13 +31,6 @@ const STATUS_LABELS = {
   'ERROR': 'Error', 'QUEUEING': 'Queueing', 'IMPORTED': 'Imported',
   'FETCHED': 'Fetched', 'TERMINATED': 'Terminated',
   'TERMINATION_FAILED': 'Termination failed', 'UNKNOWN': 'Unknown',
-}
-
-function fmtDuration(mins) {
-  if (mins < 1) return `${Math.round(mins * 60)}s`
-  if (mins < 60) return `${Math.round(mins)} min`
-  const h = Math.floor(mins / 60), m = Math.round(mins % 60)
-  return m > 0 ? `${h}h ${m}m` : `${h}h`
 }
 
 export default function Resumen({ connection, sessionId, onSessionExpired }) {

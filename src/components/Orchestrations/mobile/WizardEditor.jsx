@@ -69,7 +69,6 @@ export default function WizardEditor({
   starting,
   cancelling,
   onSaveGraph,
-  onStart,
   onCancel,
   onEditName,
   onShowLog,

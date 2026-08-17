@@ -344,7 +344,7 @@ function parseResponse(operation, xml) {
           try {
             const decoded = Buffer.from(clean, 'base64').toString('utf-8')
             if (decoded && !/�/.test(decoded)) return decoded
-          } catch {}
+          } catch { /* no era base64 válido: se devuelve el texto original */ }
         }
         return part
       }
@@ -395,7 +395,7 @@ export default async function handler(req, res) {
   if (!sessionId)          return res.status(400).json({ error: 'sessionId requerido' })
   if (!operation)          return res.status(400).json({ error: 'operation requerido' })
 
-  const { hciUrl, orgName, isProduction } = connection
+  const { hciUrl } = connection
 
   const soapActionMap = {
     getProjects:             'function=getAllProjects',

@@ -3,7 +3,8 @@ import ConnectionForm from './ConnectionForm'
 import ConnectionAvatar from './ConnectionAvatar'
 import SapLoginModal from './SapLoginModal'
 import ImportConnectionsModal from './ImportConnectionsModal'
-import TechLogs, { useTechLogs } from '../TechLogs'
+import TechLogs from '../TechLogs'
+import { useTechLogs } from '../../hooks/useTechLogs'
 
 const EXPORT_VERSION = '1.0'
 
