@@ -113,6 +113,9 @@ function validateEdge(e) {
   return { id: e.id, source: e.source, target: e.target }
 }
 
+// Validadores puros expuestos para tests unitarios (tests/api/orchestrations-validate.test.js).
+export { validateStep, validateNode, validateNodeData, validateEdge }
+
 // ─── Handler ──────────────────────────────────────────────────────────────────
 
 export default async function handler(req, res) {
