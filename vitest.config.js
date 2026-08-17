@@ -14,5 +14,12 @@ export default defineConfig({
     environment: 'node',
     include: ['tests/**/*.test.{js,jsx}'],
     restoreMocks: true,
+    // worker_threads en vez del pool de forks por defecto. Con forks, los seis
+    // archivos jsdom arrancan un proceso cada uno y cargan jsdom en paralelo;
+    // eso hacía fallar la corrida de forma intermitente con "Timeout waiting for
+    // worker to respond" (~2 de 16 corridas), sin que ningún test fallara. Los
+    // threads no necesitan aislamiento de proceso acá: no hay process.chdir ni
+    // estado de módulos nativos, y `isolate` sigue activo por archivo.
+    pool: 'threads',
   },
 })
