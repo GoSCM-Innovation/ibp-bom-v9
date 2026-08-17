@@ -19,7 +19,8 @@ CIDS Studio: SPA de React (Vite) para monitorear y orquestar tareas de SAP CI-DS
 
 - `api/`: funciones serverless (helpers con prefijo `_`: `_auth`, `_cors`, `_ssrf`). Núcleo SOAP en `api/soap.js`; motor de orquestación en `api/orchestrate.js`.
 - `src/`: frontend React. `src/api/soapCall.js` es el cliente SOAP compartido. Componentes por feature en `src/components/`.
-- `public/legacy/`: módulos heredados en vanilla JS (Explorer, Mapping Dataflow) embebidos en iframe; tratar como caja negra. Doc detallada: `docs/MODULOS-LEGACY.md`.
+- `public/legacy/`: módulos heredados en vanilla JS (Explorer, Mapping Dataflow) embebidos en iframe. No se modifica su código, pero sí se lintea: tiene un bloque propio en `eslint.config.js` con `sourceType: 'script'` y los globals compartidos declarados (son scripts globales cargados con `<script src>` en orden fijo, no módulos ES). Al agregar un global nuevo a esos scripts hay que declararlo también ahí. Doc detallada: `docs/MODULOS-LEGACY.md`.
+- `tests/`: tests con Vitest, espejando `api/` y `src/`. No se co-locan porque Vercel trata todo archivo dentro de `api/` como función serverless.
 - `docs/`: documentación.
 
 ## Convenciones clave
@@ -33,10 +34,11 @@ CIDS Studio: SPA de React (Vite) para monitorear y orquestar tareas de SAP CI-DS
 ## Gotchas
 
 - `VITE_API_TOKEN` queda embebido en el bundle (público de facto). Ver `docs/SECURITY.md`.
-- No hay tests. `npm run lint` arrastra errores preexistentes; no agregar nuevos en los archivos que toques. Ver `docs/DEUDA-TECNICA.md`.
+- `npm test` y `npm run lint` deben quedar en verde (exit 0). El lint deja warnings a propósito: son el baseline de deuda de hooks, con scope por archivo en `eslint.config.js`. No agregar nuevos. Ver `docs/DEUDA-TECNICA.md`.
+- Tests: entorno `node` por defecto; los que necesitan DOM declaran `// @vitest-environment jsdom` en la primera línea. Se importan `describe`/`it`/`expect`/`vi` desde `'vitest'` (no hay globals). Convenciones en `CONTRIBUTING.md`.
 - `npm run dev` sirve `/api` vía un middleware de dev en `vite.config.js` (monta los handlers de `api/*.js`, lee `.env`); editar un `api/*.js` requiere reiniciar el dev. `npm run dev:full` (`vercel dev`) usa el runtime real de Vercel.
 
 ## Comandos
 
 - Dev: `npm run dev` (frontend + `/api` vía middleware de dev) o `npm run dev:full` (`vercel dev`, runtime real).
-- Verificar: `npm run lint` y `npm run build`.
+- Verificar: `npm run lint`, `npm test` y `npm run build`.

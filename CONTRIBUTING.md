@@ -22,6 +22,8 @@ cp .env.example .env   # configurar variables (ver README)
 | `npm run build` | Build de producción a `dist/`. |
 | `npm run preview` | Sirve el build localmente. |
 | `npm run lint` | ESLint sobre el repo. |
+| `npm test` | Corre la suite de tests una vez (Vitest). |
+| `npm run test:watch` | Vitest en modo watch. |
 | `npm run gen:secret` | Genera un token aleatorio (para `API_TOKEN`, `CRON_SECRET`). |
 
 ## Convenciones de código
@@ -36,7 +38,23 @@ El proyecto es JavaScript + JSX (sin TypeScript), React 19, con estado por hooks
 - **Estilo:** seguir las reglas de [CLAUDE.md](CLAUDE.md) (sin emojis ni em-dashes; conciso). El proyecto usa estilos inline con variables CSS (`var(--bg)`, etc.) definidas en `src/index.css`.
 - **Idioma:** los textos de UI están en español; mantener consistencia.
 
-Antes de abrir un PR, correr `npm run lint` y `npm run build`. Nota: el repo arrastra advertencias y errores de lint preexistentes (ver [docs/DEUDA-TECNICA.md](docs/DEUDA-TECNICA.md)); no introducir nuevos en los archivos que toques.
+Antes de abrir un PR, correr `npm run lint`, `npm test` y `npm run build`. Los tres deben pasar; el CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) corre lint y test en cada PR.
+
+`npm run lint` sale en exit 0 pero deja warnings: son el baseline de deuda conocida (ver [docs/DEUDA-TECNICA.md](docs/DEUDA-TECNICA.md), item 2). No agregar nuevos.
+
+## Tests
+
+Vitest, con React Testing Library para los hooks. Los tests viven en [tests/](tests), espejando la estructura del repo (`tests/api/`, `tests/src/`).
+
+**No se co-locan junto al código fuente**: Vercel trata todo archivo dentro de `api/` como función serverless, así que un `api/soap.test.js` se desplegaría como función y consumiría presupuesto. Por consistencia, los de `src/` siguen la misma convención.
+
+Convenciones:
+
+- **Entorno**: el default es `node`. Los archivos que necesitan DOM (`localStorage`, `window`, `renderHook`) lo declaran por archivo con el docblock `// @vitest-environment jsdom` en la primera línea. Se hace así, y no con configuración global, porque la API para mapear entornos por glob cambió entre versiones de Vitest.
+- **Imports explícitos**: `import { describe, it, expect, vi } from 'vitest'`. No hay globals del runner configurados. Los archivos con RTL llaman a `afterEach(cleanup)` explícitamente; no hay `setupFiles`.
+- **Configuración**: [vitest.config.js](vitest.config.js), separada a propósito de `vite.config.js`. Aquella vuelca todo el `.env` a `process.env` en el top level, lo que filtraría `API_TOKEN` y credenciales reales al proceso de test.
+- **Lógica interna**: si hace falta testear un helper no exportado de `api/*.js`, agregarle un named export con un comentario que lo justifique (patrón ya usado en [api/soap.js](api/soap.js) y [api/orchestrate.js](api/orchestrate.js)). Exportar no crea funciones nuevas en Vercel: el entry sigue siendo el `export default`.
+- **Variables de entorno leídas en el top level** (`api/_auth.js`, `api/_cors.js`, `src/apiFetch.js`): requieren `vi.stubEnv(...)` + `vi.resetModules()` + `await import(...)` dinámico en cada caso.
 
 ## Convención de commits
 

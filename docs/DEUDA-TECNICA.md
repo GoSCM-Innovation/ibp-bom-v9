@@ -8,8 +8,8 @@ Severidad: critical (riesgo alto o bloquea evolución), high (impacto fuerte en 
 
 | # | Severidad | Problema | Issue |
 |---|---|---|---|
-| 1 | critical | Sin tests ni framework de testing | [#1](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/1) |
-| 2 | high | Errores de lint preexistentes (incluye hooks condicionales) | [#2](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/2) |
+| 1 | ~~critical~~ | ~~Sin tests ni framework de testing~~ — resuelto, ver abajo | [#1](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/1) |
+| 2 | medium | Deuda de hooks en 5 archivos (bajó de 758 errores de lint a 0) | [#2](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/2) |
 | 3 | high | Estilos 100% inline, sin design system | [#3](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/3) |
 | 4 | high | Constantes de estado (STATUS) duplicadas | [#4](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/4) |
 | 5 | high | `useOrchestration` con demasiadas responsabilidades | [#5](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/5) |
@@ -23,13 +23,23 @@ Severidad: critical (riesgo alto o bloquea evolución), high (impacto fuerte en 
 
 ## Detalle
 
-### 1. Sin tests (critical)
-No hay tests ni runner configurado (no Jest/Vitest en `package.json`). Lógica crítica sin cobertura: parsers SOAP ([api/soap.js](../api/soap.js)), utilidades de fecha/zona ([src/utils/dateUtils.js](../src/utils/dateUtils.js)), grafo de orquestación ([src/components/Orchestrations/canvasUtils.js](../src/components/Orchestrations/canvasUtils.js)), y el motor de ejecución ([api/orchestrate.js](../api/orchestrate.js)).
-Recomendación: agregar Vitest + React Testing Library; priorizar utilidades puras y parsers.
+### 1. Sin tests (resuelto)
+Ver "Resuelto recientemente".
 
-### 2. Errores de lint preexistentes (high)
-`npm run lint` reporta cientos de problemas. Entre ellos, hooks llamados condicionalmente (`react-hooks/rules-of-hooks`) en [src/components/Orchestrations/canvas/NodeConfigPanel.jsx](../src/components/Orchestrations/canvas/NodeConfigPanel.jsx), que es un riesgo real de correctitud, además de `set-state-in-effect`, `exhaustive-deps` y `no-unused-vars` en varios archivos.
-Recomendación: abordar primero `rules-of-hooks`; luego barrer el resto por archivo. Evitar que el número crezca.
+### 2. Deuda de hooks (medium)
+`npm run lint` sale en **exit 0** desde la configuración del runner de tests: pasó de 758 errores + 12 warnings a **0 errores + 51 warnings**. La mayor parte de aquellos 758 no era código sino configuración de ESLint (ver "Resuelto recientemente").
+
+Lo que queda es deuda real, degradada a warning con scope por archivo en [eslint.config.js](../eslint.config.js) para que la regla siga siendo error en el resto del repo:
+
+| Regla | Archivos | Qué implica |
+|---|---|---|
+| `react-hooks/rules-of-hooks` (7) | [NodeConfigPanel.jsx](../src/components/Orchestrations/canvas/NodeConfigPanel.jsx) | Hooks llamados después de un early return. Riesgo real de correctitud. |
+| `react-hooks/set-state-in-effect` (4) | [App.jsx](../src/App.jsx), [MobileTaskPicker.jsx](../src/components/Orchestrations/mobile/MobileTaskPicker.jsx), [SystemView.jsx](../src/components/System/SystemView.jsx), [usePromotedTasks.js](../src/hooks/usePromotedTasks.js) | Renders en cascada; el patrón suele ser reemplazable por estado derivado. |
+| `react-hooks/exhaustive-deps` (12) | Varios | Ya eran warning; no rompen el exit code. |
+
+Los otros 28 warnings son `no-empty` y `no-useless-escape` en `public/legacy`, que no se editan por política.
+
+Recomendación: abordar `rules-of-hooks` primero, ahora que hay tests para respaldar el refactor. El baseline por archivo evita que el número crezca: si un archivo nuevo rompe la regla, falla el CI.
 
 ### 3. Estilos inline sin design system (high)
 Cientos de objetos `style={{...}}` repartidos por los componentes; no hay clases ni utilidades compartidas (más allá de las variables CSS en `src/index.css`). Cambiar un color o espaciado obliga a editar muchos sitios.
@@ -72,6 +82,32 @@ El build emite un solo chunk JS de ~950 KB (warning de Vite por >500 KB).
 Recomendación: code-splitting con `import()` dinámico (p. ej. lazy-load del canvas de orquestación o los gráficos).
 
 ## Resuelto recientemente
+
+### Tests: Vitest + React Testing Library (issue #1)
+
+439 tests en 15 archivos bajo [tests/](../tests), corriendo en ~4 s. Cubren la lógica pura de backend y frontend:
+
+- **Backend:** parsers y builders SOAP ([api/soap.js](../api/soap.js), incluido el orden de elementos que exige el XSD de `getTaskLogs` y el decode base64 token por token), guard anti-SSRF, `requireAuth`/`applyCors`, el motor de orquestación (olas de Kahn, `applyTaskResult`, merge de variables) y los validadores de `orchestrations` e `ibp-proxy`.
+- **Frontend:** `dateUtils` (incluye cruce de medianoche por offset), `canvasUtils`, `taskMetadata`, `soapCall`, el interceptor `apiFetch`, y los hooks `useBuildCursor`, `useViewport` y `useTechLogs`.
+
+Los tests viven en `tests/` y no co-locados: Vercel trata todo archivo dentro de `api/` como función serverless. Detalle en [CONTRIBUTING.md](../CONTRIBUTING.md#tests).
+
+Pendiente para una segunda vuelta: tests de componentes con RTL (RunModal, OrchList, TaskMonitor) y cobertura con `@vitest/coverage-v8`.
+
+### Dos defectos encontrados al escribir los tests
+
+- **Bypass del guard anti-SSRF** ([api/_ssrf.js](../api/_ssrf.js)): la comprobación de IPv4-mapped solo miraba la forma decimal (`::ffff:127.0.0.1`), pero `new URL()` la normaliza a hex (`::ffff:7f00:1`), así que esa rama nunca se disparaba para URLs del usuario. `https://[::ffff:169.254.169.254]/` (metadata de cloud) pasaba el guard mientras la forma IPv4 plana se bloqueaba bien. Ahora se decodifica la IPv4 embebida y se le aplica la misma política.
+- **Token enviado a hosts externos** ([src/apiFetch.js](../src/apiFetch.js)): `isInternalApi` comparaba solo el `pathname`, así que una `URL` o un `Request` absolutos a otro host con path `/api/` se llevaban el `Authorization`. La forma string se salvaba por casualidad. Ahora las tres formas se resuelven contra el origin y se exige mismo origen.
+
+### Configuración de ESLint (issue #2, parte de configuración)
+
+`npm run lint` pasó de 758 errores a exit 0, sin tocar código de producción salvo 8 arreglos triviales:
+
+- `public/legacy/**` (716 problemas, 93% del total) ya no genera ruido: bloque propio con `sourceType: 'script'` y los 15 globals compartidos declarados. **No se ignora el directorio**: `no-undef` sigue activo, que es la regla que aporta valor en 280 KB de JS vanilla con estado global. La lista de globals debe mantenerse en sincronía con [MODULOS-LEGACY.md](MODULOS-LEGACY.md).
+- `api/**` recibe `globals.node` (`process`, `Buffer`, `fetch`); `src/**` declara `__APP_VERSION__`; `tests/**` recibe Node + DOM.
+- `useTechLogs` se movió de `TechLogs.jsx` a [src/hooks/useTechLogs.js](../src/hooks/useTechLogs.js) para que el archivo del componente exporte solo componentes (Fast Refresh).
+
+### Otros
 
 - Consolidación de `soapCall`: las nueve copias en componentes se unificaron en [src/api/soapCall.js](../src/api/soapCall.js).
 - `console.log` de depuración en `RunModal` ahora gateados por el flag de debug (no se filtran en producción).
