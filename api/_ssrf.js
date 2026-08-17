@@ -27,12 +27,35 @@ function ipv4IsPrivate(ip) {
   return false
 }
 
+// Expand an IPv6 in hex notation to its 8 numeric groups. Returns null when the
+// address carries a decimal tail (handled separately) or is not expandable.
+function expandIpv6(lc) {
+  if (lc.includes('.')) return null
+  const halves = lc.split('::')
+  if (halves.length > 2) return null
+  const head = halves[0] ? halves[0].split(':') : []
+  if (halves.length === 1) return head.length === 8 ? head.map(h => parseInt(h, 16)) : null
+  const tail = halves[1] ? halves[1].split(':') : []
+  if (head.length + tail.length > 8) return null
+  const groups = [...head, ...Array(8 - head.length - tail.length).fill('0'), ...tail]
+  return groups.map(h => parseInt(h || '0', 16))
+}
+
 function ipv6IsPrivate(ip) {
   const lc = ip.toLowerCase()
-  if (lc === '::1' || lc === '::') return true
-  // IPv4-mapped / -compatible (::ffff:a.b.c.d or ::a.b.c.d)
+  // IPv4-mapped / -compatible in decimal form (::ffff:a.b.c.d or ::a.b.c.d).
+  // This is what dns.lookup returns, not what survives new URL().
   const mapped = lc.match(/(?:::ffff:|::)((?:\d{1,3}\.){3}\d{1,3})$/)
   if (mapped) return ipv4IsPrivate(mapped[1])
+  // Same address once normalized: the WHATWG parser rewrites the decimal quad as
+  // hex (::ffff:127.0.0.1 -> ::ffff:7f00:1), so for user-supplied URLs the branch
+  // above never fires. Anything with the first 64 bits zeroed (::, ::1,
+  // ::a.b.c.d, ::ffff:a.b.c.d and the translated ::ffff:0:a.b.c.d) carries an
+  // embedded IPv4 in the low 32 bits: decode it and apply the IPv4 policy.
+  const g = expandIpv6(lc)
+  if (g && g[0] === 0 && g[1] === 0 && g[2] === 0 && g[3] === 0) {
+    return ipv4IsPrivate([g[6] >> 8, g[6] & 255, g[7] >> 8, g[7] & 255].join('.'))
+  }
   if (lc.startsWith('fc') || lc.startsWith('fd')) return true   // ULA fc00::/7
   if (lc.startsWith('fe8') || lc.startsWith('fe9') ||
       lc.startsWith('fea') || lc.startsWith('feb')) return true // link-local fe80::/10
