@@ -44,7 +44,7 @@ Antes de abrir un PR, correr `npm run lint`, `npm test` y `npm run build`. Los t
 
 ## Tests
 
-Vitest, con React Testing Library para los hooks. Los tests viven en [tests/](tests), espejando la estructura del repo (`tests/api/`, `tests/src/`).
+Vitest, con React Testing Library para hooks y componentes. Los tests viven en [tests/](tests), espejando la estructura del repo (`tests/api/`, `tests/src/`).
 
 **No se co-locan junto al código fuente**: Vercel trata todo archivo dentro de `api/` como función serverless, así que un `api/soap.test.js` se desplegaría como función y consumiría presupuesto. Por consistencia, los de `src/` siguen la misma convención.
 
@@ -52,6 +52,9 @@ Convenciones:
 
 - **Entorno**: el default es `node`. Los archivos que necesitan DOM (`localStorage`, `window`, `renderHook`) lo declaran por archivo con el docblock `// @vitest-environment jsdom` en la primera línea. Se hace así, y no con configuración global, porque la API para mapear entornos por glob cambió entre versiones de Vitest.
 - **Imports explícitos**: `import { describe, it, expect, vi } from 'vitest'`. No hay globals del runner configurados. Los archivos con RTL llaman a `afterEach(cleanup)` explícitamente; no hay `setupFiles`.
+- **Sin `@testing-library/jest-dom`**: no está instalado a propósito. Los asserts van con lo que trae Vitest (`expect(el.value).toBe(...)`, `expect(container.innerHTML).toBe('')`); matchers como `toBeEmptyDOMElement` o `toBeInTheDocument` no existen acá.
+- **Texto partido por interpolación**: cuando el JSX intercala una expresión (`Importar {n}`), el texto queda en varios nodos y `getByText` no lo encuentra. Consultar por rol y nombre accesible (`getByRole('button', { name: /^Importar/ })`) o sobre `textContent`.
+- **Componentes del canvas**: los `Handle` de React Flow requieren el provider del canvas. En los tests de nodos se mockea `@xyflow/react` (ver [tests/src/TaskNode.test.jsx](tests/src/TaskNode.test.jsx)).
 - **Configuración**: [vitest.config.js](vitest.config.js), separada a propósito de `vite.config.js`. Aquella vuelca todo el `.env` a `process.env` en el top level, lo que filtraría `API_TOKEN` y credenciales reales al proceso de test.
 - **Lógica interna**: si hace falta testear un helper no exportado de `api/*.js`, agregarle un named export con un comentario que lo justifique (patrón ya usado en [api/soap.js](api/soap.js) y [api/orchestrate.js](api/orchestrate.js)). Exportar no crea funciones nuevas en Vercel: el entry sigue siendo el `export default`.
 - **Variables de entorno leídas en el top level** (`api/_auth.js`, `api/_cors.js`, `src/apiFetch.js`): requieren `vi.stubEnv(...)` + `vi.resetModules()` + `await import(...)` dinámico en cada caso.
