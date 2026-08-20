@@ -98,8 +98,16 @@ export default function TaskMonitor({ connection, sessionId, onSessionExpired, i
   const resizing = useRef(null)
   const timerRef = useRef(null)
   const [logs, addLog] = useTechLogs()
+  // Callbacks que se invocan desde efectos pero no deben condicionar cuando
+  // corren: se leen por ref para que el componente no dependa de que el padre
+  // los memoice. Si entraran en los arrays de dependencias, un padre que los
+  // recree en cada render dispararia un bucle de llamadas a SAP.
   const addLogRef = useRef(addLog)
   addLogRef.current = addLog
+  const onSessionExpiredRef = useRef(onSessionExpired)
+  onSessionExpiredRef.current = onSessionExpired
+  const onSearchConsumedRef = useRef(onSearchConsumed)
+  onSearchConsumedRef.current = onSearchConsumed
 
   const promotedSet = usePromotedTasksContext()
   const [tzMode, setTzModeState] = useState(() => getTzMode())
@@ -116,7 +124,7 @@ export default function TaskMonitor({ connection, sessionId, onSessionExpired, i
   }
 
   useEffect(() => {
-    if (initialSearch) { setSearch(initialSearch); onSearchConsumed?.() }
+    if (initialSearch) { setSearch(initialSearch); onSearchConsumedRef.current?.() }
   }, [initialSearch])
 
   const MAX_DAYS = 90
@@ -160,13 +168,13 @@ export default function TaskMonitor({ connection, sessionId, onSessionExpired, i
       setRows(Array.isArray(data) ? data : [])
       setLast(new Date())
     } catch (e) {
-      if (e.isSessionExpired) { onSessionExpired?.(); return }
+      if (e.isSessionExpired) { onSessionExpiredRef.current?.(); return }
       addLogRef.current({ method: 'POST', path: 'getAllExecutedTasks2', status: 0, duration: Math.round(performance.now() - start), detail: e.message })
       setError(e.message)
     } finally {
       setLoading(false)
     }
-  }, [connection, sessionId, fromDate, toDate])
+  }, [connection, sessionId, fromDate, toDate, tzMode, rangeExceeded])
 
   useEffect(() => {
     loadTasks()
@@ -275,7 +283,7 @@ export default function TaskMonitor({ connection, sessionId, onSessionExpired, i
         }
       } catch (e) {
         if (cancelled) return
-        if (e.isSessionExpired) { onSessionExpired?.(); return }
+        if (e.isSessionExpired) { onSessionExpiredRef.current?.(); return }
         acc[row.runId] = { end: null, durSec: null, done: true, error: true }
       }
     }).then(() => {
@@ -286,6 +294,9 @@ export default function TaskMonitor({ connection, sessionId, onSessionExpired, i
     return () => { cancelled = true; setEnriching(false) }
     // lastRefresh: al refrescar, re-consulta solo las no-terminales (las terminales
     // ya cacheadas las descarta el filtro `toFetch`).
+    // pageKey es la forma estable de `paged`: la lista se rearma en cada render
+    // aunque contenga los mismos runId, y depender de ella recargaria de mas.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- pageKey reemplaza a paged a proposito
   }, [pageKey, connection, sessionId, lastRefresh])
 
   const COLS = useMemo(() => [

@@ -9,7 +9,7 @@ Severidad: critical (riesgo alto o bloquea evolución), high (impacto fuerte en 
 | # | Severidad | Problema | Issue |
 |---|---|---|---|
 | 1 | ~~critical~~ | ~~Sin tests ni framework de testing~~ — resuelto, ver abajo | [#1](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/1) |
-| 2 | low | Deuda de hooks: quedan 11 `exhaustive-deps` como warning | [#2](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/2) |
+| 2 | ~~high~~ | ~~Errores de lint preexistentes~~ - resuelto, ver abajo | [#2](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/2) |
 | 3 | high | Estilos 100% inline, sin design system | [#3](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/3) |
 | 4 | high | Constantes de estado (STATUS) duplicadas | [#4](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/4) |
 | 5 | high | `useOrchestration` con demasiadas responsabilidades | [#5](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/5) |
@@ -26,8 +26,8 @@ Severidad: critical (riesgo alto o bloquea evolución), high (impacto fuerte en 
 ### 1. Sin tests (resuelto)
 Ver "Resuelto recientemente".
 
-### 2. Deuda de hooks (low)
-`npm run lint` sale en **exit 0**: pasó de 758 errores + 12 warnings a **0 errores + 39 warnings**. La mayor parte de aquellos 758 no era código sino configuración de ESLint (ver "Resuelto recientemente").
+### 2. Deuda de hooks (resuelto)
+`npm run lint` sale en **exit 0**: pasó de 758 errores + 12 warnings a **0 errores + 28 warnings**, y los 28 restantes están todos en `public/legacy` (`no-empty` y `no-useless-escape`), que no se edita por política. **`src/` y `api/` no reportan nada.** La mayor parte de aquellos 758 no era código sino configuración de ESLint (ver "Resuelto recientemente").
 
 Estado de las reglas de hooks:
 
@@ -35,9 +35,13 @@ Estado de las reglas de hooks:
 |---|---|
 | ~~`react-hooks/rules-of-hooks`~~ | **Resuelto**: era el early return de `NodeConfigPanel` por delante de sus seis hooks. |
 | ~~`react-hooks/set-state-in-effect`~~ | **Sin reportes.** Dos se eliminaron de raíz; los cuatro restantes quedan suprimidos uno por uno con su motivo (ver abajo). |
-| `react-hooks/exhaustive-deps` (11) | Sigue como warning; no rompe el exit code. |
+| ~~`react-hooks/exhaustive-deps`~~ | **Sin reportes.** Ocho se resolvieron de verdad; tres quedan suprimidos con motivo. |
 
-No quedan bloques de baseline en [eslint.config.js](../eslint.config.js): las dos reglas de hooks vuelven a ser error en todo el repo.
+No quedan bloques de baseline en [eslint.config.js](../eslint.config.js): las tres reglas de hooks vuelven a aplicarse en todo el repo sin excepciones por archivo.
+
+**Sobre `exhaustive-deps`.** El patrón que resolvió la mayoría fue leer por ref los callbacks que un efecto invoca pero que no deben condicionar cuándo corre: `onSessionExpired`, `onSearchConsumed`, `debounced_save`, `handleNodeSelect`. Meterlos en el array de dependencias, que es lo que pide la regla al pie de la letra, hace que el efecto se reejecute en cada render del padre; en `TaskMonitor` y `Resumen` eso es un bucle de llamadas a SAP. `addLog` sí se pudo agregar como dependencia normal porque se memoizó en su origen ([useTechLogs.js](../src/hooks/useTechLogs.js)).
+
+Hay un guardarraíl para esto en [tests/src/container-refetch.test.jsx](../tests/src/container-refetch.test.jsx): renderiza `TaskMonitor` y `Resumen` varias veces con callbacks recreados y verifica que la cantidad de llamadas SOAP no crezca. Verificado que falla si se agrega una dependencia inestable.
 
 **Eliminados de raíz.** En `NodeConfigPanel` el efecto que reseteaba el formulario al cambiar de nodo se reemplazó por un `key` en el wrapper, que remonta el formulario y deja que los inicializadores de `useState` hagan el trabajo. En `MobileTaskPicker` el efecto que limpiaba la selección al cerrar desapareció al montar el componente solo mientras está abierto.
 

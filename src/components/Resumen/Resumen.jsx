@@ -43,6 +43,10 @@ export default function Resumen({ connection, sessionId, onSessionExpired }) {
   const [logs, addLog] = useTechLogs()
   const addLogRef = useRef(addLog)
   addLogRef.current = addLog
+  // Se lee por ref para no atarlo a las dependencias del efecto de carga: si el
+  // padre recreara el callback en cada render, se recargaria en bucle.
+  const onSessionExpiredRef = useRef(onSessionExpired)
+  onSessionExpiredRef.current = onSessionExpired
 
   const [tzMode, setTzModeState] = useState(() => getTzMode())
   const [fromDate, setFromDate]  = useState(() => toInputDate(new Date(Date.now() - 7 * 86400000), getTzMode()))
@@ -75,13 +79,13 @@ export default function Resumen({ connection, sessionId, onSessionExpired }) {
       setAgents(flat)
       setLast(new Date())
     } catch (e) {
-      if (e.isSessionExpired) { onSessionExpired?.(); return }
+      if (e.isSessionExpired) { onSessionExpiredRef.current?.(); return }
       addLogRef.current({ method: 'POST', path: 'resumen', status: 0, duration: Math.round(performance.now() - start), detail: e.message })
       setError(e.message)
     } finally {
       setLoading(false)
     }
-  }, [connection, sessionId, fromDate, toDate])
+  }, [connection, sessionId, fromDate, toDate, tzMode])
 
   useEffect(() => {
     loadData()

@@ -178,6 +178,11 @@ export default function GlobalResumen({ connections, onOpenConnection }) {
     await Promise.allSettled(conns.map(loadOne))
     setLoadingAll(false)
     setLastRefresh(new Date())
+    // connIdsKey no se usa en el cuerpo (las conexiones se leen de
+    // connectionsRef), pero es lo que hace que loadAll se recree cuando cambia
+    // el conjunto de conexiones. Depender del array `connections` recargaria
+    // cada vez que el padre lo rearma con el mismo contenido.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- connIdsKey es el disparador deliberado
   }, [connIdsKey, fromDate, toDate, tzMode])
 
   useEffect(() => {

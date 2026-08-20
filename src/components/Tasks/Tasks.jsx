@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import ProgressBar from '../ui/ProgressBar'
 import PromotedBadge from '../ui/PromotedBadge'
 import TechLogs from '../TechLogs'
@@ -18,6 +18,11 @@ export default function Tasks({ connection, sessionId, onSessionExpired, onTaskR
   const [search, setSearch]       = useState('')
   const [runModal, setRunModal]   = useState(null)   // task object
   const [logs, addLog]            = useTechLogs()
+  // addLog ya viene memoizado desde useTechLogs, asi que puede ir en las
+  // dependencias. onSessionExpired llega por props de un padre cualquiera: se
+  // lee por ref para que recrearlo no dispare una recarga.
+  const onSessionExpiredRef = useRef(onSessionExpired)
+  onSessionExpiredRef.current = onSessionExpired
   const [pinnedGuids, setPinnedGuids] = useState(() => {
     try { return new Set(JSON.parse(localStorage.getItem(PINS_KEY) || '[]')) }
     catch { return new Set() }
@@ -49,13 +54,13 @@ export default function Tasks({ connection, sessionId, onSessionExpired, onTaskR
       addLog({ method: 'POST', path: 'getProjects', status: 200, duration: Math.round(performance.now() - start), detail: `${data.length} proyectos` })
       setProjects(Array.isArray(data) ? data : [])
     } catch (e) {
-      if (e.isSessionExpired) { onSessionExpired?.(); return }
+      if (e.isSessionExpired) { onSessionExpiredRef.current?.(); return }
       addLog({ method: 'POST', path: 'getProjects', status: 0, duration: Math.round(performance.now() - start), detail: e.message })
       setError(e.message)
     } finally {
       setLoadingP(false)
     }
-  }, [connection, sessionId])
+  }, [connection, sessionId, addLog])
 
   useEffect(() => { load() }, [load])
 
@@ -72,7 +77,7 @@ export default function Tasks({ connection, sessionId, onSessionExpired, onTaskR
       const list = Array.isArray(data) ? data : []
       setTasks(p => ({ ...p, [guid]: list }))
     } catch (e) {
-      if (e.isSessionExpired) { onSessionExpired?.(); return }
+      if (e.isSessionExpired) { onSessionExpiredRef.current?.(); return }
       addLog({ method: 'POST', path: 'getProjectTasks', status: 0, duration: Math.round(performance.now() - start), detail: e.message })
       setTasks(p => ({ ...p, [guid]: [] }))
     } finally {
@@ -350,7 +355,7 @@ function RunModal({ task, connection, sessionId, onClose, onSuccess, addLog, onT
       }
     }
     init()
-  }, [connection, sessionId, task.taskGuid])
+  }, [connection, sessionId, task.taskGuid, addLog])
 
   async function handleRun() {
     setStep('running')
