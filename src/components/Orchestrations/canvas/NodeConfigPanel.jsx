@@ -34,8 +34,17 @@ function initForm(data) {
   }
 }
 
-export default function NodeConfigPanel({ node, connection, sessionId, onUpdate, onClose, presentation = 'sidebar' }) {
+// El guard de nodo ausente vive en un wrapper sin hooks. Antes estaba dentro del
+// mismo componente, delante de los seis hooks, que quedaban así detrás de un
+// early return (react-hooks/rules-of-hooks). Los dos call sites ya renderizan
+// condicionalmente, así que en la práctica no fallaba; el problema era que
+// cualquier hook nuevo agregado antes del guard sí habría roto el orden.
+export default function NodeConfigPanel({ node, ...props }) {
   if (!node) return null
+  return <NodeConfigPanelForm node={node} {...props} />
+}
+
+function NodeConfigPanelForm({ node, connection, sessionId, onUpdate, onClose, presentation = 'sidebar' }) {
   const isGroup = node.type === 'orchGroup' || node.type === 'group'
   const asSheet = presentation === 'sheet'
 

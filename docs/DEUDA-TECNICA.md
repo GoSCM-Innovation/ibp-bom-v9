@@ -9,7 +9,7 @@ Severidad: critical (riesgo alto o bloquea evolución), high (impacto fuerte en 
 | # | Severidad | Problema | Issue |
 |---|---|---|---|
 | 1 | ~~critical~~ | ~~Sin tests ni framework de testing~~ — resuelto, ver abajo | [#1](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/1) |
-| 2 | medium | Deuda de hooks en 5 archivos (bajó de 758 errores de lint a 0) | [#2](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/2) |
+| 2 | medium | Deuda de hooks: queda `set-state-in-effect` en 5 archivos | [#2](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/2) |
 | 3 | high | Estilos 100% inline, sin design system | [#3](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/3) |
 | 4 | high | Constantes de estado (STATUS) duplicadas | [#4](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/4) |
 | 5 | high | `useOrchestration` con demasiadas responsabilidades | [#5](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/5) |
@@ -27,19 +27,19 @@ Severidad: critical (riesgo alto o bloquea evolución), high (impacto fuerte en 
 Ver "Resuelto recientemente".
 
 ### 2. Deuda de hooks (medium)
-`npm run lint` sale en **exit 0** desde la configuración del runner de tests: pasó de 758 errores + 12 warnings a **0 errores + 51 warnings**. La mayor parte de aquellos 758 no era código sino configuración de ESLint (ver "Resuelto recientemente").
+`npm run lint` sale en **exit 0**: pasó de 758 errores + 12 warnings a **0 errores + 46 warnings**. La mayor parte de aquellos 758 no era código sino configuración de ESLint (ver "Resuelto recientemente").
 
 Lo que queda es deuda real, degradada a warning con scope por archivo en [eslint.config.js](../eslint.config.js) para que la regla siga siendo error en el resto del repo:
 
 | Regla | Archivos | Qué implica |
 |---|---|---|
-| `react-hooks/rules-of-hooks` (7) | [NodeConfigPanel.jsx](../src/components/Orchestrations/canvas/NodeConfigPanel.jsx) | Hooks llamados después de un early return. Riesgo real de correctitud. |
-| `react-hooks/set-state-in-effect` (4) | [App.jsx](../src/App.jsx), [MobileTaskPicker.jsx](../src/components/Orchestrations/mobile/MobileTaskPicker.jsx), [SystemView.jsx](../src/components/System/SystemView.jsx), [usePromotedTasks.js](../src/hooks/usePromotedTasks.js) | Renders en cascada; el patrón suele ser reemplazable por estado derivado. |
+| ~~`react-hooks/rules-of-hooks`~~ | — | **Resuelto**: era el early return de `NodeConfigPanel` por delante de sus seis hooks. |
+| `react-hooks/set-state-in-effect` (6) | [App.jsx](../src/App.jsx), [NodeConfigPanel.jsx](../src/components/Orchestrations/canvas/NodeConfigPanel.jsx), [MobileTaskPicker.jsx](../src/components/Orchestrations/mobile/MobileTaskPicker.jsx), [SystemView.jsx](../src/components/System/SystemView.jsx), [usePromotedTasks.js](../src/hooks/usePromotedTasks.js) | Renders en cascada; casi siempre es marcar "cargando" antes de un fetch. |
 | `react-hooks/exhaustive-deps` (12) | Varios | Ya eran warning; no rompen el exit code. |
 
 Los otros 28 warnings son `no-empty` y `no-useless-escape` en `public/legacy`, que no se editan por política.
 
-Recomendación: abordar `rules-of-hooks` primero, ahora que hay tests para respaldar el refactor. El baseline por archivo evita que el número crezca: si un archivo nuevo rompe la regla, falla el CI.
+Queda `set-state-in-effect`, que exige revisar caso por caso si el estado puede derivarse en vez de fijarse en un efecto. El baseline por archivo evita que el número crezca: si un archivo nuevo rompe la regla, falla el CI.
 
 ### 3. Estilos inline sin design system (high)
 Cientos de objetos `style={{...}}` repartidos por los componentes; no hay clases ni utilidades compartidas (más allá de las variables CSS en `src/index.css`). Cambiar un color o espaciado obliga a editar muchos sitios.
