@@ -49,9 +49,13 @@ export function usePromotedTasks(connection, sessionId) {
   const [promoted, setPromoted] = useState(null)
 
   useEffect(() => {
+    // null significa "no disponible", y hay que fijarlo antes de decidir si se
+    // consulta a SAP. Mismo caso que un estado de carga previo al fetch.
+    /* eslint-disable react-hooks/set-state-in-effect -- estado previo al fetch */
     if (connection.isProduction) { setPromoted(null); return }
     const prodSessionId = sessionStorage.getItem(`sap_prod_${connection.id}`)
     if (!prodSessionId) { setPromoted(null); return }
+    /* eslint-enable react-hooks/set-state-in-effect */
     const key = `${connection.id}:${prodSessionId}`
     if (!cache.has(key)) {
       cache.set(key, fetchPromotedSet(connection, prodSessionId).catch(e => {

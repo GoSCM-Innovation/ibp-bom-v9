@@ -23,8 +23,14 @@ export default function SystemView({ connection, onLoginCancel }) {
   const [sessionExpired, setSessionExpired] = useState(false)
   const promotedTasks = usePromotedTasks(connection, sessionId)
 
+  // Resincroniza la sesión cuando cambian los datos de la conexión: editar la
+  // URL o la organización con la pestaña abierta debe forzar un login nuevo.
+  // TODO(#2): el reemplazo idiomático es remontar con un `key` por identidad de
+  // conexión, pero eso también reiniciaría la pestaña activa y el estado del
+  // header, que hoy se conservan.
   useEffect(() => {
     const sid = sessionStorage.getItem(`sap_${connection.id}`)
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- resync ante cambio de conexión
     setSessionId(sid)
     setShowLogin(!sid)
     setSessionExpired(false)

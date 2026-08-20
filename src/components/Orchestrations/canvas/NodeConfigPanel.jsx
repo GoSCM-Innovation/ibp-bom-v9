@@ -39,9 +39,11 @@ function initForm(data) {
 // early return (react-hooks/rules-of-hooks). Los dos call sites ya renderizan
 // condicionalmente, así que en la práctica no fallaba; el problema era que
 // cualquier hook nuevo agregado antes del guard sí habría roto el orden.
+// El `key` por nodo remonta el formulario al cambiar de selección, que es lo que
+// antes hacía un efecto reseteando form y dirty a mano.
 export default function NodeConfigPanel({ node, ...props }) {
   if (!node) return null
-  return <NodeConfigPanelForm node={node} {...props} />
+  return <NodeConfigPanelForm key={node.id} node={node} {...props} />
 }
 
 function NodeConfigPanelForm({ node, connection, sessionId, onUpdate, onClose, presentation = 'sidebar' }) {
@@ -57,14 +59,10 @@ function NodeConfigPanelForm({ node, connection, sessionId, onUpdate, onClose, p
   const [varsStatus, setVarsStatus]   = useState('idle') // idle | loading | loaded | error
 
   useEffect(() => {
-    setForm(initForm(node.data))
-    setDirty(false)
-  }, [node.id])
-
-  useEffect(() => {
     if (isGroup || !connection) return
     const guid = node.data.taskGuid
     const name = node.data.taskName
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sin guid ni nombre no hay nada que pedir
     if (!guid && !name) { setVarsStatus('idle'); return }
 
     setVarsStatus('loading')
