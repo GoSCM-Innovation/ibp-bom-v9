@@ -85,14 +85,15 @@ Recomendación: code-splitting con `import()` dinámico (p. ej. lazy-load del ca
 
 ### Tests: Vitest + React Testing Library (issue #1)
 
-439 tests en 15 archivos bajo [tests/](../tests), corriendo en ~4 s. Cubren la lógica pura de backend y frontend:
+578 tests en 22 archivos bajo [tests/](../tests), corriendo en ~8 s:
 
 - **Backend:** parsers y builders SOAP ([api/soap.js](../api/soap.js), incluido el orden de elementos que exige el XSD de `getTaskLogs` y el decode base64 token por token), guard anti-SSRF, `requireAuth`/`applyCors`, el motor de orquestación (olas de Kahn, `applyTaskResult`, merge de variables) y los validadores de `orchestrations` e `ibp-proxy`.
-- **Frontend:** `dateUtils` (incluye cruce de medianoche por offset), `canvasUtils`, `taskMetadata`, `soapCall`, el interceptor `apiFetch`, y los hooks `useBuildCursor`, `useViewport` y `useTechLogs`.
+- **Frontend, lógica pura:** `dateUtils` (incluye cruce de medianoche por offset), `canvasUtils`, `taskMetadata`, `soapCall`, el interceptor `apiFetch`, y los hooks `useBuildCursor`, `useViewport` y `useTechLogs`.
+- **Componentes (RTL):** `Sheet` (Escape, bloqueo de scroll, portal, backdrop), `OrchList` (favoritos en `localStorage` y su orden, propagación de eventos en los botones de fila), `ConnectionForm` (orden de validación, normalización de la URL, alta vs edición), `SapLoginModal` (login, y la sesión productiva paralela que se abre en sandbox), `TaskNode` (estados, badge de promovido, estrategia de error), `TechLogs` (agrupado de llamadas consecutivas) e `ImportOrchestrationsModal` (clasificación de duplicadas, aviso de tenant distinto).
 
 Los tests viven en `tests/` y no co-locados: Vercel trata todo archivo dentro de `api/` como función serverless. Detalle en [CONTRIBUTING.md](../CONTRIBUTING.md#tests).
 
-Pendiente para una segunda vuelta: tests de componentes con RTL (RunModal, OrchList, TaskMonitor) y cobertura con `@vitest/coverage-v8`.
+Sin cubrir por ahora, por relación costo/beneficio: los contenedores grandes que son sobre todo orquestación de fetch y markup (`TaskMonitor`, `Resumen`, `GlobalResumen`, `Orchestrations`, `RunModal`). Su lógica de valor ya está testeada por separado en `soapCall`, `dateUtils`, `canvasUtils` y el motor. La cobertura con `@vitest/coverage-v8` queda como decisión aparte, porque implica acordar umbrales para el CI.
 
 ### Dos defectos encontrados al escribir los tests
 
