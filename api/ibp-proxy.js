@@ -76,6 +76,9 @@ async function sapFetch(url, accept, user, password, timeoutMs) {
   }
 }
 
+// Validadores puros expuestos para tests unitarios (tests/api/ibp-proxy-validate.test.js).
+export { validateProxyUrl, validateService, validateEntityPath, extractSapError }
+
 export default async function handler(req, res) {
   if (applyCors(req, res, 'POST,OPTIONS')) return
   if (!requireAuth(req, res)) return

@@ -41,7 +41,7 @@ export default function WizardStep({
     if (e.pointerType === 'mouse' && e.button !== 0) return
     startRef.current = { x: e.clientX, y: e.clientY }
     swiping.current = false
-    try { e.currentTarget.setPointerCapture?.(e.pointerId) } catch {}
+    try { e.currentTarget.setPointerCapture?.(e.pointerId) } catch { /* puntero ya liberado: el swipe sigue funcionando */ }
   }
   function onPointerMove(e) {
     if (!startRef.current) return

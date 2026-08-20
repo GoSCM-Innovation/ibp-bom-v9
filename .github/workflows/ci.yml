@@ -1,0 +1,28 @@
+name: CI
+
+# El workflow de bump de versión commitea con [skip ci], así que sus pushes a
+# master no vuelven a disparar este job.
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test

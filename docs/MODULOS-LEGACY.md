@@ -46,6 +46,10 @@ Se migraron desde el repositorio `ibp-bom-v7` (una app vanilla JS de GoSCM servi
 
 **Orden de carga de scripts** (en ambas páginas): `i18n.js` → `state.js` → `utils.js` → `api.js` → `docs.js`; `integration-explorer.html` añade `explorer.js` al final (depende del parser de `docs.js`). Helpers globales compartidos por todos: `CFG` (state), `I18n` (i18n), `str`/`escH`/`log` (utils), `fetchAllPages` (api).
 
+Son scripts globales clásicos, no módulos ES: salvo `i18n.js` (que es un IIFE y publica `window.I18n`), los archivos son fragmentos planos cuyas declaraciones de nivel superior van al scope global.
+
+> **Sincronizar con ESLint.** El bloque `public/legacy/**` de [eslint.config.js](../eslint.config.js) declara estos globals compartidos para que `no-undef` siga siendo útil sin marcar 642 falsos positivos. Al agregar un helper global nuevo a estos scripts, agregarlo también a esa lista. La lista actual: `I18n`, `CFG`, `IDB`, `escH`, `log`, `fetchAllPages`, `apiJson`, `apiXml`, `buildSelect`, `normalizeRows`, `parseBatchCsv`, `parseIntegration`, `parseATL`, más `JSZip` y `vis` de los CDN.
+
 **Dependencias CDN** (con SRI):
 - `integration-explorer.html`: `vis-network@10.0.2` (grafo) + `jszip@3.10.1` (lectura de ZIP).
 - `mapping-dataflow.html`: `jszip@3.10.1` (lectura de ZIP y escritura nativa del `.xlsx`). No usa vis-network ni ExcelJS.

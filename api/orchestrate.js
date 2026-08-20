@@ -578,6 +578,10 @@ async function cancelRun(orchestrationId) {
 
 export { tick }
 
+// Helpers puros expuestos para tests unitarios (tests/api/orchestrate.test.js).
+// No los consume nadie más: el entry en runtime sigue siendo el export default.
+export { buildWaves, migrateStepsToNodes, resolveGraph, initNodeState, mergeVariables, applyTaskResult }
+
 // ─── Handler ──────────────────────────────────────────────────────────────────
 
 export default async function handler(req, res) {

@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import ProgressBar from '../ui/ProgressBar'
 import PromotedBadge from '../ui/PromotedBadge'
-import TechLogs, { useTechLogs } from '../TechLogs'
+import TechLogs from '../TechLogs'
+import { useTechLogs } from '../../hooks/useTechLogs'
 import { usePromotedTasksContext, isTaskPromoted } from '../../hooks/usePromotedTasks'
 import { soapCall } from '../../api/soapCall'
 

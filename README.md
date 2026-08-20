@@ -55,6 +55,8 @@ Scripts disponibles:
 | `npm run build` | Build de producción a `dist/`. |
 | `npm run preview` | Sirve el build de `dist/` localmente. |
 | `npm run lint` | ESLint sobre todo el repo. |
+| `npm test` | Suite de tests (Vitest). |
+| `npm run test:watch` | Vitest en modo watch. |
 | `npm run gen:secret` | Genera un token aleatorio de 32 bytes hex. |
 | `npm run release:patch\|minor\|major` | Sube versión y hace push de tags. |
 
@@ -82,6 +84,7 @@ src/            Frontend React
   components/   UI por feature (Connections, Resumen, Tasks, Orchestrations, ...)
   hooks/        Hooks reutilizables
   utils/        Utilidades (fechas, metadata de tasks)
+tests/          Tests con Vitest, espejando api/ y src/ (no co-locados: ver CONTRIBUTING)
 public/legacy/  Módulos heredados en vanilla JS (Explorer, Mapping Dataflow)
 docs/           Documentación del proyecto
 ```

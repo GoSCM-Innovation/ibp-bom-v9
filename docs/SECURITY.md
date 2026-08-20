@@ -12,6 +12,8 @@ Todo endpoint exige `Authorization: Bearer <API_TOKEN>`. La validación está en
 
 El token se genera con `npm run gen:secret` (32 bytes hex) y se configura como `API_TOKEN` (backend) y `VITE_API_TOKEN` (frontend).
 
+En el cliente, el header lo inyecta el interceptor global de [src/apiFetch.js](../src/apiFetch.js), que solo lo agrega a llamadas `/api/*` **del mismo origen**: las tres formas de input (string, `URL`, `Request`) se resuelven contra `window.location.origin` antes de comparar. Antes se comparaba solo el `pathname`, de modo que una `URL` o un `Request` absolutos a otro host con path `/api/` se llevaban el token puesto. Cubierto por [tests/src/apiFetch.test.js](../tests/src/apiFetch.test.js).
+
 ### Limitación conocida: token de frontend público
 
 `VITE_API_TOKEN` se inyecta en el bundle del cliente (Vite expone las variables con prefijo `VITE_`). Cualquiera con acceso al frontend puede leerlo y llamar a `/api/*` directamente. Para un despliegue con usuarios no confiables esto es equivalente a no tener auth de API.
@@ -41,9 +43,11 @@ Las funciones que hacen requests salientes a URLs provistas por el usuario (prox
 
 - Solo HTTPS.
 - Resolución DNS del host y rechazo si cualquier dirección resuelta es privada o reservada: loopback (`127/8`, `::1`), RFC 1918 (`10/8`, `172.16/12`, `192.168/16`), link-local y metadata de nube (`169.254/16`, `fe80::/10`), ULA IPv6 (`fc00::/7`), CGNAT (`100.64/10`), benchmarking (`198.18/15`), multicast y reservados (`>=224`), e IPs malformadas.
-- Normaliza codificaciones IPv4 alternativas (decimal/hex/octal) e IPv4 mapeadas en IPv6.
+- Normaliza codificaciones IPv4 alternativas (decimal/hex/octal) e IPv4 mapeadas en IPv6, en las dos formas en que aparecen: la decimal que devuelve `dns.lookup` (`::ffff:127.0.0.1`) y la hexadecimal a la que `new URL()` normaliza el literal (`::ffff:7f00:1`), incluidas las variantes IPv4-compatible (`::a.b.c.d`) e IPv4-translated (`::ffff:0:a.b.c.d`).
 
 Queda una ventana TOCTOU residual entre resolución y conexión (DNS rebinding); está documentada en el propio archivo y se consideró aceptable frente al costo de IP pinning completo.
+
+Los tests de este guard están en [tests/api/ssrf.test.js](../tests/api/ssrf.test.js). Fueron los que destaparon un bypass: la comprobación de IPv4 mapeada solo contemplaba la forma decimal, que `new URL()` nunca produce, así que `https://[::ffff:169.254.169.254]/` alcanzaba el endpoint de metadata mientras `https://169.254.169.254/` se bloqueaba correctamente. Corregido; los casos quedaron como test de regresión.
 
 Como defensa adicional, las llamadas salientes usan `redirect: 'manual'` para que una redirección no permita saltar la validación.
 
