@@ -88,22 +88,4 @@ export default defineConfig([
       'no-useless-escape': 'warn',
     },
   },
-  {
-    // TODO(#2): baseline de deuda de hooks. Se degrada a warning solo en los
-    // archivos que ya la arrastran, para que la regla siga siendo error en el
-    // resto del repo y no entre código nuevo con el mismo problema.
-    // Hooks llamados condicionalmente tras un early return.
-    files: ['src/components/Orchestrations/canvas/NodeConfigPanel.jsx'],
-    rules: { 'react-hooks/rules-of-hooks': 'warn' },
-  },
-  {
-    // TODO(#2): setState síncrono dentro de un efecto.
-    files: [
-      'src/App.jsx',
-      'src/components/Orchestrations/mobile/MobileTaskPicker.jsx',
-      'src/components/System/SystemView.jsx',
-      'src/hooks/usePromotedTasks.js',
-    ],
-    rules: { 'react-hooks/set-state-in-effect': 'warn' },
-  },
 ])

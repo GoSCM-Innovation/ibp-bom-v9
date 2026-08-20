@@ -335,17 +335,21 @@ export default function WizardEditor({
         />
       </Sheet>
 
-      <MobileTaskPicker
-        open={!!picker}
-        onClose={() => setPicker(null)}
-        connection={connection}
-        sessionId={sessionId}
-        mode={picker === 'parallel' ? 'parallel' : 'sequential'}
-        onConfirm={(tasks) => {
-          if (picker === 'parallel') cursor.addTasksParallel(tasks)
-          else cursor.addTasksSequential(tasks)
-        }}
-      />
+      {/* Montado solo mientras está abierto: al cerrarlo se desmonta y la
+          selección se descarta sin necesidad de limpiarla por efecto. */}
+      {picker && (
+        <MobileTaskPicker
+          open
+          onClose={() => setPicker(null)}
+          connection={connection}
+          sessionId={sessionId}
+          mode={picker === 'parallel' ? 'parallel' : 'sequential'}
+          onConfirm={(tasks) => {
+            if (picker === 'parallel') cursor.addTasksParallel(tasks)
+            else cursor.addTasksSequential(tasks)
+          }}
+        />
+      )}
 
       <Sheet
         open={!!selectedNode}

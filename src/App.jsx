@@ -50,8 +50,12 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false) // mobile drawer
   const isMobile = useIsMobile()
 
-  // Auto-collapse sidebar when switching to mobile
+  // Auto-collapse sidebar when switching to mobile.
+  // TODO(#2): el estado no se puede derivar porque el usuario también lo alterna
+  // a mano; el reemplazo idiomático es ajustarlo en render comparando el valor
+  // anterior de isMobile, que es más código para el mismo comportamiento.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset de estado ante cambio de viewport
     if (isMobile) setSidebarExpanded(false)
   }, [isMobile])
 

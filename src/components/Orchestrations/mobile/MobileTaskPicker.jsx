@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Sheet from '../../ui/Sheet'
 import TaskPalette from '../panel/TaskPalette'
 
@@ -10,11 +10,10 @@ export default function MobileTaskPicker({
   mode = 'sequential', // 'sequential' | 'parallel'
   onConfirm,           // (tasks[]) => void
 }) {
+  // La selección no se limpia por efecto: el padre monta este componente solo
+  // mientras el picker está abierto, así que al cerrarlo se desmonta y el estado
+  // se reinicia solo.
   const [selected, setSelected] = useState(new Map())
-
-  useEffect(() => {
-    if (!open) setSelected(new Map())
-  }, [open])
 
   const selectedKeys = new Set(selected.keys())
   const count = selected.size

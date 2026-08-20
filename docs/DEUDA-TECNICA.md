@@ -9,7 +9,7 @@ Severidad: critical (riesgo alto o bloquea evolución), high (impacto fuerte en 
 | # | Severidad | Problema | Issue |
 |---|---|---|---|
 | 1 | ~~critical~~ | ~~Sin tests ni framework de testing~~ — resuelto, ver abajo | [#1](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/1) |
-| 2 | medium | Deuda de hooks en 5 archivos (bajó de 758 errores de lint a 0) | [#2](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/2) |
+| 2 | low | Deuda de hooks: quedan 11 `exhaustive-deps` como warning | [#2](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/2) |
 | 3 | high | Estilos 100% inline, sin design system | [#3](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/3) |
 | 4 | high | Constantes de estado (STATUS) duplicadas | [#4](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/4) |
 | 5 | high | `useOrchestration` con demasiadas responsabilidades | [#5](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/5) |
@@ -26,20 +26,31 @@ Severidad: critical (riesgo alto o bloquea evolución), high (impacto fuerte en 
 ### 1. Sin tests (resuelto)
 Ver "Resuelto recientemente".
 
-### 2. Deuda de hooks (medium)
-`npm run lint` sale en **exit 0** desde la configuración del runner de tests: pasó de 758 errores + 12 warnings a **0 errores + 51 warnings**. La mayor parte de aquellos 758 no era código sino configuración de ESLint (ver "Resuelto recientemente").
+### 2. Deuda de hooks (low)
+`npm run lint` sale en **exit 0**: pasó de 758 errores + 12 warnings a **0 errores + 39 warnings**. La mayor parte de aquellos 758 no era código sino configuración de ESLint (ver "Resuelto recientemente").
 
-Lo que queda es deuda real, degradada a warning con scope por archivo en [eslint.config.js](../eslint.config.js) para que la regla siga siendo error en el resto del repo:
+Estado de las reglas de hooks:
 
-| Regla | Archivos | Qué implica |
-|---|---|---|
-| `react-hooks/rules-of-hooks` (7) | [NodeConfigPanel.jsx](../src/components/Orchestrations/canvas/NodeConfigPanel.jsx) | Hooks llamados después de un early return. Riesgo real de correctitud. |
-| `react-hooks/set-state-in-effect` (4) | [App.jsx](../src/App.jsx), [MobileTaskPicker.jsx](../src/components/Orchestrations/mobile/MobileTaskPicker.jsx), [SystemView.jsx](../src/components/System/SystemView.jsx), [usePromotedTasks.js](../src/hooks/usePromotedTasks.js) | Renders en cascada; el patrón suele ser reemplazable por estado derivado. |
-| `react-hooks/exhaustive-deps` (12) | Varios | Ya eran warning; no rompen el exit code. |
+| Regla | Estado |
+|---|---|
+| ~~`react-hooks/rules-of-hooks`~~ | **Resuelto**: era el early return de `NodeConfigPanel` por delante de sus seis hooks. |
+| ~~`react-hooks/set-state-in-effect`~~ | **Sin reportes.** Dos se eliminaron de raíz; los cuatro restantes quedan suprimidos uno por uno con su motivo (ver abajo). |
+| `react-hooks/exhaustive-deps` (11) | Sigue como warning; no rompe el exit code. |
+
+No quedan bloques de baseline en [eslint.config.js](../eslint.config.js): las dos reglas de hooks vuelven a ser error en todo el repo.
+
+**Eliminados de raíz.** En `NodeConfigPanel` el efecto que reseteaba el formulario al cambiar de nodo se reemplazó por un `key` en el wrapper, que remonta el formulario y deja que los inicializadores de `useState` hagan el trabajo. En `MobileTaskPicker` el efecto que limpiaba la selección al cerrar desapareció al montar el componente solo mientras está abierto.
+
+**Suprimidos con motivo**, cada uno con su `eslint-disable-next-line` y su justificación en el código:
+
+| Sitio | Por qué se queda |
+|---|---|
+| [NodeConfigPanel.jsx](../src/components/Orchestrations/canvas/NodeConfigPanel.jsx) | Estado de carga previo a un fetch. No hay patrón mejor sin una librería de data fetching. |
+| [usePromotedTasks.js](../src/hooks/usePromotedTasks.js) | Ídem: fija "no disponible" antes de decidir si consulta a SAP. |
+| [App.jsx](../src/App.jsx) | Colapsar el sidebar al pasar a mobile. El estado no se puede derivar porque el usuario también lo alterna a mano; el reemplazo idiomático es más código para el mismo comportamiento. |
+| [SystemView.jsx](../src/components/System/SystemView.jsx) | Resync de sesión al editar la conexión. El reemplazo con `key` también reiniciaría la pestaña activa y el header, que hoy se conservan. |
 
 Los otros 28 warnings son `no-empty` y `no-useless-escape` en `public/legacy`, que no se editan por política.
-
-Recomendación: abordar `rules-of-hooks` primero, ahora que hay tests para respaldar el refactor. El baseline por archivo evita que el número crezca: si un archivo nuevo rompe la regla, falla el CI.
 
 ### 3. Estilos inline sin design system (high)
 Cientos de objetos `style={{...}}` repartidos por los componentes; no hay clases ni utilidades compartidas (más allá de las variables CSS en `src/index.css`). Cambiar un color o espaciado obliga a editar muchos sitios.
