@@ -1,21 +1,7 @@
 import { useState, useEffect } from 'react'
 import { soapCall, isSoapDebug } from '../../api/soapCall'
+import { inputStyle, selectStyle, labelStyle } from '../../styles/forms'
 
-const selectStyle = {
-  background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 6,
-  color: 'var(--text)', fontSize: 12, padding: '7px 10px', width: '100%',
-  boxSizing: 'border-box', outline: 'none', cursor: 'pointer',
-}
-const inputStyle = {
-  background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 6,
-  color: 'var(--text)', fontSize: 12, padding: '7px 10px', width: '100%',
-  boxSizing: 'border-box', outline: 'none',
-}
-const labelStyle = {
-  fontSize: 10, fontWeight: 700, color: 'var(--text2)',
-  textTransform: 'uppercase', letterSpacing: '.06em',
-  display: 'block', marginBottom: 5,
-}
 
 function FieldRow({ label, count, rawData, children }) {
   const [showRaw, setShowRaw] = useState(false)

@@ -8,6 +8,7 @@ import {
 } from 'recharts'
 import { soapCall } from '../../api/soapCall'
 import { taskStatus } from '../../constants/status'
+import { filterInputStyle as inputStyle } from '../../styles/forms'
 
 const REFRESH_MS = 5 * 60 * 1000
 
@@ -648,4 +649,3 @@ function Empty() {
 
 const cardStyle  = { background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 10, padding: '16px 18px' }
 const cardTitle  = { fontSize: 11, fontWeight: 700, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 12 }
-const inputStyle = { background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text)', fontSize: 11, padding: '6px 10px', outline: 'none' }

@@ -1,15 +1,8 @@
 import { useState, useEffect } from 'react'
 import { soapCall } from '../../api/soapCall'
+import { selectStyle } from '../../styles/forms'
+import Field from '../ui/Field'
 
-const selectStyle = {
-  background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 6,
-  color: 'var(--text)', fontSize: 12, padding: '7px 10px', width: '100%',
-  boxSizing: 'border-box', outline: 'none', cursor: 'pointer',
-}
-const labelStyle = {
-  fontSize: 10, fontWeight: 700, color: 'var(--text2)',
-  textTransform: 'uppercase', letterSpacing: '.06em', display: 'block', marginBottom: 5,
-}
 
 export default function RunSingleModal({ connection, sessionId, node, onClose }) {
   const [agents,      setAgents]      = useState([])
@@ -78,25 +71,23 @@ export default function RunSingleModal({ connection, sessionId, node, onClose })
             <div style={{ textAlign: 'center', color: 'var(--text2)', fontSize: 12, padding: '20px 0' }}>Cargando…</div>
           ) : (
             <>
-              <div style={{ marginBottom: 12 }}>
-                <label style={labelStyle}>Agente ({agents.length} disponibles)</label>
+              <Field label={`Agente (${agents.length} disponibles)`}>
                 <select style={selectStyle} value={agentName} onChange={e => setAgentName(e.target.value)}>
                   <option value="">— Default del sistema —</option>
                   {agents.map(a => (
                     <option key={a.guid || a.name} value={a.name}>{a.name}</option>
                   ))}
                 </select>
-              </div>
+              </Field>
 
-              <div style={{ marginBottom: 14 }}>
-                <label style={labelStyle}>Configuración ({configs.length} disponibles)</label>
+              <Field label={`Configuración (${configs.length} disponibles)`} gap={14}>
                 <select style={selectStyle} value={profileName} onChange={e => setProfileName(e.target.value)}>
                   <option value="">— Default del sistema —</option>
                   {configs.map(c => (
                     <option key={c.guid || c.name} value={c.name}>{c.name}</option>
                   ))}
                 </select>
-              </div>
+              </Field>
 
               {(node.data.globalVariables || []).filter(v => v.name).length > 0 && (
                 <div style={{ marginBottom: 10, padding: '8px 10px', borderRadius: 6, background: 'var(--bg3)', border: '1px solid var(--border)', fontSize: 10, color: 'var(--text3)', fontFamily: 'var(--mono)' }}>

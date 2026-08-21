@@ -5,6 +5,8 @@ import TechLogs from '../TechLogs'
 import { useTechLogs } from '../../hooks/useTechLogs'
 import { usePromotedTasksContext, isTaskPromoted } from '../../hooks/usePromotedTasks'
 import { soapCall } from '../../api/soapCall'
+import { selectStyle, labelStyle } from '../../styles/forms'
+import Field from '../ui/Field'
 
 export default function Tasks({ connection, sessionId, onSessionExpired, onTaskRun }) {
   const PINS_KEY = `ibp-project-pins-${connection.id}`
@@ -390,26 +392,24 @@ function RunModal({ task, connection, sessionId, onClose, onSuccess, addLog, onT
         {step === 'form' && (
           <>
             {/* Agent selector */}
-            <div style={{ marginBottom: 14 }}>
-              <label style={labelStyle}>Agente (opcional)</label>
+            <Field label="Agente (opcional)" gap={14}>
               <select value={agentName} onChange={e => setAgentName(e.target.value)} style={selectStyle}>
                 <option value="">— Sin especificar —</option>
                 {agents.map(a => (
                   <option key={a.guid} value={a.name}>{a.name} ({a.agentStatus?.replace('AGENT:', '')})</option>
                 ))}
               </select>
-            </div>
+            </Field>
 
             {/* Profile selector */}
-            <div style={{ marginBottom: 14 }}>
-              <label style={labelStyle}>Configuración del sistema (opcional)</label>
+            <Field label="Configuración del sistema (opcional)" gap={14}>
               <select value={profileName} onChange={e => setProfileName(e.target.value)} style={selectStyle}>
                 <option value="">— Sin especificar —</option>
                 {profiles.map(p => (
                   <option key={p.guid} value={p.name}>{p.name}</option>
                 ))}
               </select>
-            </div>
+            </Field>
 
             {/* Global variables */}
             {(taskInfo?.globalVariables || []).length > 0 && (
@@ -470,5 +470,3 @@ function RunModal({ task, connection, sessionId, onClose, onSuccess, addLog, onT
   )
 }
 
-const labelStyle = { fontSize: 10, fontWeight: 700, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '.07em', display: 'block', marginBottom: 5 }
-const selectStyle = { background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text)', fontSize: 12, padding: '7px 10px', width: '100%', outline: 'none', cursor: 'pointer' }

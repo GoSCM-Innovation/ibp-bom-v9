@@ -7,6 +7,7 @@ import { usePromotedTasksContext, isTaskPromoted } from '../../hooks/usePromoted
 import { getTzMode, setTzMode, toInputDate, inputDateToDate, formatEpochMs, formatSapTs, TZ_OPTIONS } from '../../utils/dateUtils'
 import { soapCall } from '../../api/soapCall'
 import { taskStatus } from '../../constants/status'
+import { filterInputStyle as inputStyle } from '../../styles/forms'
 
 const REFRESH_MS = 30000
 const PAGE_SIZE = 50
@@ -591,7 +592,3 @@ function LogsModal({ runId, connection, sessionId, onClose }) {
   )
 }
 
-const inputStyle = {
-  background: 'var(--bg2)', border: '1px solid var(--border)',
-  borderRadius: 6, color: 'var(--text)', fontSize: 11, padding: '6px 10px', outline: 'none',
-}

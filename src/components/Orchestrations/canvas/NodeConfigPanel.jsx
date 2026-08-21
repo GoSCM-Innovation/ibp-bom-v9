@@ -1,28 +1,8 @@
 import { useState, useEffect } from 'react'
 import { soapCall } from '../../../api/soapCall'
+import { inputStyle, selectStyle, labelStyle } from '../../../styles/forms'
+import Field from '../../ui/Field'
 
-const inputStyle = {
-  background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 6,
-  color: 'var(--text)', fontSize: 12, padding: '6px 10px', fontFamily: 'var(--font)',
-  outline: 'none', width: '100%', boxSizing: 'border-box',
-}
-const selectStyle = {
-  ...inputStyle, cursor: 'pointer',
-}
-const labelStyle = {
-  fontSize: 10, fontWeight: 700, color: 'var(--text2)',
-  textTransform: 'uppercase', letterSpacing: '.06em',
-  display: 'block', marginBottom: 4,
-}
-
-function Field({ label, children }) {
-  return (
-    <div style={{ marginBottom: 12 }}>
-      <label style={labelStyle}>{label}</label>
-      {children}
-    </div>
-  )
-}
 
 function initForm(data) {
   return {
