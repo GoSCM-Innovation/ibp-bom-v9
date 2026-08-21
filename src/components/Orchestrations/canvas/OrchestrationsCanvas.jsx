@@ -14,7 +14,7 @@ const NODE_TYPES = { orchTask: TaskNode, orchGroup: GroupNode }
 
 const EDGE_DEFAULTS = {
   type: 'smoothstep',
-  style: { stroke: '#2e4168', strokeWidth: 1.5 },
+  style: { stroke: 'var(--border2)', strokeWidth: 1.5 },
   animated: false,
 }
 
