@@ -13,12 +13,12 @@
 
 ## Proyecto
 
-CIDS Studio: SPA de React (Vite) para monitorear y orquestar tareas de SAP CI-DS (SOAP) y explorar dataflows de SAP IBP (OData). Backend de funciones serverless en Vercel; estado compartido en Upstash Redis. JavaScript/JSX, sin TypeScript. Documentación completa en `docs/ARCHITECTURE.md`, `README.md`, `CONTRIBUTING.md`, `docs/SECURITY.md`, `docs/DEUDA-TECNICA.md`, `docs/CATALOGO-DATOS-API.md`.
+CIDS Studio: SPA de React (Vite) para monitorear y orquestar tareas de SAP CI-DS (SOAP) y explorar dataflows de SAP IBP (OData). Backend de funciones serverless en Vercel; estado compartido en Upstash Redis. JavaScript/JSX, sin TypeScript. Documentación completa en `docs/ARCHITECTURE.md`, `README.md`, `CONTRIBUTING.md`, `docs/SECURITY.md`, `docs/DEUDA-TECNICA.md`, `docs/CATALOGO-DATOS-API.md`, `docs/DESIGN-SYSTEM.md`.
 
 ## Mapa del repo
 
 - `api/`: funciones serverless (helpers con prefijo `_`: `_auth`, `_cors`, `_ssrf`). Núcleo SOAP en `api/soap.js`; motor de orquestación en `api/orchestrate.js`.
-- `src/`: frontend React. `src/api/soapCall.js` es el cliente SOAP compartido. Componentes por feature en `src/components/`.
+- `src/`: frontend React. `src/api/soapCall.js` es el cliente SOAP compartido. Componentes por feature en `src/components/`. Estilos compartidos en `src/styles/` (tokens, formularios, botones) y constantes de estado en `src/constants/status.js`.
 - `public/legacy/`: módulos heredados en vanilla JS (Explorer, Mapping Dataflow) embebidos en iframe. No se modifica su código, pero sí se lintea: tiene un bloque propio en `eslint.config.js` con `sourceType: 'script'` y los globals compartidos declarados (son scripts globales cargados con `<script src>` en orden fijo, no módulos ES). Al agregar un global nuevo a esos scripts hay que declararlo también ahí. Doc detallada: `docs/MODULOS-LEGACY.md`.
 - `tests/`: tests con Vitest, espejando `api/` y `src/`. No se co-locan porque Vercel trata todo archivo dentro de `api/` como función serverless.
 - `docs/`: documentación.
@@ -28,6 +28,7 @@ CIDS Studio: SPA de React (Vite) para monitorear y orquestar tareas de SAP CI-DS
 - Consultas SAP desde el frontend: usar `soapCall` de `src/api/soapCall.js`; no redefinirlo por componente. Parsers de operaciones nuevas en `api/soap.js`.
 - Endpoints nuevos: aplicar `applyCors` + `requireAuth`; si hacen requests salientes con URL del usuario, validar con `validatePublicHttpsUrl` (`api/_ssrf.js`).
 - Estado compartido entre clientes o necesario para el cron: Redis con prefijo `cids:`. UI local: hooks. Preferencias: `localStorage`. Sesión SAP: `sessionStorage` (`sap_${connId}`).
+- Estilos: los objetos `style={{...}}` inline son la convención, pero los valores salen de `src/styles/`. Colores de la paleta: `color.*` (var CSS), `alpha.*(a)` (translúcido) o `hex.*` (cuando un helper tiene que derivar tintes o el valor va a un atributo SVG). Nunca escribir un `rgba()`/hex de la paleta a mano ni concatenar el alfa al hex (`color + '22'`): hay tests que lo bloquean. Formularios, botones y estados de SAP tienen módulo propio. Ver `docs/DESIGN-SYSTEM.md`.
 - Logs de debug: gatear con `isSoapDebug()` (`import.meta.env.DEV || localStorage.ibpSoapDebug === '1'`). No dejar `console.log` sin gatear.
 - Commits: Conventional Commits. La versión sube sola por GitHub Actions; no editar `version` en `package.json` a mano.
 

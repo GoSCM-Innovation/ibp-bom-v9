@@ -10,11 +10,11 @@ Severidad: critical (riesgo alto o bloquea evolución), high (impacto fuerte en 
 |---|---|---|---|
 | 1 | ~~critical~~ | ~~Sin tests ni framework de testing~~ — resuelto, ver abajo | [#1](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/1) |
 | 2 | ~~high~~ | ~~Errores de lint preexistentes~~ - resuelto, ver abajo | [#2](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/2) |
-| 3 | high | Estilos 100% inline, sin design system | [#3](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/3) |
-| 4 | high | Constantes de estado (STATUS) duplicadas | [#4](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/4) |
+| 3 | high | Estilos inline sin design system — parcial, ver abajo | [#3](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/3) |
+| 4 | ~~high~~ | ~~Constantes de estado (STATUS) duplicadas~~ — resuelto, ver abajo | [#4](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/4) |
 | 5 | high | `useOrchestration` con demasiadas responsabilidades | [#5](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/5) |
 | 6 | high | `VITE_API_TOKEN` público de facto | [#6](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/6) |
-| 7 | medium | Estilos de formulario duplicados | [#7](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/7) |
+| 7 | ~~medium~~ | ~~Estilos de formulario duplicados~~ — resuelto, ver abajo | [#7](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/7) |
 | 8 | medium | Prop drilling de `connection`/`sessionId` | [#8](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/8) |
 | 9 | medium | Mezcla español/inglés sin i18n centralizado | [#9](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/9) |
 | 10 | medium | Manejo de errores inconsistente | [#10](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/10) |
@@ -57,13 +57,19 @@ Hay un guardarraíl para esto en [tests/src/container-refetch.test.jsx](../tests
 
 Los otros 28 warnings son `no-empty` y `no-useless-escape` en `public/legacy`, que no se editan por política.
 
-### 3. Estilos inline sin design system (high)
-Cientos de objetos `style={{...}}` repartidos por los componentes; no hay clases ni utilidades compartidas (más allá de las variables CSS en `src/index.css`). Cambiar un color o espaciado obliga a editar muchos sitios.
-Recomendación: extraer estilos compartidos (CSS Modules o utilidades) y consolidar tokens de spacing/tipografía.
+### 3. Estilos inline sin design system (high, parcial)
+Hay un design system documentado en [DESIGN-SYSTEM.md](DESIGN-SYSTEM.md): paleta con fuente única, escalas de tipografía y radio, y módulos compartidos para formularios, botones y estados. Ver "Resuelto recientemente".
 
-### 4. Constantes de estado duplicadas (high)
-`STATUS_COLORS` y `STATUS_LABELS` están definidos de forma casi idéntica en [src/components/Resumen/Resumen.jsx](../src/components/Resumen/Resumen.jsx) y [src/components/Resumen/GlobalResumen.jsx](../src/components/Resumen/GlobalResumen.jsx); `TaskMonitor.jsx` tiene su propia variante (`STATUS_META`) y `canvasUtils.js` otra.
-Recomendación: un único módulo `src/constants/status.js` como fuente de verdad.
+**Lo que sigue abierto**, y por qué se dejó:
+
+- **Los 735 objetos `style={{...}}` siguen inline.** Se consolidaron los valores y los patrones repetidos, no la forma de aplicarlos. Pasarlos a CSS Modules es un cambio de otra escala, con un diff enorme sobre contenedores que no tienen cobertura de tests.
+- **El espaciado no tiene escala.** Los 27 valores distintos de `padding`/`margin` se concentran en 8 números, así que definirla es viable, pero snapear los sueltos mueve píxeles y eso necesita revisión visual.
+- **Quedan ~38 colores que no son de la paleta**, casi todos tonos de estado usados de forma decorativa fuera de `constants/status.js`. Decidir si entran a la paleta o se derivan del estado es la parte que falta.
+- **`#fff` y `#000` siguen sueltos** (35 usos). Tienen token pero se usan con dos sentidos distintos, jerarquía tipográfica y contraste sobre el acento, y unificarlos requiere decidir cuál es cuál en cada sitio.
+- **Los 11 handlers `onMouseEnter`/`onMouseLeave` que simulan `:hover` en JS** siguen ahí: son la consecuencia directa de no tener clases.
+
+### 4. Constantes de estado duplicadas (resuelto)
+Ver "Resuelto recientemente".
 
 ### 5. `useOrchestration` hace demasiado (high)
 [src/components/Orchestrations/useOrchestration.js](../src/components/Orchestrations/useOrchestration.js) mezcla CRUD, ejecución, polling, notificaciones y migración de datos en un solo hook.
@@ -73,9 +79,8 @@ Recomendación: separar en hooks por responsabilidad (CRUD, run, polling).
 El token de API queda embebido en el bundle del frontend. Ver [SECURITY.md](SECURITY.md).
 Recomendación: migrar a auth por sesión (cookie httpOnly) en vez de token compartido en el cliente.
 
-### 7. Estilos de formulario duplicados (medium)
-`inputStyle`/`selectStyle`/`labelStyle` se repiten con variaciones en varios modales y formularios (RunModal, RunSingleModal, NodeConfigPanel, Tasks, Resumen).
-Recomendación: un módulo de estilos de formulario compartido, o componentes `Input`/`Select`/`Field`.
+### 7. Estilos de formulario duplicados (resuelto)
+Ver "Resuelto recientemente".
 
 ### 8. Prop drilling (medium)
 `connection`, `sessionId` y `onSessionExpired` se pasan a través de varios niveles (App -> SystemView -> vistas -> modales).
@@ -98,6 +103,30 @@ El build emite un solo chunk JS de ~950 KB (warning de Vite por >500 KB).
 Recomendación: code-splitting con `import()` dinámico (p. ej. lazy-load del canvas de orquestación o los gráficos).
 
 ## Resuelto recientemente
+
+### Design system: paleta, estados, formularios y botones (issues #4, #7 y parte de #3)
+
+Referencia completa en [DESIGN-SYSTEM.md](DESIGN-SYSTEM.md). Los estilos siguen siendo objetos inline; lo que se consolidó son los valores y los patrones repetidos.
+
+**Paleta con fuente única.** Había 231 colores literales repartidos por los componentes, 94 distintos, y buena parte no eran colores nuevos sino la paleta de `index.css` copiada a mano. Ahora el triplete RGB es el valor primario (`--accent-rgb: 247,168,0` y `--accent: rgb(var(--accent-rgb))`), y los componentes usan `color.*`, `alpha.*()` o `hex.*` de [tokens.js](../src/styles/tokens.js) según lo que necesiten. Quedan 73 usos literales, todos de colores que no están en la paleta o `#fff`/`#000`.
+
+Dos idiomas peligrosos que se eliminaron de paso:
+
+- Derivar un tinte concatenando al hex (`color + '22'`), en `actionBtn`, `EnvBadge`, `Pill` y `RunLogModal`. Exige que el color sea un hex y produce CSS inválido en silencio si alguien le pasa un `var()`. Pasan a `withAlpha()`.
+- `GroupNode` guardaba su propia mini-paleta con el RGB desarmado campo a campo (`{ color: '#29ABE2', r: 41, g: 171, b: 226 }`) para poder componer `rgba()`.
+
+**Estados de SAP unificados** ([constants/status.js](../src/constants/status.js)). `STATUS_COLORS`/`STATUS_LABELS` estaban duplicados idénticos en `Resumen.jsx` y `GlobalResumen.jsx`, y `TaskMonitor.jsx` tenía su propio `STATUS_META` con los `rgba()` a mano. Esa tercera copia había derivado y producía dos defectos visibles:
+
+- `TERMINATION_FAILED` se pintaba naranja en el badge del monitor, **el mismo color que `SUCCESS_WITH_ERRORS_E`**: dos estados distintos con el mismo badge. En los gráficos ya era rojo. Se unifica en rojo.
+- `FETCHED` y `UNKNOWN` derivaban su fondo de un hex distinto al de su propio color. Ahora `bg` y `border` salen de `withAlpha(color, …)`, así que no pueden desincronizarse.
+
+Los estados de nodo del canvas (`canvasUtils.js`) **no** se fusionaron: son otro vocabulario, no los códigos que reporta SAP. El issue los daba por equivalentes.
+
+**Formularios** ([styles/forms.js](../src/styles/forms.js)). Cinco definiciones sueltas de `inputStyle`/`selectStyle`/`labelStyle` pasan a dos familias, que sí eran una distinción real: campos de modal (fondo elevado, ancho completo) y campos de barra de herramientas. Se normalizaron diferencias de un píxel o un tono: el `select` de Tasks era más oscuro que la superficie del modal donde vive, al revés que todos los demás.
+
+**Botones** ([styles/buttons.js](../src/styles/buttons.js)). De los 101 botones inline, cuatro patrones estaban repetidos con deriva. El botón cancelar de los modales usaba `--border2` en cuatro archivos y `--border` en Tasks; los dos "+ Nueva conexión" tenían otro radio y otro padding que el resto de las primarias.
+
+**Guardas** ([designTokens.test.js](../tests/src/designTokens.test.js), 12 tests). Escanean `src/` y fallan si vuelve a aparecer un color de la paleta escrito a mano, o si alguien redefine `inputStyle`/`selectStyle`/`labelStyle` por su cuenta. Sin esto la consolidación se deshace sola con el próximo componente. La única duplicación admitida de la paleta es `index.css` ↔ `tokens.hex`, y hay un test que falla si una deriva de la otra. Verificado negativamente: los tres guardas fallan al reintroducir el patrón.
 
 ### Tests: Vitest + React Testing Library (issue #1)
 
