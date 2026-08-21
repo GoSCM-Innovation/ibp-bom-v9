@@ -162,6 +162,10 @@ function CanvasInner({
   }, [edges, nodes.length])
 
   function handleNodeSelect(nodeId) { onNodeSelect(nodeId) }
+  // Se leen por ref desde los callbacks memoizados: asi estos no se recrean en
+  // cada render y ademas siempre invocan la version actual, sin closures viejos.
+  const handleNodeSelectRef = useRef(handleNodeSelect)
+  handleNodeSelectRef.current = handleNodeSelect
 
   function debounced_save(nds, eds) {
     clearTimeout(saveTimer.current)
@@ -250,14 +254,17 @@ function CanvasInner({
     debounced_save(nextNodes, nextEdges)
   }
 
+  const debouncedSaveRef = useRef(debounced_save)
+  debouncedSaveRef.current = debounced_save
+
   const onConnect = useCallback((params) => {
     if (isRunning) return
     const newEdge = { ...params, id: crypto.randomUUID(), ...EDGE_DEFAULTS }
     const newEdges = addEdge(newEdge, edges)
     if (hasCycle(nodes, newEdges)) { setCycleErr(true); setTimeout(() => setCycleErr(false), 2500); return }
     setEdges(newEdges)
-    debounced_save(nodes, newEdges)
-  }, [edges, nodes, isRunning])
+    debouncedSaveRef.current(nodes, newEdges)
+  }, [edges, nodes, isRunning, setEdges])
 
   const isValidConnection = useCallback((connection) => {
     if (connection.source === connection.target) return false
@@ -299,7 +306,7 @@ function CanvasInner({
         taskName, taskGuid, taskType: type || null, label: taskName, agentName: null, profileName: null,
         errorStrategy: 'stop', maxRetries: 0, retryDelaySec: 30,
         globalVariables: [], children: [],
-        runStatus: 'pending', onSelect: handleNodeSelect,
+        runStatus: 'pending', onSelect: handleNodeSelectRef.current,
       },
     }
 
@@ -320,8 +327,8 @@ function CanvasInner({
 
     setNodes(newNodes)
     if (newEdges !== edges) setEdges(newEdges)
-    debounced_save(newNodes, newEdges)
-  }, [nodes, edges, rfInstance, autoConnect, isRunning])
+    debouncedSaveRef.current(newNodes, newEdges)
+  }, [nodes, edges, rfInstance, autoConnect, isRunning, setNodes, setEdges])
 
   // ── Add group ────────────────────────────────────────────────────────────
   function addGroup() {
@@ -336,14 +343,14 @@ function CanvasInner({
       style: { width: 300, height: 180 },
       data: {
         label: 'Nuevo grupo', children: [],
-        runStatus: 'pending', onSelect: handleNodeSelect,
+        runStatus: 'pending', onSelect: handleNodeSelectRef.current,
       },
     }
     const newNodes = [...nodes, newNode]
     setNodes(newNodes)
     debounced_save(newNodes, edges)
   }
-  useEffect(() => { addGroupExternal.current = addGroup }, [nodes, edges])
+  addGroupExternal.current = addGroup
 
   // ── Auto layout ──────────────────────────────────────────────────────────
   function handleAutoLayout() {

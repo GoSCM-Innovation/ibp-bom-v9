@@ -50,7 +50,7 @@ export function usePromotedTasks(connection, sessionId) {
 
   useEffect(() => {
     // null significa "no disponible", y hay que fijarlo antes de decidir si se
-    // consulta a SAP. Mismo caso que un estado de carga previo al fetch.
+    // consulta a SAP: mismo caso que un estado de carga previo al fetch.
     /* eslint-disable react-hooks/set-state-in-effect -- estado previo al fetch */
     if (connection.isProduction) { setPromoted(null); return }
     const prodSessionId = sessionStorage.getItem(`sap_prod_${connection.id}`)
@@ -67,7 +67,10 @@ export function usePromotedTasks(connection, sessionId) {
     let alive = true
     cache.get(key).then(set => { if (alive) setPromoted(set) })
     return () => { alive = false }
-  }, [connection.id, connection.isProduction, sessionId])
+    // `connection` entra entero porque fetchPromotedSet lo usa para armar la
+    // request: depender solo del id dejaria un closure con la hciUrl vieja si se
+    // edita la conexion. El re-run extra es barato, lo corta la cache de arriba.
+  }, [connection, sessionId])
 
   return promoted
 }

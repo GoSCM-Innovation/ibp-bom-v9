@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Tasks from '../Tasks/Tasks'
 import TaskMonitor from '../Tasks/TaskMonitor'
 import Resumen from '../Resumen/Resumen'
@@ -43,11 +43,16 @@ export default function SystemView({ connection, onLoginCancel }) {
     setSessionExpired(false)
   }
 
-  function handleSessionExpired() {
+  // Identidad estable: las vistas hijas la reciben por props y la usan como
+  // dependencia de los efectos que consultan a SAP. Sin memoizar, cambiaría en
+  // cada render de SystemView y esos efectos se reejecutarían en bucle.
+  const handleSessionExpired = useCallback(() => {
     sessionStorage.removeItem(`sap_${connection.id}`)
     setSessionId(null)
     setSessionExpired(true)
-  }
+  }, [connection.id])
+
+  const handleSearchConsumed = useCallback(() => setPendingTaskName(null), [])
 
   function handleReconnect() {
     setSessionExpired(false)
@@ -143,7 +148,7 @@ export default function SystemView({ connection, onLoginCancel }) {
         <div style={{ flex: 1, overflow: 'auto' }}>
           {activeTab === 'resumen'        && <Resumen       connection={connection} sessionId={sessionId} onSessionExpired={handleSessionExpired} />}
           {activeTab === 'tasks'          && <Tasks          connection={connection} sessionId={sessionId} onSessionExpired={handleSessionExpired} onTaskRun={(name) => { setPendingTaskName(name); setActiveTab('monitor') }} />}
-          {activeTab === 'monitor'        && <TaskMonitor    connection={connection} sessionId={sessionId} onSessionExpired={handleSessionExpired} initialSearch={pendingTaskName} onSearchConsumed={() => setPendingTaskName(null)} />}
+          {activeTab === 'monitor'        && <TaskMonitor    connection={connection} sessionId={sessionId} onSessionExpired={handleSessionExpired} initialSearch={pendingTaskName} onSearchConsumed={handleSearchConsumed} />}
           {activeTab === 'orchestrations' && <Orchestrations connection={connection} sessionId={sessionId} onSessionExpired={handleSessionExpired} />}
         </div>
       </PromotedTasksContext.Provider>
