@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { primaryBtn, secondaryBtn } from '../../styles/buttons'
 
 export default function SapLoginModal({ connection, onSuccess, onCancel }) {
   const [user, setUser]         = useState(connection.user || '')
@@ -78,15 +79,8 @@ export default function SapLoginModal({ connection, onSuccess, onCancel }) {
         )}
 
         <div style={{ display: 'flex', gap: 10, marginTop: 20, justifyContent: 'flex-end' }}>
-          <button onClick={onCancel} style={{
-            background: 'none', border: '1px solid var(--border2)', borderRadius: 6,
-            color: 'var(--text2)', fontSize: 12, fontWeight: 600, padding: '7px 18px', cursor: 'pointer',
-          }}>Cancelar</button>
-          <button onClick={handleLogin} disabled={loading} style={{
-            background: 'var(--accent)', border: 'none', borderRadius: 6,
-            color: '#000', fontSize: 12, fontWeight: 700, padding: '7px 18px', cursor: 'pointer',
-            opacity: loading ? 0.7 : 1,
-          }}>
+          <button onClick={onCancel} style={secondaryBtn}>Cancelar</button>
+          <button onClick={handleLogin} disabled={loading} style={{ ...primaryBtn, opacity: loading ? 0.7 : 1 }}>
             {loading ? 'Conectando...' : 'Conectar'}
           </button>
         </div>

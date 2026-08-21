@@ -8,6 +8,7 @@ import { getTzMode, setTzMode, toInputDate, inputDateToDate, formatEpochMs, form
 import { soapCall } from '../../api/soapCall'
 import { taskStatus } from '../../constants/status'
 import { filterInputStyle as inputStyle } from '../../styles/forms'
+import { toolbarBtn, disabled as btnDisabled } from '../../styles/buttons'
 
 const REFRESH_MS = 30000
 const PAGE_SIZE = 50
@@ -376,7 +377,7 @@ export default function TaskMonitor({ connection, sessionId, onSessionExpired, i
             }}>
             {copyState === 'ok' ? '✓ Copiado' : copyState === 'err' ? '✕ Error' : '⧉ Copiar'}
           </button>
-          <button onClick={loadTasks} disabled={loading} style={{ background: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: 6, color: 'var(--text2)', fontSize: 11, fontWeight: 600, padding: '6px 12px', cursor: 'pointer' }}>↺ Refresh</button>
+          <button onClick={loadTasks} disabled={loading} style={toolbarBtn}>↺ Refresh</button>
           <span style={{ fontSize: 10, color: 'var(--text3)', padding: '4px 8px', background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 6 }}>🔄 Auto {REFRESH_MS / 1000}s</span>
         </div>
       </div>
@@ -497,9 +498,8 @@ function StatusBadge({ code }) {
 function PageBtn({ disabled, onClick, children }) {
   return (
     <button onClick={onClick} disabled={disabled} style={{
-      background: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: 6,
-      color: disabled ? 'var(--text3)' : 'var(--text2)', fontSize: 11, fontWeight: 600,
-      padding: '5px 11px', cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? .5 : 1, whiteSpace: 'nowrap',
+      ...toolbarBtn, padding: '5px 11px', whiteSpace: 'nowrap',
+      ...(disabled ? { ...btnDisabled, color: 'var(--text3)' } : {}),
     }}>{children}</button>
   )
 }

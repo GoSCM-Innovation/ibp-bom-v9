@@ -7,6 +7,7 @@ import { usePromotedTasksContext, isTaskPromoted } from '../../hooks/usePromoted
 import { soapCall } from '../../api/soapCall'
 import { selectStyle, labelStyle } from '../../styles/forms'
 import Field from '../ui/Field'
+import { primaryBtn, secondaryBtn, softBtn, toolbarBtn } from '../../styles/buttons'
 
 export default function Tasks({ connection, sessionId, onSessionExpired, onTaskRun }) {
   const PINS_KEY = `ibp-project-pins-${connection.id}`
@@ -147,16 +148,10 @@ export default function Tasks({ connection, sessionId, onSessionExpired, onTaskR
             <button
               onClick={clearPins}
               title="Quitar todos los fijados"
-              style={{
-                background: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: 6,
-                color: 'var(--text3)', fontSize: 11, fontWeight: 600, padding: '6px 10px', cursor: 'pointer',
-              }}
+              style={{ ...toolbarBtn, color: 'var(--text3)', padding: '6px 10px' }}
             >Limpiar</button>
           )}
-          <button onClick={load} disabled={loadingP} style={{
-            background: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: 6,
-            color: 'var(--text2)', fontSize: 11, fontWeight: 600, padding: '6px 12px', cursor: 'pointer',
-          }}>↺ Refresh</button>
+          <button onClick={load} disabled={loadingP} style={toolbarBtn}>↺ Refresh</button>
         </div>
       </div>
 
@@ -435,8 +430,8 @@ function RunModal({ task, connection, sessionId, onClose, onSuccess, addLog, onT
             )}
 
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 8 }}>
-              <button onClick={onClose} style={{ padding: '7px 18px', borderRadius: 6, border: '1px solid var(--border)', background: 'none', color: 'var(--text2)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Cancelar</button>
-              <button onClick={handleRun} style={{ padding: '7px 18px', borderRadius: 6, border: 'none', background: 'var(--accent)', color: '#000', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>▶ Ejecutar</button>
+              <button onClick={onClose} style={secondaryBtn}>Cancelar</button>
+              <button onClick={handleRun} style={primaryBtn}>▶ Ejecutar</button>
             </div>
           </>
         )}
@@ -450,8 +445,8 @@ function RunModal({ task, connection, sessionId, onClose, onSuccess, addLog, onT
               RunID: <span style={{ fontFamily: 'var(--mono)', color: 'var(--text)' }}>{runId}</span>
             </div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-              <button onClick={onSuccess} style={{ padding: '7px 18px', borderRadius: 6, border: '1px solid var(--border)', background: 'none', color: 'var(--text2)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Cerrar</button>
-              <button onClick={() => { onTaskRun?.(task.taskName); onClose() }} style={{ padding: '7px 18px', borderRadius: 6, border: 'none', background: 'var(--accent)', color: '#000', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>▶ Ver en Task Monitor →</button>
+              <button onClick={onSuccess} style={secondaryBtn}>Cerrar</button>
+              <button onClick={() => { onTaskRun?.(task.taskName); onClose() }} style={primaryBtn}>▶ Ver en Task Monitor →</button>
             </div>
           </div>
         )}
@@ -460,8 +455,8 @@ function RunModal({ task, connection, sessionId, onClose, onSuccess, addLog, onT
           <div>
             <div style={{ color: 'var(--red)', fontSize: 12, marginBottom: 16 }}>✕ {errMsg}</div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={onClose} style={{ padding: '7px 18px', borderRadius: 6, border: '1px solid var(--border)', background: 'none', color: 'var(--text2)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Cerrar</button>
-              <button onClick={() => setStep('loading')} style={{ padding: '7px 18px', borderRadius: 6, border: 'none', background: 'var(--bg3)', color: 'var(--text)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Reintentar</button>
+              <button onClick={onClose} style={secondaryBtn}>Cerrar</button>
+              <button onClick={() => setStep('loading')} style={{ ...softBtn, padding: '7px 18px', fontSize: 12, color: 'var(--text)' }}>Reintentar</button>
             </div>
           </div>
         )}

@@ -4,9 +4,10 @@
 //
 // - `color`: colores de tema. El valor real vive en las variables CSS de
 //   `src/index.css`; acá solo se nombran. Cambiar la paleta es editar el CSS.
-// - `hue`: colores de dato (series de gráficos, badges de estado). Van en hex
-//   crudo a propósito: recharts los escribe como atributo SVG `fill`, y los
-//   navegadores no resuelven `var()` dentro de un atributo de presentación.
+// - Los colores de estado (src/constants/status.js) quedan aparte, en hex
+//   crudo: son valores de dato que terminan en el `fill` de un <Cell> de
+//   recharts, no colores de tema, y mantenerlos en hex conserva exactamente
+//   el render que ya tenían.
 //
 // Las escalas numéricas (`radius`, `fontSize`) se derivaron de los valores que
 // el código ya usaba, quedándose con los dominantes: adoptarlas no mueve
@@ -45,8 +46,24 @@ export const radius = { sm: 4, md: 6, lg: 8, xl: 10, pill: 999, circle: '50%' }
 // Convierte un hex de 6 dígitos a rgba(). Se usa para derivar los fondos y
 // bordes translúcidos de un badge a partir de su color, en vez de escribir a
 // mano el rgba() y que se desincronice del hex (que es lo que venía pasando).
-export function withAlpha(hex, alpha) {
+export function withAlpha(hex, a) {
   const h = hex.replace('#', '')
   const n = parseInt(h, 16)
-  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`
+}
+
+// Versión translúcida de un color de tema, compuesta sobre el triplete RGB de
+// index.css. Reemplaza a los rgba() literales que estaban repartidos por los
+// componentes: había 231 usos de 94 colores escritos a mano, y buena parte
+// eran la paleta duplicada a mano (rgba(247,168,0,.4) es el acento).
+// Así el color sigue teniendo una sola definición, la de index.css.
+export const alpha = {
+  accent:  (a) => `rgba(var(--accent-rgb),${a})`,
+  accent2: (a) => `rgba(var(--accent2-rgb),${a})`,
+  cyan:    (a) => `rgba(var(--cyan-rgb),${a})`,
+  green:   (a) => `rgba(var(--green-rgb),${a})`,
+  red:     (a) => `rgba(var(--red-rgb),${a})`,
+  purple:  (a) => `rgba(var(--purple-rgb),${a})`,
+  black:   (a) => `rgba(0,0,0,${a})`,
+  white:   (a) => `rgba(255,255,255,${a})`,
 }

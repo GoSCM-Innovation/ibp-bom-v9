@@ -10,6 +10,7 @@ import { useTechLogs } from '../../hooks/useTechLogs'
 import { soapCall } from '../../api/soapCall'
 import { taskStatus } from '../../constants/status'
 import { filterInputStyle as inputStyle } from '../../styles/forms'
+import { toolbarBtn } from '../../styles/buttons'
 
 const REFRESH_MS = 5 * 60 * 1000
 
@@ -152,7 +153,7 @@ export default function Resumen({ connection, sessionId, onSessionExpired }) {
           <input type="datetime-local" value={fromDate} onChange={e => setFromDate(e.target.value)} style={inputStyle} />
           <span style={{ color: 'var(--text2)', fontSize: 11 }}>→</span>
           <input type="datetime-local" value={toDate}   onChange={e => setToDate(e.target.value)}   style={inputStyle} />
-          <button onClick={loadData} disabled={loading} style={{ background: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: 6, color: 'var(--text2)', fontSize: 11, fontWeight: 600, padding: '6px 12px', cursor: 'pointer' }}>↺ Refresh</button>
+          <button onClick={loadData} disabled={loading} style={toolbarBtn}>↺ Refresh</button>
           <span style={{ fontSize: 10, color: 'var(--text3)', padding: '4px 8px', background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 6 }}>Auto-refresh 5 min</span>
         </div>
       </div>

@@ -5,6 +5,7 @@ import SapLoginModal from './SapLoginModal'
 import ImportConnectionsModal from './ImportConnectionsModal'
 import TechLogs from '../TechLogs'
 import { useTechLogs } from '../../hooks/useTechLogs'
+import { primaryBtn, secondaryBtn } from '../../styles/buttons'
 
 const EXPORT_VERSION = '1.0'
 
@@ -217,10 +218,7 @@ export default function Connections({ connections, onAdd, onUpdate, onDelete, on
           >
             Exportar
           </button>
-          <button onClick={handleNew} style={{
-            background: 'var(--accent)', border: 'none', borderRadius: 7,
-            color: '#000', fontWeight: 700, fontSize: 12, padding: '8px 18px', cursor: 'pointer',
-          }}>
+          <button onClick={handleNew} style={primaryBtn}>
             + Nueva conexión
           </button>
           <input
@@ -282,16 +280,10 @@ export default function Connections({ connections, onAdd, onUpdate, onDelete, on
             Agrega un sistema SAP CI-DS para empezar a gestionar tasks
           </div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <button onClick={handleNew} style={{
-              background: 'var(--accent)', border: 'none', borderRadius: 7,
-              color: '#000', fontWeight: 700, fontSize: 12, padding: '8px 18px', cursor: 'pointer',
-            }}>
+            <button onClick={handleNew} style={primaryBtn}>
               + Nueva conexión
             </button>
-            <button onClick={() => setShowHelp(true)} style={{
-              background: 'transparent', border: '1px solid var(--border2)', borderRadius: 7,
-              color: 'var(--cyan)', fontWeight: 600, fontSize: 12, padding: '8px 18px', cursor: 'pointer',
-            }}>
+            <button onClick={() => setShowHelp(true)} style={{ ...secondaryBtn, color: 'var(--cyan)' }}>
               ? Ver guía paso a paso
             </button>
           </div>

@@ -11,12 +11,22 @@
   --text:     #dce6f5;
   --text2:    #7d9abf;
   --text3:    #3d5a80;
-  --accent:   #F7A800;
-  --accent2:  #E8622A;
-  --cyan:     #29ABE2;
-  --green:    #34d399;
-  --red:      #ff6b6b;
-  --purple:   #a78bfa;
+  /* Colores de marca y semanticos. El triplete RGB es la fuente de verdad:
+     el color solido se deriva de el, y los usos translucidos lo componen con
+     rgba(var(--x-rgb), a) en vez de repetir el literal. Cambiar la paleta es
+     editar solo estas seis lineas. */
+  --accent-rgb:   247,168,0;
+  --accent2-rgb:  232,98,42;
+  --cyan-rgb:     41,171,226;
+  --green-rgb:    52,211,153;
+  --red-rgb:      255,107,107;
+  --purple-rgb:   167,139,250;
+  --accent:   rgb(var(--accent-rgb));
+  --accent2:  rgb(var(--accent2-rgb));
+  --cyan:     rgb(var(--cyan-rgb));
+  --green:    rgb(var(--green-rgb));
+  --red:      rgb(var(--red-rgb));
+  --purple:   rgb(var(--purple-rgb));
   --font:     'DM Sans', sans-serif;
   --mono:     'JetBrains Mono', monospace;
   --sidebar-w: 220px;
