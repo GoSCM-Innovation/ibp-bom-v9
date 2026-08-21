@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { alpha, hex, withAlpha } from '../../styles/tokens'
+import { alpha, color, hex, withAlpha } from '../../styles/tokens'
 
 function isDuplicate(incoming, existing) {
   return (incoming.name || '').trim().toLowerCase() === (existing.name || '').trim().toLowerCase()
@@ -42,7 +42,7 @@ export default function ImportOrchestrationsModal({ parsed, existing, fileName, 
       }}>
         {/* Header */}
         <div style={{ padding: '18px 22px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: '#fff' }}>Importar orquestaciones</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: color.white }}>Importar orquestaciones</div>
           {fileName && (
             <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4, fontFamily: 'var(--mono)' }}>
               {fileName}
@@ -57,9 +57,9 @@ export default function ImportOrchestrationsModal({ parsed, existing, fileName, 
 
         {/* Summary pills */}
         <div style={{ padding: '14px 22px', display: 'flex', gap: 10, flexWrap: 'wrap', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
-          <Pill color="#3b82f6" label={`${parsed.orchestrations.length} en archivo`} />
+          <Pill color={hex.info} label={`${parsed.orchestrations.length} en archivo`} />
           <Pill color={hex.green} label={`${newCount} nuevas`} />
-          <Pill color="#fbbf24" label={`${dupCount} ya existen`} />
+          <Pill color={hex.warning} label={`${dupCount} ya existen`} />
           {hasInvalid && <Pill color={hex.red} label={`${parsed.invalid.length} inválidas`} />}
         </div>
 
@@ -97,7 +97,7 @@ export default function ImportOrchestrationsModal({ parsed, existing, fileName, 
                 display: 'flex', gap: 10, alignItems: 'center',
               }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: color.white, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {o.name || <em style={{ color: 'var(--text3)' }}>(sin nombre)</em>}
                   </div>
                   <div style={{ fontSize: 10, color: 'var(--text3)', marginTop: 2 }}>
@@ -158,7 +158,7 @@ export default function ImportOrchestrationsModal({ parsed, existing, fileName, 
             style={{
               background: willImport === 0 ? 'var(--bg3)' : 'var(--accent)',
               border: 'none', borderRadius: 6,
-              color: willImport === 0 ? 'var(--text3)' : '#000',
+              color: willImport === 0 ? 'var(--text3)' : color.onAccent,
               fontSize: 12, fontWeight: 700, padding: '7px 18px',
               cursor: willImport === 0 ? 'not-allowed' : 'pointer',
             }}
@@ -170,6 +170,10 @@ export default function ImportOrchestrationsModal({ parsed, existing, fileName, 
     </div>
   )
 }
+
+// Gris del estado TERMINATED: no esta en la paleta, es un tono propio del
+// listado de importacion para lo que se omite.
+const GRAY = '#9ca3af'
 
 function Pill({ color, label }) {
   return (
@@ -184,6 +188,6 @@ function Pill({ color, label }) {
 
 function Tag({ dup, willSkip }) {
   if (!dup) return <Pill color={hex.green} label="NUEVA" />
-  if (willSkip) return <Pill color="#9ca3af" label="OMITIR" />
-  return <Pill color="#fbbf24" label="REEMPLAZAR" />
+  if (willSkip) return <Pill color={GRAY} label="OMITIR" />
+  return <Pill color={hex.warning} label="REEMPLAZAR" />
 }

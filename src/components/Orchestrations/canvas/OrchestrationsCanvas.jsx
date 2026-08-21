@@ -7,8 +7,8 @@ import '@xyflow/react/dist/style.css'
 
 import TaskNode  from './TaskNode'
 import GroupNode from './GroupNode'
-import { STATUS_COLORS, autoLayout, hasCycle } from '../canvasUtils'
-import { alpha } from '../../../styles/tokens'
+import { nodeStatusColor, autoLayout, hasCycle } from '../canvasUtils'
+import { alpha, color } from '../../../styles/tokens'
 
 const NODE_TYPES = { orchTask: TaskNode, orchGroup: GroupNode }
 
@@ -376,7 +376,7 @@ function CanvasInner({
     }
   }, [autoConnect])
 
-  const nodeColor = (n) => STATUS_COLORS[n.data?.runStatus || 'pending'] || '#64748b'
+  const nodeColor = (n) => nodeStatusColor(n.data?.runStatus)
 
   return (
     <div style={{ flex: 1, position: 'relative' }}
@@ -415,8 +415,8 @@ function CanvasInner({
         {isRunning && (
           <Panel position="top-center" style={{ margin: 8 }}>
             <div style={{
-              background: 'rgba(251,191,36,.08)', border: '1px solid rgba(251,191,36,.35)',
-              borderRadius: 6, padding: '5px 12px', fontSize: 11, color: '#fbbf24',
+              background: alpha.warning(.08), border: `1px solid ${alpha.warning(.35)}`,
+              borderRadius: 6, padding: '5px 12px', fontSize: 11, color: color.warning,
               display: 'flex', alignItems: 'center', gap: 6, userSelect: 'none',
             }}>
               <span style={{ fontSize: 13 }}>⬡</span> Canvas bloqueado — orquestacion en ejecucion

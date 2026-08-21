@@ -9,7 +9,7 @@ import { soapCall } from '../../api/soapCall'
 import { taskStatus } from '../../constants/status'
 import { filterInputStyle as inputStyle } from '../../styles/forms'
 import { toolbarBtn, disabled as btnDisabled } from '../../styles/buttons'
-import { alpha } from '../../styles/tokens'
+import { alpha, color } from '../../styles/tokens'
 
 const REFRESH_MS = 30000
 const PAGE_SIZE = 50
@@ -340,7 +340,7 @@ export default function TaskMonitor({ connection, sessionId, onSessionExpired, i
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexShrink: 0, gap: 12, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
-          <div style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>Task Monitor</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: color.white }}>Task Monitor</div>
           <div style={{ fontSize: 11, color: 'var(--text2)' }}>
             {loading ? 'Cargando…' : `${filtered.length} de ${rows.length} ejecuciones · pág ${page}/${totalPages}`}
             {enriching && !loading && <span style={{ marginLeft: 8, color: 'var(--accent)' }}>· cargando fin/duración…</span>}
@@ -354,7 +354,7 @@ export default function TaskMonitor({ connection, sessionId, onSessionExpired, i
               <button key={opt.value} onClick={() => handleTzChange(opt.value)} style={{
                 padding: '5px 9px', fontSize: 10, fontWeight: 700, border: 'none', cursor: 'pointer',
                 background: tzMode === opt.value ? 'var(--accent)' : 'var(--bg3)',
-                color:      tzMode === opt.value ? '#000'          : 'var(--text2)',
+                color:      tzMode === opt.value ? color.onAccent          : 'var(--text2)',
                 transition: 'background .15s',
               }}>{opt.label}</button>
             ))}
@@ -385,7 +385,7 @@ export default function TaskMonitor({ connection, sessionId, onSessionExpired, i
 
       {/* Status filter */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexShrink: 0, flexWrap: 'wrap' }}>
-        <FilterBtn active={activeStatus === 'ALL'} onClick={() => setActive('ALL')} label="Todos" count={filteredBase.length} meta={{ bg: 'rgba(59,130,246,.1)', color: '#3b82f6', border: 'rgba(59,130,246,.3)' }} />
+        <FilterBtn active={activeStatus === 'ALL'} onClick={() => setActive('ALL')} label="Todos" count={filteredBase.length} meta={{ bg: alpha.info(.1), color: color.info, border: alpha.info(.3) }} />
         {presentStatuses.map(s => (
           <FilterBtn key={s} active={activeStatus === s} onClick={() => setActive(s)}
             label={taskStatus(s).label} count={countByStatus[s] || 0} meta={taskStatus(s)} />
@@ -418,7 +418,7 @@ export default function TaskMonitor({ connection, sessionId, onSessionExpired, i
                 return (
                   <tr key={row.runId || i} onClick={() => setSelected(isSel ? null : row)} style={{ background: isSel ? alpha.accent(.08) : i % 2 === 0 ? 'var(--bg)' : 'var(--bg2)', outline: isSel ? `1px solid ${alpha.accent(.35)}` : 'none', cursor: 'pointer' }}>
                     {COLS.map(col => (
-                      <td key={col.key} style={{ padding: '7px 12px', color: isSel ? '#fff' : 'var(--text)', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: col.w, maxWidth: col.w }} title={String(row[col.key] ?? '')}>
+                      <td key={col.key} style={{ padding: '7px 12px', color: isSel ? color.white : 'var(--text)', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: col.w, maxWidth: col.w }} title={String(row[col.key] ?? '')}>
                         {col.render ? col.render(row[col.key], row) : String(row[col.key] ?? '—')}
                       </td>
                     ))}
@@ -448,7 +448,7 @@ export default function TaskMonitor({ connection, sessionId, onSessionExpired, i
         <div style={{ marginTop: 12, padding: '12px 16px', flexShrink: 0, background: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 2 }}>Ejecución seleccionada</div>
-            <div style={{ fontSize: 12, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: color.white, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {selectedRow.taskName}
               <span style={{ marginLeft: 8, fontSize: 10, color: 'var(--text3)', fontFamily: 'var(--mono)' }}>RunID: {selectedRow.runId}</span>
             </div>
@@ -559,7 +559,7 @@ function LogsModal({ runId, connection, sessionId, onClose }) {
         {/* Modal header */}
         <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>Logs de ejecución</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: color.white }}>Logs de ejecución</div>
             <div style={{ fontSize: 10, color: 'var(--text3)', fontFamily: 'var(--mono)', marginTop: 2 }}>RunID: {runId}</div>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text2)', fontSize: 18, cursor: 'pointer', lineHeight: 1 }}>×</button>

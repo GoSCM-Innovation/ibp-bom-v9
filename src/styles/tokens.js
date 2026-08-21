@@ -20,6 +20,11 @@ export const color = {
   text: 'var(--text)', text2: 'var(--text2)', text3: 'var(--text3)',
   accent: 'var(--accent)', accent2: 'var(--accent2)',
   cyan: 'var(--cyan)', green: 'var(--green)', red: 'var(--red)', purple: 'var(--purple)',
+  // Semánticos, no de marca: advertencia, informativo, y un neutro para lo
+  // desconocido o inactivo. Salieron de los tonos que ya se repetían sueltos.
+  warning: 'var(--warning)', info: 'var(--info)', violet: 'var(--violet)', slate: 'var(--slate)',
+  // Verde de ejecución, distinto del --green de éxito.
+  running: 'var(--running)',
   // Texto sobre un fondo de acento (el acento es amarillo: el contraste lo da el negro).
   onAccent: '#000',
   // Blanco puro, reservado para jerarquía de títulos sobre --text.
@@ -34,6 +39,7 @@ export const color = {
 export const hex = {
   accent: '#F7A800', accent2: '#E8622A', cyan: '#29ABE2',
   green: '#34d399', red: '#ff6b6b', purple: '#a78bfa',
+  warning: '#fbbf24', info: '#3b82f6', violet: '#8b5cf6', slate: '#64748b', running: '#22c55e',
 }
 
 export const font = { sans: 'var(--font)', mono: 'var(--mono)' }
@@ -56,8 +62,14 @@ export const radius = { sm: 4, md: 6, lg: 8, xl: 10, pill: 999, circle: '50%' }
 // Convierte un hex de 6 dígitos a rgba(). Se usa para derivar los fondos y
 // bordes translúcidos de un badge a partir de su color, en vez de escribir a
 // mano el rgba() y que se desincronice del hex (que es lo que venía pasando).
-export function withAlpha(hex, a) {
-  const h = hex.replace('#', '')
+export function withAlpha(hexColor, a) {
+  const h = String(hexColor).replace('#', '')
+  // Falla ruidosamente ante un var(): descomponer un color exige el valor
+  // resuelto, y pasarle 'var(--accent)' devolvia NaN y pintaba transparente
+  // sin avisar. Es el error facil de cometer al elegir entre color.* y hex.*.
+  if (!/^[0-9a-f]{6}$/i.test(h)) {
+    throw new TypeError(`withAlpha necesita un hex de 6 digitos, recibio ${JSON.stringify(hexColor)}. Si es un color de la paleta, usar hex.* en vez de color.*`)
+  }
   const n = parseInt(h, 16)
   return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`
 }
@@ -74,6 +86,11 @@ export const alpha = {
   green:   (a) => `rgba(var(--green-rgb),${a})`,
   red:     (a) => `rgba(var(--red-rgb),${a})`,
   purple:  (a) => `rgba(var(--purple-rgb),${a})`,
+  warning: (a) => `rgba(var(--warning-rgb),${a})`,
+  info:    (a) => `rgba(var(--info-rgb),${a})`,
+  violet:  (a) => `rgba(var(--violet-rgb),${a})`,
+  slate:   (a) => `rgba(var(--slate-rgb),${a})`,
+  running: (a) => `rgba(var(--running-rgb),${a})`,
   black:   (a) => `rgba(0,0,0,${a})`,
   white:   (a) => `rgba(255,255,255,${a})`,
 }

@@ -6,7 +6,7 @@ import ImportConnectionsModal from './ImportConnectionsModal'
 import TechLogs from '../TechLogs'
 import { useTechLogs } from '../../hooks/useTechLogs'
 import { primaryBtn, secondaryBtn } from '../../styles/buttons'
-import { alpha } from '../../styles/tokens'
+import { alpha, color } from '../../styles/tokens'
 
 const EXPORT_VERSION = '1.0'
 
@@ -182,7 +182,7 @@ export default function Connections({ connections, onAdd, onUpdate, onDelete, on
       {/* Title */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, gap: 12, flexWrap: 'wrap' }}>
         <div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: '#fff' }}>Conexiones</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: color.white }}>Conexiones</div>
           <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 3 }}>
             Gestiona los sistemas SAP CI-DS — las conexiones se guardan en este navegador
           </div>
@@ -315,7 +315,7 @@ export default function Connections({ connections, onAdd, onUpdate, onDelete, on
               <ConnectionAvatar name={conn.name} logoUrl={conn.logoUrl} size={40} />
 
               <div style={{ flex: '1 1 200px', minWidth: 0 }}>
-                <div style={{ fontWeight: 700, color: '#fff', fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div style={{ fontWeight: 700, color: color.white, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {conn.name} <span style={{ color: 'var(--text2)', fontWeight: 500 }}>({conn.isProduction ? 'Productivo' : 'Sandbox'})</span>
                 </div>
                 {conn.hciUrl && <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{conn.hciUrl}</div>}
@@ -399,7 +399,7 @@ function HelpPanel({ onClose }) {
         }}
       >×</button>
 
-      <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 4 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: color.white, marginBottom: 4 }}>
         Cómo crear una conexión a SAP CI-DS
       </div>
       <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 14 }}>
@@ -472,11 +472,11 @@ function HelpStep({ n, title, children }) {
     <div style={{ display: 'flex', gap: 12, marginBottom: 14 }}>
       <div style={{
         flexShrink: 0, width: 22, height: 22, borderRadius: '50%',
-        background: 'var(--accent)', color: '#000', fontWeight: 700, fontSize: 11,
+        background: 'var(--accent)', color: color.onAccent, fontWeight: 700, fontSize: 11,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>{n}</div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: '#fff', marginBottom: 4 }}>{title}</div>
+        <div style={{ fontSize: 12, fontWeight: 700, color: color.white, marginBottom: 4 }}>{title}</div>
         <div style={{ fontSize: 12, color: 'var(--text)', lineHeight: 1.55 }}>{children}</div>
       </div>
     </div>

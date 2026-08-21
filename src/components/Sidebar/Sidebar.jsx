@@ -1,18 +1,10 @@
 import { useState } from 'react'
-import { alpha } from '../../styles/tokens'
+import { alpha, color } from '../../styles/tokens'
+import { avatarColor, ENV_DOT } from '../../constants/avatar'
 
 const W = 220
 const W_MIN = 52
 
-const AVATAR_COLORS = [
-  '#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B',
-  '#10B981', '#EF4444', '#06B6D4', '#F97316',
-]
-function colorFor(name = '') {
-  let hash = 0
-  for (const c of name) hash = (hash * 31 + c.charCodeAt(0)) & 0xffffffff
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]
-}
 function initials(name = '') {
   const base = name.trim().replace(/\s*\([^)]*\)\s*$/, '').trim()
   const words = base.split(/\s+/).filter(Boolean)
@@ -24,10 +16,10 @@ function envDotColor(name = '') {
   const match = name.trim().match(/\(([^)]+)\)\s*$/)
   if (!match) return null
   const env = match[1].trim()
-  if (/calidad/i.test(env)) return '#F59E0B'
-  if (/producci[oó]n/i.test(env)) return '#3B82F6'
-  if (/desarrollo/i.test(env)) return '#8B5CF6'
-  return '#6B7280'
+  if (/calidad/i.test(env)) return ENV_DOT.calidad
+  if (/producci[oó]n/i.test(env)) return ENV_DOT.produccion
+  if (/desarrollo/i.test(env)) return ENV_DOT.desarrollo
+  return ENV_DOT.desconocido
 }
 
 export default function Sidebar({ connections, activeId, openConnIds = [], onSelect, onReorder, expanded, onToggle, loading, isMobile = false, mobileOpen = false }) {
@@ -160,7 +152,7 @@ export default function Sidebar({ connections, activeId, openConnIds = [], onSel
                   id={c.id}
                   label={c.name}
                   icon={initials(c.name)}
-                  iconColor={colorFor(c.name)}
+                  iconColor={avatarColor(c.name)}
                   envColor={envDotColor(c.name)}
                   numberIcon
                   avatarStyle
@@ -265,7 +257,7 @@ function SidebarItem({
           background: active ? iconColor : `${iconColor}33`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: 10, fontWeight: 700,
-          color: active ? '#fff' : iconColor,
+          color: active ? color.white : iconColor,
           position: 'relative',
           transition: 'background .15s',
         }}>

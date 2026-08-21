@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { STATUS_COLORS } from './canvasUtils'
+import { nodeStatusColor } from './canvasUtils'
 import { soapCall } from '../../api/soapCall'
-import { alpha, hex, withAlpha } from '../../styles/tokens'
+import { alpha, color, hex, withAlpha } from '../../styles/tokens'
 
 const STATUS_LABEL = {
   pending: 'Pendiente', running: 'Ejecutando', success: 'Completado',
@@ -23,7 +23,7 @@ function duration(start, end) {
 }
 
 function StatusBadge({ status }) {
-  const color = STATUS_COLORS[status] || '#64748b'
+  const color = nodeStatusColor(status)
   return (
     <span style={{
       fontSize: 9, padding: '1px 6px', borderRadius: 8, fontFamily: 'var(--mono)', fontWeight: 700,
@@ -124,7 +124,7 @@ function NodeRow({ ns, nodeDef, connection, sessionId, indent }) {
           {duration(ns.startedAt, ns.finishedAt)}
         </span>
         {ns.sapRunId && (
-          <span style={{ fontSize: 9, color: '#3b82f6', fontFamily: 'var(--mono)', flexShrink: 0 }}>
+          <span style={{ fontSize: 9, color: color.info, fontFamily: 'var(--mono)', flexShrink: 0 }}>
             #{String(ns.sapRunId).slice(-6)}
           </span>
         )}
@@ -142,7 +142,7 @@ function NodeRow({ ns, nodeDef, connection, sessionId, indent }) {
 }
 
 export default function RunLogModal({ run, connection, sessionId, nodes = [], onClose }) {
-  const overallColor = STATUS_COLORS[run.status] || '#64748b'
+  const overallColor = nodeStatusColor(run.status)
 
   const topLevel = Object.values(run.nodes)
     .filter(ns => {

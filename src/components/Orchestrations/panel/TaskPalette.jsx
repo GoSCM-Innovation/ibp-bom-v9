@@ -3,6 +3,7 @@ import PromotedBadge from '../../ui/PromotedBadge'
 import { usePromotedTasksContext, isTaskPromoted } from '../../../hooks/usePromotedTasks'
 import { soapCall } from '../../../api/soapCall'
 import { alpha } from '../../../styles/tokens'
+import { taskType } from '../../../constants/taskType'
 
 function DragChip({ task, style, fullscreen, onPick, selectable = false, selected = false, onToggleSelect }) {
   const tapMode = typeof onPick === 'function' || selectable
@@ -62,9 +63,9 @@ function DragChip({ task, style, fullscreen, onPick, selectable = false, selecte
       <span style={{
         fontSize: 8, fontWeight: 700, padding: '1px 5px', borderRadius: 8, flexShrink: 0,
         marginTop: showInlineDesc ? 2 : 0,
-        background: task.type === 'PROCESS' ? 'rgba(139,92,246,.15)' : 'rgba(6,182,212,.15)',
-        color: task.type === 'PROCESS' ? 'var(--purple)' : 'var(--cyan)',
-        border: `1px solid ${task.type === 'PROCESS' ? 'rgba(139,92,246,.3)' : 'rgba(6,182,212,.3)'}`,
+        background: taskType(task.type).bg,
+        color: taskType(task.type).color,
+        border: `1px solid ${taskType(task.type).border}`,
         textTransform: 'uppercase',
       }}>{task.type || 'TASK'}</span>
       {promoted && (

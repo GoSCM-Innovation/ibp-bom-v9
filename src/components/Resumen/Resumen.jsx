@@ -11,7 +11,7 @@ import { soapCall } from '../../api/soapCall'
 import { taskStatus, TASK_STATUS } from '../../constants/status'
 import { filterInputStyle as inputStyle } from '../../styles/forms'
 import { toolbarBtn } from '../../styles/buttons'
-import { alpha } from '../../styles/tokens'
+import { alpha, color } from '../../styles/tokens'
 
 const REFRESH_MS = 5 * 60 * 1000
 
@@ -134,7 +134,7 @@ export default function Resumen({ connection, sessionId, onSessionExpired }) {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>Resumen</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: color.white }}>Resumen</div>
           <div style={{ fontSize: 11, color: 'var(--text2)', marginTop: 2 }}>
             {connection.name} · {total} ejecuciones en el período
             {lastRefresh && !loading && <span style={{ marginLeft: 8, opacity: .6 }}>· {lastRefresh.toLocaleTimeString()}</span>}
@@ -146,7 +146,7 @@ export default function Resumen({ connection, sessionId, onSessionExpired }) {
               <button key={opt.value} onClick={() => handleTzChange(opt.value)} style={{
                 padding: '5px 9px', fontSize: 10, fontWeight: 700, border: 'none', cursor: 'pointer',
                 background: tzMode === opt.value ? 'var(--accent)' : 'var(--bg3)',
-                color:      tzMode === opt.value ? '#000'          : 'var(--text2)',
+                color:      tzMode === opt.value ? color.onAccent          : 'var(--text2)',
                 transition: 'background .15s',
               }}>{opt.label}</button>
             ))}

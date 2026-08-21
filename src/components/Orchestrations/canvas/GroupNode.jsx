@@ -5,7 +5,7 @@ import { hex, withAlpha } from '../../../styles/tokens'
 const MODE_STYLES = {
   parallel: { color: hex.cyan,   label: '⊞ En paralelo'   },
   serial:   { color: hex.accent, label: '→ En secuencia'  },
-  hybrid:   { color: '#8b5cf6',  label: '⟛ Híbrido'       },
+  hybrid:   { color: hex.violet,  label: '⟛ Híbrido'       },
 }
 
 export default function GroupNode({ data, selected, id }) {

@@ -7,8 +7,9 @@ import { usePromotedTasksContext, isTaskPromoted } from '../../hooks/usePromoted
 import { soapCall } from '../../api/soapCall'
 import { selectStyle, labelStyle } from '../../styles/forms'
 import Field from '../ui/Field'
+import { taskType } from '../../constants/taskType'
 import { primaryBtn, secondaryBtn, softBtn, toolbarBtn } from '../../styles/buttons'
-import { alpha } from '../../styles/tokens'
+import { alpha, color } from '../../styles/tokens'
 
 export default function Tasks({ connection, sessionId, onSessionExpired, onTaskRun }) {
   const PINS_KEY = `ibp-project-pins-${connection.id}`
@@ -117,7 +118,7 @@ export default function Tasks({ connection, sessionId, onSessionExpired, onTaskR
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18, flexShrink: 0, gap: 12, flexWrap: 'wrap' }}>
         <div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>Projects & Tasks</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: color.white }}>Projects & Tasks</div>
           <div style={{ fontSize: 11, color: 'var(--text2)', marginTop: 2 }}>
             {loadingP ? 'Cargando…' : `${projects.length} proyectos · ${connection.name}`}
           </div>
@@ -136,7 +137,7 @@ export default function Tasks({ connection, sessionId, onSessionExpired, onTaskR
               background: filterPinned ? 'var(--accent)' : 'var(--bg2)',
               border: filterPinned ? '1px solid var(--accent)' : '1px solid var(--border2)',
               borderRadius: 6,
-              color: filterPinned ? '#000' : 'var(--text2)',
+              color: filterPinned ? color.onAccent : 'var(--text2)',
               fontSize: 11, fontWeight: filterPinned ? 700 : 600,
               padding: '6px 12px',
               cursor: pinnedGuids.size === 0 && !filterPinned ? 'not-allowed' : 'pointer',
@@ -206,7 +207,7 @@ export default function Tasks({ connection, sessionId, onSessionExpired, onTaskR
                 <span style={{ color: 'var(--text3)', fontSize: 11, width: 14, textAlign: 'center', flexShrink: 0 }}>
                   {isLoadingT ? '…' : isExp ? '▾' : '▸'}
                 </span>
-                <span style={{ fontSize: 13, color: isExp ? 'var(--accent)' : '#fff', fontWeight: 600 }}>{proj.name}</span>
+                <span style={{ fontSize: 13, color: isExp ? 'var(--accent)' : color.white, fontWeight: 600 }}>{proj.name}</span>
                 {proj.description && (
                   <span style={{ fontSize: 11, color: 'var(--text3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     — {proj.description}
@@ -258,7 +259,7 @@ export default function Tasks({ connection, sessionId, onSessionExpired, onTaskR
 }
 
 function TaskRow({ task, onRun, isLast }) {
-  const typeColor = task.type === 'PROCESS' ? 'var(--purple)' : 'var(--cyan)'
+  const type = taskType(task.type)
   const promotedSet = usePromotedTasksContext()
   return (
     <div style={{
@@ -268,8 +269,8 @@ function TaskRow({ task, onRun, isLast }) {
     }}>
       <span style={{
         fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 10,
-        background: task.type === 'PROCESS' ? 'rgba(139,92,246,.15)' : 'rgba(6,182,212,.15)',
-        color: typeColor, border: `1px solid ${typeColor}44`, flexShrink: 0, textTransform: 'uppercase',
+        background: type.bg,
+        color: type.color, border: `1px solid ${type.border}`, flexShrink: 0, textTransform: 'uppercase',
       }}>{task.type || 'TASK'}</span>
       {isTaskPromoted(promotedSet, task.taskName) && <PromotedBadge />}
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -283,8 +284,8 @@ function TaskRow({ task, onRun, isLast }) {
         )}
       </div>
       <button onClick={e => { e.stopPropagation(); onRun() }} style={{
-        padding: '4px 12px', borderRadius: 5, border: '1px solid rgba(34,197,94,.35)',
-        background: 'rgba(34,197,94,.08)', color: '#22c55e',
+        padding: '4px 12px', borderRadius: 5, border: `1px solid ${alpha.running(.35)}`,
+        background: alpha.running(.08), color: 'var(--running)',
         fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
       }}>▶ Ejecutar</button>
     </div>
@@ -380,7 +381,7 @@ function RunModal({ task, connection, sessionId, onClose, onSuccess, addLog, onT
   return (
     <div style={{ position: 'fixed', inset: 0, background: alpha.black(.65), display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500 }}>
       <div style={{ background: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: 12, padding: 28, width: 'min(520px, 94vw)', maxHeight: '85vh', overflowY: 'auto', boxShadow: `0 16px 48px ${alpha.black(.6)}` }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: '#fff', marginBottom: 4 }}>▶ Ejecutar task</div>
+        <div style={{ fontSize: 14, fontWeight: 700, color: color.white, marginBottom: 4 }}>▶ Ejecutar task</div>
         <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 20 }}>{task.taskName}</div>
 
         {step === 'loading' && <div style={{ color: 'var(--text2)', fontSize: 12 }}>Cargando configuración…</div>}

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { alpha } from '../styles/tokens'
+import { alpha, color } from '../styles/tokens'
 
 const REQUIREMENTS = [
   {
@@ -83,7 +83,7 @@ export default function Header({ onMenuToggle }) {
         />
         <div className="header-sep" style={{ width: 1, height: 28, background: alpha.white(.12) }} />
         <div className="header-title">
-          <div style={{ fontSize: 14, fontWeight: 700, color: '#fff', letterSpacing: '.01em', lineHeight: 1.2 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: color.white, letterSpacing: '.01em', lineHeight: 1.2 }}>
             CI-DS Studio
           </div>
         </div>
@@ -111,7 +111,7 @@ export default function Header({ onMenuToggle }) {
             border: `1px solid ${alpha.accent(.25)}`, borderRadius: 10,
             boxShadow: `0 8px 32px ${alpha.black(.6)}`, padding: 20, zIndex: 300,
           }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: color.white, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
               <span>📋</span> Requisitos Técnicos — Conexión a SAP CI-DS
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>

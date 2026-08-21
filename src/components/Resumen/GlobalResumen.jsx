@@ -10,7 +10,7 @@ import { soapCall } from '../../api/soapCall'
 import { taskStatus, TASK_STATUS } from '../../constants/status'
 import { filterInputStyle as inputStyle } from '../../styles/forms'
 import { toolbarBtn } from '../../styles/buttons'
-import { alpha, hex, withAlpha } from '../../styles/tokens'
+import { alpha, color, hex, withAlpha } from '../../styles/tokens'
 
 const REFRESH_MS = 5 * 60 * 1000
 
@@ -241,7 +241,7 @@ export default function GlobalResumen({ connections, onOpenConnection }) {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>Resumen Global</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: color.white }}>Resumen Global</div>
           <div style={{ fontSize: 11, color: 'var(--text2)', marginTop: 2 }}>
             {isFiltered
               ? <>{selectedIds.size} de {connections.length} conexión(es) · <strong style={{ color: 'var(--accent)' }}>filtro activo</strong> · {total} ejecuciones</>
@@ -256,7 +256,7 @@ export default function GlobalResumen({ connections, onOpenConnection }) {
               <button key={opt.value} onClick={() => handleTzChange(opt.value)} style={{
                 padding: '5px 9px', fontSize: 10, fontWeight: 700, border: 'none', cursor: 'pointer',
                 background: tzMode === opt.value ? 'var(--accent)' : 'var(--bg3)',
-                color:      tzMode === opt.value ? '#000'          : 'var(--text2)',
+                color:      tzMode === opt.value ? color.onAccent          : 'var(--text2)',
                 transition: 'background .15s',
               }}>{opt.label}</button>
             ))}
@@ -293,7 +293,7 @@ export default function GlobalResumen({ connections, onOpenConnection }) {
                     border: active ? '1px solid var(--accent)' : '1px solid var(--border)',
                     cursor: 'pointer', flexShrink: 0,
                     background: active ? 'var(--accent)' : 'var(--bg3)',
-                    color:      active ? '#000'          : 'var(--text2)',
+                    color:      active ? color.onAccent          : 'var(--text2)',
                     fontSize: 11, fontWeight: active ? 700 : 500,
                     whiteSpace: 'nowrap',
                     transition: 'background .15s, color .15s, border-color .15s',
@@ -542,7 +542,7 @@ function ChartPill({ active, onClick, label, count, conn }) {
       padding: '5px 12px', borderRadius: 20, border: active ? 'none' : '1px solid var(--border)',
       cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap', transition: 'background .15s, color .15s',
       background: active ? 'var(--accent)' : 'var(--bg3)',
-      color:      active ? '#000'          : 'var(--text2)',
+      color:      active ? color.onAccent          : 'var(--text2)',
       fontSize: 11, fontWeight: active ? 700 : 400,
     }}>
       {conn && <ConnectionAvatar name={conn.name} logoUrl={conn.logoUrl} size={16} />}
@@ -559,7 +559,7 @@ function EnvBadge({ isProduction, inverted = false }) {
   const fg   = prod ? hex.green : hex.accent
   // When sitting on an accent (yellow) background, swap to a darker readable style
   const style = inverted
-    ? { background: alpha.black(.18), color: '#000', border: `1px solid ${alpha.black(.25)}` }
+    ? { background: alpha.black(.18), color: color.onAccent, border: `1px solid ${alpha.black(.25)}` }
     : { background: bg, color: fg, border: `1px solid ${withAlpha(fg, .2)}` }
   return (
     <span style={{

@@ -16,12 +16,21 @@ function walk(dir) {
   })
 }
 
-const FILES = walk(SRC).map(p => [p.slice(SRC.length).replace(/\\/g, '/'), readFileSync(p, 'utf8')])
+// Los comentarios se descartan antes de escanear: documentar un color citando
+// su hex es legitimo, y es justo lo que hace tokens.js al explicar por que un
+// tono se queda fuera de la paleta.
+function stripComments(src) {
+  return src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1')
+}
+
+const FILES = walk(SRC).map(p => [p.slice(SRC.length).replace(/\\/g, '/'), stripComments(readFileSync(p, 'utf8'))])
 
 // Los tripletes RGB de la paleta de index.css.
 const PALETTE = {
   '247,168,0': '--accent', '232,98,42': '--accent2', '41,171,226': '--cyan',
   '52,211,153': '--green', '255,107,107': '--red', '167,139,250': '--purple',
+  '251,191,36': '--warning', '59,130,246': '--info', '139,92,246': '--violet',
+  '100,116,139': '--slate', '34,197,94': '--running',
 }
 
 describe('paleta', () => {
@@ -45,10 +54,17 @@ describe('paleta', () => {
     const HEX = {
       f7a800: '--accent', e8622a: '--accent2', '29abe2': '--cyan',
       a78bfa: '--purple', '34d399': '--green', ff6b6b: '--red',
+      fbbf24: '--warning', '3b82f6': '--info', '8b5cf6': '--violet',
+      '64748b': '--slate', '22c55e': '--running',
     }
+    // avatar.js queda fuera a proposito: su rueda de identidad NO debe seguir
+    // al tema, justamente para que un cambio de paleta no recoloree avatares
+    // que el usuario ya asocia a una conexion. Coincide con dos tonos de la
+    // paleta por casualidad, no por dependencia. Tiene su test aparte.
+    const EXENTOS = new Set(['styles/tokens.js', 'constants/avatar.js'])
     const hits = []
     for (const [name, src] of FILES) {
-      if (name === 'styles/tokens.js') continue   // es donde se definen
+      if (EXENTOS.has(name)) continue
       for (const m of src.matchAll(/#([0-9a-fA-F]{6})\b/g)) {
         const h = m[1].toLowerCase()
         if (HEX[h]) hits.push(`${name}: #${h} es ${HEX[h]}, usar hex.* o color.*`)
@@ -76,6 +92,15 @@ describe('paleta', () => {
     const hits = []
     for (const [name, src] of FILES) {
       for (const m of src.matchAll(/#[0-9a-fA-F]{8}\b/g)) hits.push(`${name}: ${m[0]}`)
+    }
+    expect(hits).toEqual([])
+  })
+
+  it('blanco y negro salen de color.white / color.onAccent', () => {
+    const hits = []
+    for (const [name, src] of FILES) {
+      if (name === 'styles/tokens.js') continue
+      for (const m of src.matchAll(/'#(fff|ffffff|000|000000)'/gi)) hits.push(`${name}: ${m[0]}`)
     }
     expect(hits).toEqual([])
   })

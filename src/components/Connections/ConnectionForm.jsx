@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { primaryBtn, secondaryBtn } from '../../styles/buttons'
+import { color } from '../../styles/tokens'
 
 export default function ConnectionForm({ initial, onSave, onCancel }) {
   const [form, setForm] = useState({
@@ -30,7 +31,7 @@ export default function ConnectionForm({ initial, onSave, onCancel }) {
 
   return (
     <div style={{ background: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: 10, padding: 24 }}>
-      <div style={{ fontSize: 14, fontWeight: 700, color: '#fff', marginBottom: 20 }}>
+      <div style={{ fontSize: 14, fontWeight: 700, color: color.white, marginBottom: 20 }}>
         {initial ? 'Editar conexión' : 'Nueva conexión'}
       </div>
 
