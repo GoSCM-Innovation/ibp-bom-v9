@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import PromotedBadge from '../../ui/PromotedBadge'
 import { usePromotedTasksContext, isTaskPromoted } from '../../../hooks/usePromotedTasks'
 import { soapCall } from '../../../api/soapCall'
+import { alpha } from '../../../styles/tokens'
 
 function DragChip({ task, style, fullscreen, onPick, selectable = false, selected = false, onToggleSelect }) {
   const tapMode = typeof onPick === 'function' || selectable
@@ -39,7 +40,7 @@ function DragChip({ task, style, fullscreen, onPick, selectable = false, selecte
         minHeight: tapMode ? 'var(--tap-min)' : undefined,
         cursor: tapMode ? 'pointer' : 'grab',
         userSelect: 'none', transition: 'background .1s',
-        background: selected ? 'rgba(247,168,0,.10)' : 'transparent',
+        background: selected ? alpha.accent(.10) : 'transparent',
         ...style,
       }}
       onMouseEnter={e => { if (!selected) e.currentTarget.style.background = 'var(--bg3)' }}
@@ -220,9 +221,9 @@ export default function TaskPalette({
                 onClick={toggleFilterPinned}
                 style={{
                   flex: 1, padding: '8px 10px', borderRadius: 6,
-                  background: filterPinned ? 'rgba(247,168,0,.15)' : 'var(--bg3)',
-                  border: filterPinned ? '1px solid rgba(247,168,0,.4)' : '1px solid var(--border)',
-                  color: filterPinned ? '#f7a800' : 'var(--text2)',
+                  background: filterPinned ? alpha.accent(.15) : 'var(--bg3)',
+                  border: filterPinned ? `1px solid ${alpha.accent(.4)}` : '1px solid var(--border)',
+                  color: filterPinned ? 'var(--accent)' : 'var(--text2)',
                   cursor: 'pointer', fontSize: 12, minHeight: 'var(--tap-min)',
                 }}
               >📌 {filterPinned ? 'Solo fijados' : `Filtrar (${pinnedGuids.size})`}</button>
@@ -255,7 +256,7 @@ export default function TaskPalette({
                     display: 'flex', alignItems: 'center', gap: 8,
                     padding: '12px 14px', cursor: 'pointer',
                     minHeight: 'var(--tap-min)',
-                    background: isExp ? 'rgba(247,168,0,.05)' : 'transparent',
+                    background: isExp ? alpha.accent(.05) : 'transparent',
                   }}
                 >
                   <span style={{ color: 'var(--text2)', fontSize: 18, width: 18, textAlign: 'center', flexShrink: 0 }}>
@@ -269,7 +270,7 @@ export default function TaskPalette({
                     onClick={e => togglePin(e, proj.guid)}
                     style={{
                       background: 'none', border: 'none',
-                      color: isPinned ? '#f7a800' : 'var(--text3)',
+                      color: isPinned ? 'var(--accent)' : 'var(--text3)',
                       cursor: 'pointer', fontSize: 16, padding: 8,
                       flexShrink: 0,
                     }}
@@ -357,9 +358,9 @@ export default function TaskPalette({
               onClick={toggleFilterPinned}
               title={filterPinned ? 'Mostrando solo proyectos fijados — clic para ver todos' : `Filtrar por proyectos fijados (${pinnedGuids.size})`}
               style={{
-                background: filterPinned ? 'rgba(247,168,0,.15)' : 'none',
-                border: filterPinned ? '1px solid rgba(247,168,0,.4)' : '1px solid transparent',
-                borderRadius: 4, color: filterPinned ? '#f7a800' : hasPins ? 'var(--text2)' : 'var(--text3)',
+                background: filterPinned ? alpha.accent(.15) : 'none',
+                border: filterPinned ? `1px solid ${alpha.accent(.4)}` : '1px solid transparent',
+                borderRadius: 4, color: filterPinned ? 'var(--accent)' : hasPins ? 'var(--text2)' : 'var(--text3)',
                 cursor: 'pointer', fontSize: 13, lineHeight: 1, padding: '2px 5px',
                 position: 'relative',
               }}
@@ -369,7 +370,7 @@ export default function TaskPalette({
                 <span style={{
                   position: 'absolute', top: -4, right: -4,
                   fontSize: 8, fontWeight: 700, lineHeight: 1,
-                  background: filterPinned ? '#f7a800' : 'var(--text3)',
+                  background: filterPinned ? 'var(--accent)' : 'var(--text3)',
                   color: 'var(--bg)', borderRadius: 8, padding: '1px 3px',
                   minWidth: 12, textAlign: 'center',
                 }}>
@@ -403,15 +404,15 @@ export default function TaskPalette({
           <div style={{
             marginTop: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             padding: '3px 6px', borderRadius: 4,
-            background: 'rgba(247,168,0,.08)', border: '1px solid rgba(247,168,0,.2)',
+            background: alpha.accent(.08), border: `1px solid ${alpha.accent(.2)}`,
           }}>
-            <span style={{ fontSize: 9, color: '#f7a800' }}>
+            <span style={{ fontSize: 9, color: 'var(--accent)' }}>
               {pinnedGuids.size} proyecto{pinnedGuids.size !== 1 ? 's' : ''} fijado{pinnedGuids.size !== 1 ? 's' : ''}
             </span>
             <button
               onClick={clearPins}
               title="Quitar todos los fijados"
-              style={{ background: 'none', border: 'none', color: '#f7a800', cursor: 'pointer', fontSize: 10, padding: 0, lineHeight: 1 }}
+              style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: 10, padding: 0, lineHeight: 1 }}
             >
               Limpiar
             </button>
@@ -443,10 +444,10 @@ export default function TaskPalette({
                 style={{
                   display: 'flex', alignItems: 'center', gap: 6,
                   padding: '8px 10px', cursor: 'pointer',
-                  background: isExp ? 'rgba(247,168,0,.05)' : 'transparent',
+                  background: isExp ? alpha.accent(.05) : 'transparent',
                 }}
                 onMouseEnter={e => { if (!isExp) e.currentTarget.style.background = 'var(--bg3)' }}
-                onMouseLeave={e => { if (!isExp) e.currentTarget.style.background = isExp ? 'rgba(247,168,0,.05)' : 'transparent' }}
+                onMouseLeave={e => { if (!isExp) e.currentTarget.style.background = isExp ? alpha.accent(.05) : 'transparent' }}
               >
                 <span style={{ color: 'var(--text2)', fontSize: 16, width: 16, textAlign: 'center', flexShrink: 0 }}>
                   {isLoadingT ? '…' : isExp ? '▾' : '▸'}
@@ -462,7 +463,7 @@ export default function TaskPalette({
                   title={isPinned ? 'Quitar de fijados' : 'Fijar proyecto'}
                   style={{
                     background: 'none', border: 'none',
-                    color: isPinned ? '#f7a800' : 'var(--text3)',
+                    color: isPinned ? 'var(--accent)' : 'var(--text3)',
                     cursor: 'pointer', fontSize: 11, padding: '0 2px',
                     flexShrink: 0, opacity: isPinned ? 1 : 0.4,
                     lineHeight: 1,
@@ -495,8 +496,8 @@ export default function TaskPalette({
           onClick={onAddGroup}
           style={{
             width: '100%', padding: '6px 8px', borderRadius: 6,
-            border: '1px dashed rgba(41,171,226,.4)',
-            background: 'rgba(41,171,226,.06)', color: 'var(--cyan)',
+            border: `1px dashed ${alpha.cyan(.4)}`,
+            background: alpha.cyan(.06), color: 'var(--cyan)',
             fontSize: 11, fontWeight: 600, cursor: 'pointer',
           }}
         >

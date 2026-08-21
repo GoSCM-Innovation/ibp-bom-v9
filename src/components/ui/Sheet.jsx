@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
+import { alpha } from '../../styles/tokens'
 
 export default function Sheet({
   open,
@@ -88,7 +89,7 @@ export default function Sheet({
       onClick={onClose}
       style={{
         position: 'fixed', inset: 0, zIndex: 1000,
-        background: 'rgba(0,0,0,.55)',
+        background: alpha.black(.55),
         display: 'flex',
         alignItems: 'center', justifyContent: 'center',
         padding: 20,
@@ -105,7 +106,7 @@ export default function Sheet({
           borderRadius: 10,
           display: 'flex', flexDirection: 'column',
           overflow: 'hidden',
-          boxShadow: '0 12px 40px rgba(0,0,0,.5)',
+          boxShadow: `0 12px 40px ${alpha.black(.5)}`,
         }}
       >
         {(title || onClose) && (

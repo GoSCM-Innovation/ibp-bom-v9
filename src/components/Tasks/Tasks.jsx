@@ -8,6 +8,7 @@ import { soapCall } from '../../api/soapCall'
 import { selectStyle, labelStyle } from '../../styles/forms'
 import Field from '../ui/Field'
 import { primaryBtn, secondaryBtn, softBtn, toolbarBtn } from '../../styles/buttons'
+import { alpha } from '../../styles/tokens'
 
 export default function Tasks({ connection, sessionId, onSessionExpired, onTaskRun }) {
   const PINS_KEY = `ibp-project-pins-${connection.id}`
@@ -156,7 +157,7 @@ export default function Tasks({ connection, sessionId, onSessionExpired, onTaskR
       </div>
 
       {error && (
-        <div style={{ background: 'rgba(255,107,107,.1)', border: '1px solid rgba(255,107,107,.3)', borderRadius: 8, padding: '12px 16px', color: 'var(--red)', fontSize: 12, marginBottom: 14 }}>
+        <div style={{ background: alpha.red(.1), border: `1px solid ${alpha.red(.3)}`, borderRadius: 8, padding: '12px 16px', color: 'var(--red)', fontSize: 12, marginBottom: 14 }}>
           ✕ {error}
         </div>
       )}
@@ -184,7 +185,7 @@ export default function Tasks({ connection, sessionId, onSessionExpired, onTaskR
                 onClick={() => toggleProject(proj)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 10, padding: '11px 16px',
-                  cursor: 'pointer', background: isExp ? 'rgba(247,168,0,.05)' : 'transparent',
+                  cursor: 'pointer', background: isExp ? alpha.accent(.05) : 'transparent',
                   transition: 'background .15s',
                 }}
                 onMouseEnter={e => { if (!isExp) e.currentTarget.style.background = 'var(--bg2)' }}
@@ -377,8 +378,8 @@ function RunModal({ task, connection, sessionId, onClose, onSuccess, addLog, onT
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500 }}>
-      <div style={{ background: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: 12, padding: 28, width: 'min(520px, 94vw)', maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 16px 48px rgba(0,0,0,.6)' }}>
+    <div style={{ position: 'fixed', inset: 0, background: alpha.black(.65), display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500 }}>
+      <div style={{ background: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: 12, padding: 28, width: 'min(520px, 94vw)', maxHeight: '85vh', overflowY: 'auto', boxShadow: `0 16px 48px ${alpha.black(.6)}` }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: '#fff', marginBottom: 4 }}>▶ Ejecutar task</div>
         <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 20 }}>{task.taskName}</div>
 

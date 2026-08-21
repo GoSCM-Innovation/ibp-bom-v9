@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { soapCall } from '../../../api/soapCall'
 import { inputStyle, selectStyle, labelStyle } from '../../../styles/forms'
 import Field from '../../ui/Field'
+import { alpha } from '../../../styles/tokens'
 
 
 function initForm(data) {
@@ -300,7 +301,7 @@ function NodeConfigPanelForm({ node, connection, sessionId, onUpdate, onClose, p
             onClick={handleDelete}
             style={{
               width: '100%', padding: '7px', borderRadius: 6,
-              border: '1px solid rgba(255,107,107,.3)', background: 'rgba(255,107,107,.08)',
+              border: `1px solid ${alpha.red(.3)}`, background: alpha.red(.08),
               color: 'var(--red)', fontSize: 11, fontWeight: 600, cursor: 'pointer',
             }}
           >
@@ -315,9 +316,9 @@ function NodeConfigPanelForm({ node, connection, sessionId, onUpdate, onClose, p
             disabled={saving}
             style={{
               width: '100%', padding: '8px', borderRadius: 6,
-              border: `1px solid ${dirty ? 'rgba(52,211,153,.5)' : 'rgba(52,211,153,.2)'}`,
-              background: dirty ? 'rgba(52,211,153,.18)' : 'rgba(52,211,153,.06)',
-              color: dirty ? '#34d399' : 'rgba(52,211,153,.5)',
+              border: `1px solid ${dirty ? alpha.green(.5) : alpha.green(.2)}`,
+              background: dirty ? alpha.green(.18) : alpha.green(.06),
+              color: dirty ? '#34d399' : alpha.green(.5),
               fontSize: 12, fontWeight: 700,
               cursor: saving ? 'default' : 'pointer',
               transition: 'all .15s',

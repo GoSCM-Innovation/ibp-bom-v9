@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { alpha } from '../../styles/tokens'
 
 const W = 220
 const W_MIN = 52
@@ -202,7 +203,7 @@ export default function Sidebar({ connections, activeId, openConnIds = [], onSel
       <div style={{ padding: 8, borderTop: '1px solid var(--border)', flexShrink: 0 }}>
         <button onClick={() => onSelect('connections')} style={{
           width: '100%', padding: '7px 0',
-          background: 'rgba(247,168,0,.08)', border: '1px dashed rgba(247,168,0,.3)',
+          background: alpha.accent(.08), border: `1px dashed ${alpha.accent(.3)}`,
           borderRadius: 6, color: 'var(--accent)', fontSize: 11, fontWeight: 600,
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
         }}>
@@ -227,8 +228,8 @@ function SidebarItem({
     : showOpenIndicator ? '3px solid #34d399'
     : '3px solid transparent'
   const baseBg = active
-    ? 'rgba(247,168,0,.1)'
-    : showOpenIndicator ? 'rgba(52,211,153,.05)' : 'none'
+    ? alpha.accent(.1)
+    : showOpenIndicator ? alpha.green(.05) : 'none'
   return (
     <button
       onClick={onClick}
@@ -243,7 +244,7 @@ function SidebarItem({
         padding: '9px 14px',
         justifyContent: 'flex-start',
         gap: 10,
-        background: dropTarget ? 'rgba(247,168,0,.18)' : baseBg,
+        background: dropTarget ? alpha.accent(.18) : baseBg,
         border: 'none',
         borderLeft: leftBorder,
         color: active ? 'var(--accent)' : 'var(--text2)',
@@ -253,7 +254,7 @@ function SidebarItem({
         cursor: draggable ? (dragging ? 'grabbing' : 'grab') : 'pointer',
         opacity: dragging ? 0.4 : 1,
       }}
-      onMouseEnter={e => { if (!active && !dropTarget) e.currentTarget.style.background = 'rgba(255,255,255,.04)' }}
+      onMouseEnter={e => { if (!active && !dropTarget) e.currentTarget.style.background = alpha.white(.04) }}
       onMouseLeave={e => { if (!active && !dropTarget) e.currentTarget.style.background = 'none' }}
       title={!expanded ? label : (draggable ? `${label} · arrastra para reordenar` : undefined)}
     >
@@ -289,8 +290,8 @@ function SidebarItem({
       ) : numberIcon ? (
         <span style={{
           width: 22, height: 22, borderRadius: '50%',
-          background: active ? 'rgba(247,168,0,.2)' : 'rgba(255,255,255,.08)',
-          border: `1px solid ${active ? 'rgba(247,168,0,.4)' : 'rgba(255,255,255,.12)'}`,
+          background: active ? alpha.accent(.2) : alpha.white(.08),
+          border: `1px solid ${active ? alpha.accent(.4) : alpha.white(.12)}`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: 10, fontWeight: 700, flexShrink: 0,
           color: active ? 'var(--accent)' : 'var(--text2)',

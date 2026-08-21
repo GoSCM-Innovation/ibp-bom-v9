@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { alpha } from '../styles/tokens'
 
 const REQUIREMENTS = [
   {
@@ -47,7 +48,7 @@ export default function Header({ onMenuToggle }) {
   return (
     <header className="app-header" style={{
       background: 'linear-gradient(135deg, #080f1e 0%, #0d1829 60%, #080f1e 100%)',
-      borderBottom: '2px solid rgba(247,168,0,.25)',
+      borderBottom: `2px solid ${alpha.accent(.25)}`,
       padding: '0 24px',
       height: 'var(--header-h)',
       display: 'flex',
@@ -57,7 +58,7 @@ export default function Header({ onMenuToggle }) {
       position: 'sticky',
       top: 0,
       zIndex: 200,
-      boxShadow: '0 2px 20px rgba(0,0,0,.5)',
+      boxShadow: `0 2px 20px ${alpha.black(.5)}`,
       flexShrink: 0,
     }}>
       {/* Hamburger — mobile only */}
@@ -80,7 +81,7 @@ export default function Header({ onMenuToggle }) {
           alt="GoSCM"
           style={{ height: 32, width: 'auto', objectFit: 'contain', flexShrink: 0 }}
         />
-        <div className="header-sep" style={{ width: 1, height: 28, background: 'rgba(255,255,255,.12)' }} />
+        <div className="header-sep" style={{ width: 1, height: 28, background: alpha.white(.12) }} />
         <div className="header-title">
           <div style={{ fontSize: 14, fontWeight: 700, color: '#fff', letterSpacing: '.01em', lineHeight: 1.2 }}>
             CI-DS Studio
@@ -93,8 +94,8 @@ export default function Header({ onMenuToggle }) {
         <button
           onClick={() => setShowReqs(p => !p)}
           style={{
-            background: showReqs ? 'rgba(247,168,0,.15)' : 'rgba(255,255,255,.06)',
-            border: `1px solid ${showReqs ? 'rgba(247,168,0,.4)' : 'rgba(255,255,255,.12)'}`,
+            background: showReqs ? alpha.accent(.15) : alpha.white(.06),
+            border: `1px solid ${showReqs ? alpha.accent(.4) : alpha.white(.12)}`,
             borderRadius: 7, color: showReqs ? 'var(--accent)' : 'var(--text2)',
             fontSize: 12, fontWeight: 600, padding: '6px 14px',
             cursor: 'pointer', transition: 'all .15s', display: 'flex', alignItems: 'center', gap: 6,
@@ -107,8 +108,8 @@ export default function Header({ onMenuToggle }) {
           <div style={{
             position: 'absolute', top: 'calc(100% + 10px)', right: 0,
             width: 'min(420px, 92vw)', background: '#0d1829',
-            border: '1px solid rgba(247,168,0,.25)', borderRadius: 10,
-            boxShadow: '0 8px 32px rgba(0,0,0,.6)', padding: 20, zIndex: 300,
+            border: `1px solid ${alpha.accent(.25)}`, borderRadius: 10,
+            boxShadow: `0 8px 32px ${alpha.black(.6)}`, padding: 20, zIndex: 300,
           }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
               <span>📋</span> Requisitos Técnicos — Conexión a SAP CI-DS
@@ -116,8 +117,8 @@ export default function Header({ onMenuToggle }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {REQUIREMENTS.map((r, i) => (
                 <div key={i} style={{
-                  background: 'rgba(255,255,255,.04)', borderRadius: 7,
-                  border: '1px solid rgba(255,255,255,.07)', padding: '10px 14px',
+                  background: alpha.white(.04), borderRadius: 7,
+                  border: `1px solid ${alpha.white(.07)}`, padding: '10px 14px',
                   overflow: 'hidden',
                 }}>
                   <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', marginBottom: 4, wordBreak: 'break-word' }}>

@@ -7,6 +7,7 @@ import MobileTaskPicker from './MobileTaskPicker'
 import NodeConfigPanel from '../canvas/NodeConfigPanel'
 import Sheet from '../../ui/Sheet'
 import { createPortal } from 'react-dom'
+import { alpha } from '../../../styles/tokens'
 
 function buildSteps(nodes, edges) {
   function buildContext(parentId, depth, parentBadge) {
@@ -235,7 +236,7 @@ export default function WizardEditor({
             {cursorRowIndex === -1 && currentCtx === null && !hasHeadInCtx && (
               <div style={{
                 height: 3, background: 'var(--accent)', margin: '0 14px',
-                boxShadow: '0 0 8px rgba(247,168,0,.55)',
+                boxShadow: `0 0 8px ${alpha.accent(.55)}`,
               }} />
             )}
 
@@ -294,7 +295,7 @@ export default function WizardEditor({
                 background: 'var(--bg2)', color: 'var(--text)',
                 fontSize: 18, lineHeight: 1, cursor: 'pointer',
                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: '0 4px 12px rgba(0,0,0,.35)',
+                boxShadow: `0 4px 12px ${alpha.black(.35)}`,
               }}
             >↺</button>
           )}
@@ -306,7 +307,7 @@ export default function WizardEditor({
               border: 'none', background: 'var(--accent)', color: 'var(--bg)',
               fontSize: 30, fontWeight: 300, lineHeight: 1, cursor: 'pointer',
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 8px 24px rgba(247,168,0,.45), 0 2px 8px rgba(0,0,0,.35)',
+              boxShadow: `0 8px 24px ${alpha.accent(.45)}, 0 2px 8px ${alpha.black(.35)}`,
               transition: 'transform .12s',
             }}
             onTouchStart={e => e.currentTarget.style.transform = 'scale(.94)'}
@@ -387,8 +388,8 @@ function iconBtn(color, disabled = false) {
 
 function crumbBtn(active) {
   return {
-    background: active ? 'rgba(247,168,0,.15)' : 'var(--bg3)',
-    border: `1px solid ${active ? 'rgba(247,168,0,.4)' : 'var(--border)'}`,
+    background: active ? alpha.accent(.15) : 'var(--bg3)',
+    border: `1px solid ${active ? alpha.accent(.4) : 'var(--border)'}`,
     color: active ? 'var(--accent)' : 'var(--text)',
     fontSize: 11, padding: '3px 8px', borderRadius: 5,
     cursor: 'pointer',

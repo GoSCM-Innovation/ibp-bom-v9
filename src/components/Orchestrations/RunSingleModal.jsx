@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { soapCall } from '../../api/soapCall'
 import { selectStyle } from '../../styles/forms'
 import Field from '../ui/Field'
+import { alpha } from '../../styles/tokens'
 
 
 export default function RunSingleModal({ connection, sessionId, node, onClose }) {
@@ -47,12 +48,12 @@ export default function RunSingleModal({ connection, sessionId, node, onClose })
 
   return (
     <div
-      style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+      style={{ position: 'fixed', inset: 0, zIndex: 1000, background: alpha.black(0.55), display: 'flex', alignItems: 'center', justifyContent: 'center' }}
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
       <div style={{
         background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 10,
-        width: 360, boxShadow: '0 8px 32px rgba(0,0,0,0.4)', display: 'flex', flexDirection: 'column', overflow: 'hidden',
+        width: 360, boxShadow: `0 8px 32px ${alpha.black(0.4)}`, display: 'flex', flexDirection: 'column', overflow: 'hidden',
       }}>
         {/* Header */}
         <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -96,12 +97,12 @@ export default function RunSingleModal({ connection, sessionId, node, onClose })
               )}
 
               {result && (
-                <div style={{ padding: '8px 10px', borderRadius: 6, background: 'rgba(52,211,153,.08)', border: '1px solid rgba(52,211,153,.25)', fontSize: 11, color: '#34d399' }}>
+                <div style={{ padding: '8px 10px', borderRadius: 6, background: alpha.green(.08), border: `1px solid ${alpha.green(.25)}`, fontSize: 11, color: '#34d399' }}>
                   Iniciado — RunID: <span style={{ fontFamily: 'var(--mono)' }}>{result.runId}</span>
                 </div>
               )}
               {error && (
-                <div style={{ padding: '8px 10px', borderRadius: 6, background: 'rgba(255,107,107,.08)', border: '1px solid rgba(255,107,107,.2)', fontSize: 11, color: 'var(--red)' }}>
+                <div style={{ padding: '8px 10px', borderRadius: 6, background: alpha.red(.08), border: `1px solid ${alpha.red(.2)}`, fontSize: 11, color: 'var(--red)' }}>
                   {error}
                 </div>
               )}
@@ -117,9 +118,9 @@ export default function RunSingleModal({ connection, sessionId, node, onClose })
           {!result && (
             <button onClick={handleRun} disabled={loading || running} style={{
               padding: '6px 18px', borderRadius: 6, fontSize: 11, fontWeight: 600,
-              background: (loading || running) ? 'var(--bg3)' : '#34d39922',
+              background: (loading || running) ? 'var(--bg3)' : alpha.green(.133),
               color: (loading || running) ? 'var(--text2)' : '#34d399',
-              border: `1px solid ${(loading || running) ? 'var(--border)' : '#34d39944'}`,
+              border: `1px solid ${(loading || running) ? 'var(--border)' : alpha.green(.267)}`,
               cursor: (loading || running) ? 'default' : 'pointer',
             }}>
               {running ? 'Iniciando…' : '▶ Ejecutar'}

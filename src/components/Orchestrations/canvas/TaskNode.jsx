@@ -3,6 +3,7 @@ import { Handle, Position } from '@xyflow/react'
 import { STATUS_COLORS, STATUS_ICONS } from '../canvasUtils'
 import PromotedBadge from '../../ui/PromotedBadge'
 import { usePromotedTasksContext, isTaskPromoted } from '../../../hooks/usePromotedTasks'
+import { alpha } from '../../../styles/tokens'
 
 const STRATEGY_COLOR = { stop: '#64748b', continue: '#fbbf24', retry: '#3b82f6' }
 const STRATEGY_LABEL = { stop: 'error: detener', continue: 'error: continuar', retry: 'error: reintentar' }
@@ -28,7 +29,7 @@ export default function TaskNode({ data, selected, id }) {
         width: 210, background: isActive ? `${RUNNING_GREEN}12` : 'var(--bg2)',
         border: `1.5px solid ${selected ? 'var(--accent)' : isActive ? RUNNING_GREEN : 'var(--border2)'}`,
         borderRadius: 10, overflow: 'hidden', cursor: 'pointer',
-        boxShadow: selected ? '0 0 0 2px rgba(247,168,0,.25)' : isActive ? '0 0 0 2px rgba(34,197,94,.25)' : 'none',
+        boxShadow: selected ? `0 0 0 2px ${alpha.accent(.25)}` : isActive ? '0 0 0 2px rgba(34,197,94,.25)' : 'none',
         transition: 'border-color .2s, box-shadow .2s',
         userSelect: 'none', position: 'relative',
       }}
@@ -65,7 +66,7 @@ export default function TaskNode({ data, selected, id }) {
             onClick={e => { e.stopPropagation(); data.onRunSingle(id) }}
             title="Ejecutar solo este task"
             style={{
-              background: '#34d39922', border: '1px solid #34d39944', borderRadius: 4,
+              background: alpha.green(.133), border: `1px solid ${alpha.green(.267)}`, borderRadius: 4,
               color: '#34d399', fontSize: 9, fontWeight: 700, padding: '2px 5px',
               cursor: 'pointer', flexShrink: 0, lineHeight: 1,
             }}

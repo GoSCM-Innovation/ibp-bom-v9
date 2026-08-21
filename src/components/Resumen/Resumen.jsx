@@ -11,6 +11,7 @@ import { soapCall } from '../../api/soapCall'
 import { taskStatus } from '../../constants/status'
 import { filterInputStyle as inputStyle } from '../../styles/forms'
 import { toolbarBtn } from '../../styles/buttons'
+import { alpha } from '../../styles/tokens'
 
 const REFRESH_MS = 5 * 60 * 1000
 
@@ -114,7 +115,7 @@ export default function Resumen({ connection, sessionId, onSessionExpired }) {
 
   if (error) return (
     <div style={{ padding: 32 }}>
-      <div style={{ background: 'rgba(255,107,107,.1)', border: '1px solid rgba(255,107,107,.3)', borderRadius: 8, padding: '12px 16px', color: 'var(--red)', fontSize: 12 }}>✕ {error}</div>
+      <div style={{ background: alpha.red(.1), border: `1px solid ${alpha.red(.3)}`, borderRadius: 8, padding: '12px 16px', color: 'var(--red)', fontSize: 12 }}>✕ {error}</div>
       <TechLogs logs={logs} />
     </div>
   )

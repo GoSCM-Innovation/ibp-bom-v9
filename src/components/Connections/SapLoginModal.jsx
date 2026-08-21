@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { primaryBtn, secondaryBtn } from '../../styles/buttons'
+import { alpha } from '../../styles/tokens'
 
 export default function SapLoginModal({ connection, onSuccess, onCancel }) {
   const [user, setUser]         = useState(connection.user || '')
@@ -53,12 +54,12 @@ export default function SapLoginModal({ connection, onSuccess, onCancel }) {
 
   return (
     <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,.65)',
+      position: 'fixed', inset: 0, background: alpha.black(.65),
       display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
     }}>
       <div style={{
         background: 'var(--bg2)', border: '1px solid var(--border2)',
-        borderRadius: 12, padding: 28, width: 340, boxShadow: '0 8px 32px rgba(0,0,0,.5)',
+        borderRadius: 12, padding: 28, width: 340, boxShadow: `0 8px 32px ${alpha.black(.5)}`,
       }}>
         <div style={{ fontSize: 15, fontWeight: 700, color: '#fff', marginBottom: 4 }}>
           Conectar a SAP
@@ -73,7 +74,7 @@ export default function SapLoginModal({ connection, onSuccess, onCancel }) {
         </div>
 
         {error && (
-          <div style={{ marginTop: 12, fontSize: 12, color: 'var(--red)', padding: '8px 12px', background: 'rgba(255,107,107,.1)', borderRadius: 6 }}>
+          <div style={{ marginTop: 12, fontSize: 12, color: 'var(--red)', padding: '8px 12px', background: alpha.red(.1), borderRadius: 6 }}>
             ✕ {error}
           </div>
         )}

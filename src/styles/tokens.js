@@ -26,6 +26,16 @@ export const color = {
   white: '#fff',
 }
 
+// Los mismos colores en hex. Hacen falta donde el valor tiene que ser un color
+// resuelto y no una variable: los helpers que reciben un color cualquiera y le
+// derivan tintes con withAlpha() no pueden trabajar sobre un var().
+// El test de designTokens comprueba que estos hex coincidan con los tripletes
+// de index.css, así que no pueden desincronizarse.
+export const hex = {
+  accent: '#F7A800', accent2: '#E8622A', cyan: '#29ABE2',
+  green: '#34d399', red: '#ff6b6b', purple: '#a78bfa',
+}
+
 export const font = { sans: 'var(--font)', mono: 'var(--mono)' }
 
 // Escala tipográfica. Los seis pasos cubren 336 de los 385 usos previos.

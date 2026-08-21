@@ -6,6 +6,7 @@ import ImportConnectionsModal from './ImportConnectionsModal'
 import TechLogs from '../TechLogs'
 import { useTechLogs } from '../../hooks/useTechLogs'
 import { primaryBtn, secondaryBtn } from '../../styles/buttons'
+import { alpha } from '../../styles/tokens'
 
 const EXPORT_VERSION = '1.0'
 
@@ -235,8 +236,8 @@ export default function Connections({ connections, onAdd, onUpdate, onDelete, on
       {feedback && (
         <div style={{
           marginBottom: 14, padding: '8px 14px', borderRadius: 8, fontSize: 12,
-          background: feedback.kind === 'ok' ? 'rgba(52,211,153,.10)' : 'rgba(255,107,107,.10)',
-          border:     `1px solid ${feedback.kind === 'ok' ? 'rgba(52,211,153,.30)' : 'rgba(255,107,107,.30)'}`,
+          background: feedback.kind === 'ok' ? alpha.green(.10) : alpha.red(.10),
+          border:     `1px solid ${feedback.kind === 'ok' ? alpha.green(.30) : alpha.red(.30)}`,
           color:      feedback.kind === 'ok' ? 'var(--green)' : 'var(--red)',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
         }}>
@@ -323,9 +324,9 @@ export default function Connections({ connections, onAdd, onUpdate, onDelete, on
               {testResult[conn.id] && (
                 <div style={{
                   fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 20,
-                  background: testResult[conn.id] === 'ok' ? 'rgba(52,211,153,.15)' : 'rgba(255,107,107,.15)',
+                  background: testResult[conn.id] === 'ok' ? alpha.green(.15) : alpha.red(.15),
                   color: testResult[conn.id] === 'ok' ? 'var(--green)' : 'var(--red)',
-                  border: `1px solid ${testResult[conn.id] === 'ok' ? 'rgba(52,211,153,.3)' : 'rgba(255,107,107,.3)'}`,
+                  border: `1px solid ${testResult[conn.id] === 'ok' ? alpha.green(.3) : alpha.red(.3)}`,
                   flexShrink: 0,
                 }}>
                   {testResult[conn.id] === 'ok' ? '✓ Conectado' : '✕ Error'}
@@ -454,7 +455,7 @@ function HelpPanel({ onClose }) {
 
       <div style={{
         marginTop: 14, padding: '10px 12px', borderRadius: 8,
-        background: 'rgba(255,107,107,.06)', border: '1px solid rgba(255,107,107,.20)',
+        background: alpha.red(.06), border: `1px solid ${alpha.red(.20)}`,
         fontSize: 11, color: 'var(--text2)', lineHeight: 1.5,
       }}>
         <b style={{ color: 'var(--red)' }}>Errores típicos:</b>

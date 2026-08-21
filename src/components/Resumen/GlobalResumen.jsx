@@ -10,6 +10,7 @@ import { soapCall } from '../../api/soapCall'
 import { taskStatus } from '../../constants/status'
 import { filterInputStyle as inputStyle } from '../../styles/forms'
 import { toolbarBtn } from '../../styles/buttons'
+import { alpha, hex, withAlpha } from '../../styles/tokens'
 
 const REFRESH_MS = 5 * 60 * 1000
 
@@ -323,8 +324,8 @@ export default function GlobalResumen({ connections, onOpenConnection }) {
       {/* Validation banner — shows refresh result for the visible set */}
       {visibleConns.length > 0 && !loadingAll && lastRefresh && (counts.ok < visibleConns.length) && (
         <div style={{
-          background: allNoSession ? 'rgba(247,168,0,.08)' : 'rgba(255,255,255,.03)',
-          border: `1px solid ${allNoSession ? 'rgba(247,168,0,.25)' : 'var(--border)'}`,
+          background: allNoSession ? alpha.accent(.08) : alpha.white(.03),
+          border: `1px solid ${allNoSession ? alpha.accent(.25) : 'var(--border)'}`,
           borderRadius: 8, padding: '10px 14px', fontSize: 12, color: 'var(--text2)', marginBottom: 20,
           display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
         }}>
@@ -383,7 +384,7 @@ export default function GlobalResumen({ connections, onOpenConnection }) {
                   onClick={() => onOpenConnection(conn.id)}
                   title="Abrir conexión para iniciar sesión SAP"
                   style={{
-                    background: 'rgba(247,168,0,.12)', border: '1px solid rgba(247,168,0,.35)',
+                    background: alpha.accent(.12), border: `1px solid ${alpha.accent(.35)}`,
                     borderRadius: 5, color: 'var(--accent)', fontSize: 10, fontWeight: 700,
                     padding: '4px 9px', cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap',
                   }}
@@ -554,12 +555,12 @@ function ChartPill({ active, onClick, label, count, conn }) {
 
 function EnvBadge({ isProduction, inverted = false }) {
   const prod = !!isProduction
-  const bg   = prod ? 'rgba(52,211,153,.18)' : 'rgba(247,168,0,.18)'
-  const fg   = prod ? '#34d399' : '#f7a800'
+  const bg   = prod ? alpha.green(.18) : alpha.accent(.18)
+  const fg   = prod ? hex.green : hex.accent
   // When sitting on an accent (yellow) background, swap to a darker readable style
   const style = inverted
-    ? { background: 'rgba(0,0,0,.18)', color: '#000', border: '1px solid rgba(0,0,0,.25)' }
-    : { background: bg, color: fg, border: `1px solid ${fg}33` }
+    ? { background: alpha.black(.18), color: '#000', border: `1px solid ${alpha.black(.25)}` }
+    : { background: bg, color: fg, border: `1px solid ${withAlpha(fg, .2)}` }
   return (
     <span style={{
       ...style,

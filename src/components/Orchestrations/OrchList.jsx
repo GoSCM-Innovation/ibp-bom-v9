@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { alpha } from '../../styles/tokens'
 
 export default function OrchList({ orchs, selectedId, onSelect, onCreate, onDuplicate, onDelete, onExport, onImportClick, connectionId, collapsed = false, onToggle, mobile = false }) {
   const FAVS_KEY = `ibp-favs-${connectionId}`
@@ -110,7 +111,7 @@ export default function OrchList({ orchs, selectedId, onSelect, onCreate, onDupl
                 minHeight: mobile ? 'var(--tap-min)' : undefined,
                 cursor: 'pointer', fontSize: mobile ? 14 : 12,
                 background: selectedId === o.id ? 'var(--bg3)' : 'transparent',
-                borderLeft: selectedId === o.id ? '2px solid var(--accent)' : isFav ? '2px solid #f7a80066' : '2px solid transparent',
+                borderLeft: selectedId === o.id ? '2px solid var(--accent)' : isFav ? `2px solid ${alpha.accent(.4)}` : '2px solid transparent',
                 borderBottom: mobile ? '1px solid var(--border)' : undefined,
                 color: selectedId === o.id ? 'var(--text)' : 'var(--text2)',
                 display: 'flex', alignItems: 'center', gap: mobile ? 8 : 4,
@@ -122,7 +123,7 @@ export default function OrchList({ orchs, selectedId, onSelect, onCreate, onDupl
                 title={isFav ? 'Quitar de favoritos' : 'Agregar a favoritos'}
                 style={{
                   background: 'none', border: 'none', cursor: 'pointer', fontSize: 12,
-                  color: isFav ? '#f7a800' : 'var(--border2)', padding: 0, flexShrink: 0,
+                  color: isFav ? 'var(--accent)' : 'var(--border2)', padding: 0, flexShrink: 0,
                   lineHeight: 1, transition: 'color .1s',
                 }}
               >★</button>
@@ -139,9 +140,9 @@ export default function OrchList({ orchs, selectedId, onSelect, onCreate, onDupl
               <button
                 onClick={e => { e.stopPropagation(); onDelete(o.id) }}
                 title="Eliminar"
-                style={{ background: 'none', border: 'none', color: '#ff6b6b44', cursor: 'pointer', fontSize: 14, padding: '0 0 0 2px', flexShrink: 0, lineHeight: 1 }}
+                style={{ background: 'none', border: 'none', color: alpha.red(.267), cursor: 'pointer', fontSize: 14, padding: '0 0 0 2px', flexShrink: 0, lineHeight: 1 }}
                 onMouseEnter={e => e.currentTarget.style.color = '#ff6b6b'}
-                onMouseLeave={e => e.currentTarget.style.color = '#ff6b6b44'}
+                onMouseLeave={e => e.currentTarget.style.color = alpha.red(.267)}
               >×</button>
             </div>
           )

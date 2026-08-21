@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { alpha } from '../../styles/tokens'
 
 function sameConn(a, b) {
   return (
@@ -26,13 +27,13 @@ export default function ImportConnectionsModal({ parsed, existing, fileName, onC
 
   return (
     <div
-      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
+      style={{ position: 'fixed', inset: 0, background: alpha.black(.6), display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
       onClick={e => { if (e.target === e.currentTarget) onCancel() }}
     >
       <div style={{
         background: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: 12,
         width: 'min(640px, 95vw)', maxHeight: '85vh', display: 'flex', flexDirection: 'column',
-        boxShadow: '0 8px 32px rgba(0,0,0,.5)', overflow: 'hidden',
+        boxShadow: `0 8px 32px ${alpha.black(.5)}`, overflow: 'hidden',
       }}>
         {/* Header */}
         <div style={{ padding: '18px 22px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
@@ -81,7 +82,7 @@ export default function ImportConnectionsModal({ parsed, existing, fileName, onC
           )}
 
           {hasInvalid && (
-            <div style={{ marginTop: 12, padding: '8px 12px', background: 'rgba(255,107,107,.08)', border: '1px solid rgba(255,107,107,.25)', borderRadius: 6, fontSize: 11, color: 'var(--text2)' }}>
+            <div style={{ marginTop: 12, padding: '8px 12px', background: alpha.red(.08), border: `1px solid ${alpha.red(.25)}`, borderRadius: 6, fontSize: 11, color: 'var(--text2)' }}>
               <div style={{ fontWeight: 600, color: 'var(--red)', marginBottom: 4 }}>
                 Entradas omitidas ({parsed.invalid.length})
               </div>

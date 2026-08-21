@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { soapCall, isSoapDebug } from '../../api/soapCall'
 import { inputStyle, selectStyle, labelStyle } from '../../styles/forms'
+import { alpha } from '../../styles/tokens'
 
 
 function FieldRow({ label, count, rawData, children }) {
@@ -192,7 +193,7 @@ export default function RunModal({ connection, sessionId, orchNodes = [], onConf
     <div
       style={{
         position: 'fixed', inset: 0, zIndex: 1000,
-        background: 'rgba(0,0,0,0.55)', display: 'flex',
+        background: alpha.black(0.55), display: 'flex',
         alignItems: 'center', justifyContent: 'center',
       }}
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
@@ -200,7 +201,7 @@ export default function RunModal({ connection, sessionId, orchNodes = [], onConf
       <div style={{
         background: 'var(--bg2)', border: '1px solid var(--border)',
         borderRadius: 10, width: 440, maxHeight: '88vh',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+        boxShadow: `0 8px 32px ${alpha.black(0.4)}`,
         display: 'flex', flexDirection: 'column', overflow: 'hidden',
       }}>
         {/* Header */}
@@ -230,7 +231,7 @@ export default function RunModal({ connection, sessionId, orchNodes = [], onConf
                       onClick={() => onConfirm(p.agentName, p.profileName, p.globalVariables || [])}
                       style={{
                         fontSize: 10, padding: '4px 8px', borderRadius: '4px 0 0 4px', cursor: 'pointer',
-                        background: '#34d39922', border: '1px solid #34d39944', color: '#34d399', fontWeight: 600,
+                        background: alpha.green(.133), border: `1px solid ${alpha.green(.267)}`, color: '#34d399', fontWeight: 600,
                       }}
                     >▶ {p.label}</button>
                     <button
@@ -257,7 +258,7 @@ export default function RunModal({ connection, sessionId, orchNodes = [], onConf
             <div style={{ marginBottom: 12 }}>
               <div style={{
                 padding: '8px 10px', borderRadius: 6, fontSize: 11,
-                background: 'rgba(255,107,107,.08)', border: '1px solid rgba(255,107,107,.2)',
+                background: alpha.red(.08), border: `1px solid ${alpha.red(.2)}`,
                 color: 'var(--red)', lineHeight: 1.5, marginBottom: 8,
               }}>
                 Error al cargar desde SAP: {error}
@@ -418,9 +419,9 @@ export default function RunModal({ connection, sessionId, orchNodes = [], onConf
             disabled={loading}
             style={{
               padding: '6px 18px', borderRadius: 6, fontSize: 11, fontWeight: 600,
-              background: loading ? 'var(--bg3)' : '#34d39922',
+              background: loading ? 'var(--bg3)' : alpha.green(.133),
               color: loading ? 'var(--text2)' : '#34d399',
-              border: `1px solid ${loading ? 'var(--border)' : '#34d39944'}`,
+              border: `1px solid ${loading ? 'var(--border)' : alpha.green(.267)}`,
               cursor: loading ? 'default' : 'pointer',
             }}
           >
