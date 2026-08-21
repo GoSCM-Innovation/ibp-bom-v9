@@ -8,7 +8,7 @@ import {
 import TechLogs from '../TechLogs'
 import { useTechLogs } from '../../hooks/useTechLogs'
 import { soapCall } from '../../api/soapCall'
-import { taskStatus } from '../../constants/status'
+import { taskStatus, TASK_STATUS } from '../../constants/status'
 import { filterInputStyle as inputStyle } from '../../styles/forms'
 import { toolbarBtn } from '../../styles/buttons'
 import { alpha } from '../../styles/tokens'
@@ -203,9 +203,9 @@ export default function Resumen({ connection, sessionId, onSessionExpired }) {
                 <YAxis tick={{ fontSize: 10, fill: 'var(--text2)' }} allowDecimals={false} />
                 <Tooltip contentStyle={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 11 }} />
                 <Legend wrapperStyle={{ fontSize: 11, color: 'var(--text2)' }} />
-                <Bar dataKey="Exitosas" stackId="a" fill="#34d399" />
-                <Bar dataKey="Fallidas" stackId="a" fill="#ff6b6b" />
-                <Bar dataKey="Otras"    stackId="a" fill="#6b7280" radius={[3,3,0,0]} />
+                <Bar dataKey="Exitosas" stackId="a" fill={TASK_STATUS.SUCCESS.color} />
+                <Bar dataKey="Fallidas" stackId="a" fill={TASK_STATUS.ERROR.color} />
+                <Bar dataKey="Otras"    stackId="a" fill={TASK_STATUS.UNKNOWN.color} radius={[3,3,0,0]} />
               </BarChart>
             </ResponsiveContainer>
           )}

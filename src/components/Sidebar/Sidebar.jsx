@@ -225,7 +225,7 @@ function SidebarItem({
   const leftBorder = dropTarget
     ? '3px solid var(--accent)'
     : active ? '3px solid var(--accent)'
-    : showOpenIndicator ? '3px solid #34d399'
+    : showOpenIndicator ? '3px solid var(--green)'
     : '3px solid transparent'
   const baseBg = active
     ? alpha.accent(.1)
@@ -282,7 +282,7 @@ function SidebarItem({
             <span style={{
               position: 'absolute', bottom: -2, right: -2,
               width: 7, height: 7, borderRadius: '50%',
-              background: sessionStatus === 'online' ? '#34d399' : 'var(--text3)',
+              background: sessionStatus === 'online' ? 'var(--green)' : 'var(--text3)',
               border: '1.5px solid var(--bg2)',
             }} />
           )}

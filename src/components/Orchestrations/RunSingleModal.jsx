@@ -97,7 +97,7 @@ export default function RunSingleModal({ connection, sessionId, node, onClose })
               )}
 
               {result && (
-                <div style={{ padding: '8px 10px', borderRadius: 6, background: alpha.green(.08), border: `1px solid ${alpha.green(.25)}`, fontSize: 11, color: '#34d399' }}>
+                <div style={{ padding: '8px 10px', borderRadius: 6, background: alpha.green(.08), border: `1px solid ${alpha.green(.25)}`, fontSize: 11, color: 'var(--green)' }}>
                   Iniciado — RunID: <span style={{ fontFamily: 'var(--mono)' }}>{result.runId}</span>
                 </div>
               )}
@@ -119,7 +119,7 @@ export default function RunSingleModal({ connection, sessionId, node, onClose })
             <button onClick={handleRun} disabled={loading || running} style={{
               padding: '6px 18px', borderRadius: 6, fontSize: 11, fontWeight: 600,
               background: (loading || running) ? 'var(--bg3)' : alpha.green(.133),
-              color: (loading || running) ? 'var(--text2)' : '#34d399',
+              color: (loading || running) ? 'var(--text2)' : 'var(--green)',
               border: `1px solid ${(loading || running) ? 'var(--border)' : alpha.green(.267)}`,
               cursor: (loading || running) ? 'default' : 'pointer',
             }}>

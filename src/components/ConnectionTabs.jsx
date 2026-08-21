@@ -44,7 +44,7 @@ export default function ConnectionTabs({ connections, openConnIds, activeId, onS
             }}>{conn.name}</span>
             <span style={{
               width: 6, height: 6, borderRadius: '50%',
-              background: hasSession ? '#34d399' : 'var(--text3)',
+              background: hasSession ? 'var(--green)' : 'var(--text3)',
               flexShrink: 0,
             }} />
             <button

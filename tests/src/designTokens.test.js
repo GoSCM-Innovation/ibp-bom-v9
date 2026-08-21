@@ -42,7 +42,10 @@ describe('paleta', () => {
   })
 
   it('ningun componente escribe a mano un hex de la paleta', () => {
-    const HEX = { f7a800: '--accent', e8622a: '--accent2', '29abe2': '--cyan', a78bfa: '--purple' }
+    const HEX = {
+      f7a800: '--accent', e8622a: '--accent2', '29abe2': '--cyan',
+      a78bfa: '--purple', '34d399': '--green', ff6b6b: '--red',
+    }
     const hits = []
     for (const [name, src] of FILES) {
       if (name === 'styles/tokens.js') continue   // es donde se definen

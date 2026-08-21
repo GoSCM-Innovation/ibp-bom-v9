@@ -429,7 +429,7 @@ export default function Orchestrations({ connection, sessionId, onSessionExpired
           {/* Auto-connect toggle */}
           <button
             onClick={() => setAutoConnect(v => !v)}
-            style={actionBtn(autoConnect ? '#34d399' : null, false, autoConnect)}
+            style={actionBtn(autoConnect ? hex.green : null, false, autoConnect)}
             title="Conectar automáticamente cada task al anterior al soltarlo en el canvas"
           >
             ⚡{autoConnect ? ' Auto ON' : ' Auto'}
@@ -482,7 +482,7 @@ export default function Orchestrations({ connection, sessionId, onSessionExpired
           <button
             onClick={() => { if (checkBeforeRun()) setShowRunModal(true) }}
             disabled={isRunning || !hasNodes || starting}
-            style={actionBtn('#34d399', isRunning || !hasNodes || starting)}
+            style={actionBtn(hex.green, isRunning || !hasNodes || starting)}
           >
             {starting ? 'Iniciando…' : '▶ Iniciar'}
           </button>
@@ -491,7 +491,7 @@ export default function Orchestrations({ connection, sessionId, onSessionExpired
             <button
               onClick={handleCancel}
               disabled={cancelling}
-              style={actionBtn('#ff6b6b', cancelling)}
+              style={actionBtn(hex.red, cancelling)}
             >
               {cancelling ? 'Cancelando…' : '■ Cancelar'}
             </button>

@@ -1,4 +1,4 @@
-import { withAlpha } from '../styles/tokens'
+import { hex, withAlpha } from '../styles/tokens'
 
 // Fuente de verdad de los estados de ejecución que devuelve SAP CI-DS.
 //
@@ -23,10 +23,10 @@ function status(code, color, label, chartLabel) {
 
 export const TASK_STATUS = Object.fromEntries([
   status('RUNNING',               '#3b82f6', 'Running'),
-  status('SUCCESS',               '#34d399', 'Success'),
+  status('SUCCESS',               hex.green, 'Success'),
   status('SUCCESS_WITH_ERRORS_D', '#fbbf24', 'Success w/ errors D', 'Success w/err D'),
   status('SUCCESS_WITH_ERRORS_E', '#f97316', 'Success w/ errors E', 'Success w/err E'),
-  status('ERROR',                 '#ff6b6b', 'Error'),
+  status('ERROR',                 hex.red, 'Error'),
   status('QUEUEING',              '#8b5cf6', 'Queueing'),
   status('IMPORTED',              '#06b6d4', 'Imported'),
   status('FETCHED',               '#22d3ee', 'Fetched'),

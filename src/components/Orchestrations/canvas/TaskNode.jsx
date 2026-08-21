@@ -67,7 +67,7 @@ export default function TaskNode({ data, selected, id }) {
             title="Ejecutar solo este task"
             style={{
               background: alpha.green(.133), border: `1px solid ${alpha.green(.267)}`, borderRadius: 4,
-              color: '#34d399', fontSize: 9, fontWeight: 700, padding: '2px 5px',
+              color: 'var(--green)', fontSize: 9, fontWeight: 700, padding: '2px 5px',
               cursor: 'pointer', flexShrink: 0, lineHeight: 1,
             }}
           >▶</button>

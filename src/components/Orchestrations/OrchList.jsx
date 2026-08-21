@@ -141,7 +141,7 @@ export default function OrchList({ orchs, selectedId, onSelect, onCreate, onDupl
                 onClick={e => { e.stopPropagation(); onDelete(o.id) }}
                 title="Eliminar"
                 style={{ background: 'none', border: 'none', color: alpha.red(.267), cursor: 'pointer', fontSize: 14, padding: '0 0 0 2px', flexShrink: 0, lineHeight: 1 }}
-                onMouseEnter={e => e.currentTarget.style.color = '#ff6b6b'}
+                onMouseEnter={e => e.currentTarget.style.color = 'var(--red)'}
                 onMouseLeave={e => e.currentTarget.style.color = alpha.red(.267)}
               >×</button>
             </div>

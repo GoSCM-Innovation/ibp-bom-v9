@@ -231,7 +231,7 @@ export default function RunModal({ connection, sessionId, orchNodes = [], onConf
                       onClick={() => onConfirm(p.agentName, p.profileName, p.globalVariables || [])}
                       style={{
                         fontSize: 10, padding: '4px 8px', borderRadius: '4px 0 0 4px', cursor: 'pointer',
-                        background: alpha.green(.133), border: `1px solid ${alpha.green(.267)}`, color: '#34d399', fontWeight: 600,
+                        background: alpha.green(.133), border: `1px solid ${alpha.green(.267)}`, color: 'var(--green)', fontWeight: 600,
                       }}
                     >▶ {p.label}</button>
                     <button
@@ -420,7 +420,7 @@ export default function RunModal({ connection, sessionId, orchNodes = [], onConf
             style={{
               padding: '6px 18px', borderRadius: 6, fontSize: 11, fontWeight: 600,
               background: loading ? 'var(--bg3)' : alpha.green(.133),
-              color: loading ? 'var(--text2)' : '#34d399',
+              color: loading ? 'var(--text2)' : 'var(--green)',
               border: `1px solid ${loading ? 'var(--border)' : alpha.green(.267)}`,
               cursor: loading ? 'default' : 'pointer',
             }}

@@ -1,3 +1,4 @@
+import { hex } from '../../styles/tokens'
 // ─── Schema migration ─────────────────────────────────────────────────────────
 
 export function migrateStepsToGraph(orch) {
@@ -105,9 +106,9 @@ export function hasCycle(nodes, edges) {
 export const STATUS_COLORS = {
   pending:             '#64748b',
   running:             '#22c55e',
-  success:             '#34d399',
+  success:             hex.green,
   success_with_errors: '#fbbf24',
-  error:               '#ff6b6b',
+  error:               hex.red,
   cancelled:           '#94a3b8',
   skipped:             '#475569',
 }

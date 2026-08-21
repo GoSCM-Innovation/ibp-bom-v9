@@ -318,7 +318,7 @@ function NodeConfigPanelForm({ node, connection, sessionId, onUpdate, onClose, p
               width: '100%', padding: '8px', borderRadius: 6,
               border: `1px solid ${dirty ? alpha.green(.5) : alpha.green(.2)}`,
               background: dirty ? alpha.green(.18) : alpha.green(.06),
-              color: dirty ? '#34d399' : alpha.green(.5),
+              color: dirty ? 'var(--green)' : alpha.green(.5),
               fontSize: 12, fontWeight: 700,
               cursor: saving ? 'default' : 'pointer',
               transition: 'all .15s',

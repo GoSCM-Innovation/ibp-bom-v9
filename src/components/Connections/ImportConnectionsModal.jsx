@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { alpha } from '../../styles/tokens'
+import { alpha, hex, withAlpha } from '../../styles/tokens'
 
 function sameConn(a, b) {
   return (
@@ -48,9 +48,9 @@ export default function ImportConnectionsModal({ parsed, existing, fileName, onC
         {/* Summary */}
         <div style={{ padding: '14px 22px', display: 'flex', gap: 10, flexWrap: 'wrap', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
           <Pill color="#3b82f6"     label={`${parsed.connections.length} en archivo`} />
-          <Pill color="#34d399"     label={`${newCount} nuevas`} />
+          <Pill color={hex.green}     label={`${newCount} nuevas`} />
           <Pill color="#fbbf24"     label={`${dupCount} ya existen`} />
-          {hasInvalid && <Pill color="#ff6b6b" label={`${parsed.invalid.length} inválidas`} />}
+          {hasInvalid && <Pill color={hex.red} label={`${parsed.invalid.length} inválidas`} />}
         </div>
 
         {/* List */}
@@ -147,7 +147,7 @@ function Pill({ color, label }) {
   return (
     <span style={{
       fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 10,
-      background: color + '22', color, border: `1px solid ${color}44`,
+      background: withAlpha(color, .133), color, border: `1px solid ${withAlpha(color, .267)}`,
     }}>
       {label}
     </span>
@@ -155,7 +155,7 @@ function Pill({ color, label }) {
 }
 
 function Tag({ dup, willSkip }) {
-  if (!dup) return <Pill color="#34d399" label="NUEVA" />
+  if (!dup) return <Pill color={hex.green} label="NUEVA" />
   if (willSkip) return <Pill color="#9ca3af" label="OMITIR" />
   return <Pill color="#fbbf24" label="REEMPLAZAR" />
 }
