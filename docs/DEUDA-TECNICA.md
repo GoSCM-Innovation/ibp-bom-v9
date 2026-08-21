@@ -10,7 +10,7 @@ Severidad: critical (riesgo alto o bloquea evolución), high (impacto fuerte en 
 |---|---|---|---|
 | 1 | ~~critical~~ | ~~Sin tests ni framework de testing~~ — resuelto, ver abajo | [#1](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/1) |
 | 2 | ~~high~~ | ~~Errores de lint preexistentes~~ - resuelto, ver abajo | [#2](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/2) |
-| 3 | high | Estilos inline sin design system — parcial, ver abajo | [#3](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/3) |
+| 3 | ~~high~~ | ~~Estilos inline sin design system~~ — resuelto, ver abajo | [#3](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/3) |
 | 4 | ~~high~~ | ~~Constantes de estado (STATUS) duplicadas~~ — resuelto, ver abajo | [#4](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/4) |
 | 5 | high | `useOrchestration` con demasiadas responsabilidades | [#5](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/5) |
 | 6 | high | `VITE_API_TOKEN` público de facto | [#6](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/6) |
@@ -21,6 +21,8 @@ Severidad: critical (riesgo alto o bloquea evolución), high (impacto fuerte en 
 | 11 | medium | Modales de Run duplicados | [#11](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/11) |
 | 12 | low | Bundle único grande (>500 KB) | [#12](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/12) |
 | 22 | low | Alcance de la medición de cobertura de tests | [#22](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/22) |
+| 24 | medium | Hover simulado en JS en vez de clases CSS | [#24](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/24) |
+| 25 | low | `var()` en atributos SVG de recharts, posible bug de render | [#25](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/25) |
 
 ## Detalle
 
@@ -57,16 +59,8 @@ Hay un guardarraíl para esto en [tests/src/container-refetch.test.jsx](../tests
 
 Los otros 28 warnings son `no-empty` y `no-useless-escape` en `public/legacy`, que no se editan por política.
 
-### 3. Estilos inline sin design system (high, parcial)
-Hay un design system documentado en [DESIGN-SYSTEM.md](DESIGN-SYSTEM.md): paleta con fuente única, escalas de tipografía y radio, y módulos compartidos para formularios, botones y estados. Ver "Resuelto recientemente".
-
-**Lo que sigue abierto**, y por qué se dejó:
-
-- **Los 735 objetos `style={{...}}` siguen inline.** Se consolidaron los valores y los patrones repetidos, no la forma de aplicarlos. Pasarlos a CSS Modules es un cambio de otra escala, con un diff enorme sobre contenedores que no tienen cobertura de tests.
-- **El espaciado no tiene escala.** Los 27 valores distintos de `padding`/`margin` se concentran en 8 números, así que definirla es viable, pero snapear los sueltos mueve píxeles y eso necesita revisión visual.
-- **Quedan ~38 colores que no son de la paleta**, casi todos tonos de estado usados de forma decorativa fuera de `constants/status.js`. Decidir si entran a la paleta o se derivan del estado es la parte que falta.
-- **`#fff` y `#000` siguen sueltos** (35 usos). Tienen token pero se usan con dos sentidos distintos, jerarquía tipográfica y contraste sobre el acento, y unificarlos requiere decidir cuál es cuál en cada sitio.
-- **Los 11 handlers `onMouseEnter`/`onMouseLeave` que simulan `:hover` en JS** siguen ahí: son la consecuencia directa de no tener clases.
+### 3. Estilos inline sin design system (resuelto)
+Ver "Resuelto recientemente". Lo que queda es el hover simulado en JS, que se trata en [#24](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/24) porque no se resuelve sin dejar de aplicar los estilos inline.
 
 ### 4. Constantes de estado duplicadas (resuelto)
 Ver "Resuelto recientemente".
@@ -104,42 +98,41 @@ Recomendación: code-splitting con `import()` dinámico (p. ej. lazy-load del ca
 
 ## Resuelto recientemente
 
-### Design system: paleta, estados, formularios y botones (issues #4, #7 y parte de #3)
+### Design system (issues #3, #4 y #7)
 
-Referencia completa en [DESIGN-SYSTEM.md](DESIGN-SYSTEM.md). Los estilos siguen siendo objetos inline; lo que se consolidó son los valores y los patrones repetidos.
+Referencia completa en [DESIGN-SYSTEM.md](DESIGN-SYSTEM.md). Los estilos siguen siendo objetos inline: lo que se consolido son los valores y los patrones repetidos, que es lo que el issue #3 pedia ("CSS Modules **o** utilidades").
 
-**Paleta con fuente única.** Había 231 colores literales repartidos por los componentes, 94 distintos, y buena parte no eran colores nuevos sino la paleta de `index.css` copiada a mano. Ahora el triplete RGB es el valor primario (`--accent-rgb: 247,168,0` y `--accent: rgb(var(--accent-rgb))`), y los componentes usan `color.*`, `alpha.*()` o `hex.*` de [tokens.js](../src/styles/tokens.js) según lo que necesiten. Quedan 73 usos literales, todos de colores que no están en la paleta o `#fff`/`#000`.
+**Paleta con fuente unica.** Habia 231 colores literales repartidos por los componentes, 94 distintos, y buena parte no eran colores nuevos sino la paleta de `index.css` copiada a mano. Ahora el triplete RGB es el valor primario (`--accent-rgb: 247,168,0` y `--accent: rgb(var(--accent-rgb))`), y los componentes usan `color.*`, `alpha.*()` o `hex.*` de [tokens.js](../src/styles/tokens.js) segun lo que necesiten. **Quedan 12 usos de 10 colores**, todos valores unicos que no son paleta duplicada.
 
-Dos idiomas peligrosos que se eliminaron de paso:
+**Escalas adoptadas.** Definir los tokens no alcanzaba: el codigo seguia usando valores sueltos. 189 valores se acercaron al paso mas proximo, con movimientos de 1 o 2 px salvo un padding de 48 que bajo a 40. Dos excepciones deliberadas: la escala de espaciado conserva un paso de 1px, porque es el padding vertical de los micro-badges y redondearlo los colapsa o los duplica; y la tipografica tiene cuatro pasos grandes que no son texto sino glifos, los emoji de los estados vacios y las cruces de cerrar.
 
-- Derivar un tinte concatenando al hex (`color + '22'`), en `actionBtn`, `EnvBadge`, `Pill` y `RunLogModal`. Exige que el color sea un hex y produce CSS inválido en silencio si alguien le pasa un `var()`. Pasan a `withAlpha()`.
+**Cuatro duplicaciones estructurales**, todas con el mismo patron: la misma tabla en dos o tres archivos, sin nada que garantizara que coincidieran.
+
+| Que estaba duplicado | Consecuencia real |
+|---|---|
+| `STATUS_COLORS`/`STATUS_LABELS` en Resumen y GlobalResumen, mas `STATUS_META` en TaskMonitor | La tercera copia habia derivado, ver los defectos abajo |
+| La rueda de 8 colores de avatar y su funcion hash, en ConnectionAvatar y Sidebar | La misma conexion podia verse de un color en el sidebar y de otro en su tarjeta |
+| `TYPE_COLOR` (PROCESS/TASK), en TaskNode, TaskPalette y Tasks | El badge combinaba **dos violetas**: fondo `#8b5cf6`, texto `var(--purple)` (`#a78bfa`) |
+| `STATUS_COLORS[x] \|\| '#64748b'`, diez veces | Ese literal es el color de `pending` escrito a mano |
+
+**Tres defectos de color** que salieron al unificar los estados de SAP:
+
+- `TERMINATION_FAILED` se pintaba naranja en el badge del monitor, **el mismo color que `SUCCESS_WITH_ERRORS_E`**: dos estados distintos con el mismo badge. En los graficos ya era rojo. Se unifica en rojo.
+- `FETCHED` y `UNKNOWN` derivaban su fondo de un hex distinto al de su propio color. Ahora `bg` y `border` salen de `withAlpha(color, ...)`, asi que no pueden desincronizarse.
+- El badge de tipo de task mezclaba dos violetas, como dice la tabla.
+
+Los estados de nodo del canvas (`canvasUtils.js`) **no** se fusionaron con los de SAP: son otro vocabulario, no los codigos que reporta SAP. El issue #4 los daba por equivalentes.
+
+**Dos idiomas peligrosos, eliminados:**
+
+- Derivar un tinte concatenando al hex (`color + '22'`), en `actionBtn`, `EnvBadge`, `Pill` y `RunLogModal`. Exige que el color sea un hex y produce CSS invalido en silencio si alguien le pasa un `var()`. Ahora `withAlpha()` lanza `TypeError` ante cualquier cosa que no sea un hex de seis digitos: antes devolvia `NaN` y pintaba transparente sin avisar.
 - `GroupNode` guardaba su propia mini-paleta con el RGB desarmado campo a campo (`{ color: '#29ABE2', r: 41, g: 171, b: 226 }`) para poder componer `rgba()`.
 
-**Estados de SAP unificados** ([constants/status.js](../src/constants/status.js)). `STATUS_COLORS`/`STATUS_LABELS` estaban duplicados idénticos en `Resumen.jsx` y `GlobalResumen.jsx`, y `TaskMonitor.jsx` tenía su propio `STATUS_META` con los `rgba()` a mano. Esa tercera copia había derivado y producía dos defectos visibles:
+**Formularios y botones.** Cinco definiciones sueltas de `inputStyle`/`selectStyle`/`labelStyle` pasan a dos familias, que si eran una distincion real: campos de modal (fondo elevado, ancho completo) y campos de barra de herramientas. De los 101 botones inline, cuatro patrones estaban repetidos con deriva; el boton cancelar usaba `--border2` en cuatro archivos y `--border` en Tasks.
 
-- `TERMINATION_FAILED` se pintaba naranja en el badge del monitor, **el mismo color que `SUCCESS_WITH_ERRORS_E`**: dos estados distintos con el mismo badge. En los gráficos ya era rojo. Se unifica en rojo.
-- `FETCHED` y `UNKNOWN` derivaban su fondo de un hex distinto al de su propio color. Ahora `bg` y `border` salen de `withAlpha(color, …)`, así que no pueden desincronizarse.
+**Guardas** ([designTokens.test.js](../tests/src/designTokens.test.js)). Escanean `src/` y fallan ante un color de la paleta escrito a mano, un hex de ocho digitos, un `'#fff'`/`'#000'` suelto, una redefinicion de los estilos de formulario, o un valor fuera de escala. Sin esto la consolidacion se deshace sola con el proximo componente. La unica duplicacion admitida de la paleta es `index.css` <-> `tokens.hex`, y hay un test que falla si una deriva de la otra.
 
-Los estados de nodo del canvas (`canvasUtils.js`) **no** se fusionaron: son otro vocabulario, no los códigos que reporta SAP. El issue los daba por equivalentes.
-
-**Formularios** ([styles/forms.js](../src/styles/forms.js)). Cinco definiciones sueltas de `inputStyle`/`selectStyle`/`labelStyle` pasan a dos familias, que sí eran una distinción real: campos de modal (fondo elevado, ancho completo) y campos de barra de herramientas. Se normalizaron diferencias de un píxel o un tono: el `select` de Tasks era más oscuro que la superficie del modal donde vive, al revés que todos los demás.
-
-**Botones** ([styles/buttons.js](../src/styles/buttons.js)). De los 101 botones inline, cuatro patrones estaban repetidos con deriva. El botón cancelar de los modales usaba `--border2` en cuatro archivos y `--border` en Tasks; los dos "+ Nueva conexión" tenían otro radio y otro padding que el resto de las primarias.
-
-**Guardas** ([designTokens.test.js](../tests/src/designTokens.test.js), 12 tests). Escanean `src/` y fallan si vuelve a aparecer un color de la paleta escrito a mano, o si alguien redefine `inputStyle`/`selectStyle`/`labelStyle` por su cuenta. Sin esto la consolidación se deshace sola con el próximo componente. La única duplicación admitida de la paleta es `index.css` ↔ `tokens.hex`, y hay un test que falla si una deriva de la otra. Verificado negativamente: los tres guardas fallan al reintroducir el patrón.
-
-### Tests: Vitest + React Testing Library (issue #1)
-
-635 tests en 23 archivos bajo [tests/](../tests), corriendo en ~5 s:
-
-- **Backend:** parsers y builders SOAP ([api/soap.js](../api/soap.js), incluido el orden de elementos que exige el XSD de `getTaskLogs` y el decode base64 token por token), guard anti-SSRF, `requireAuth`/`applyCors`, y los validadores de `orchestrations` e `ibp-proxy`.
-- **Motor de orquestación** ([api/orchestrate.js](../api/orchestrate.js), 96% de líneas): además de las piezas puras (olas de Kahn, `applyTaskResult`, merge de variables), el bucle de ejecución completo contra un doble en memoria de Redis y SAP. Cubre el avance del grafo entre ticks, la propagación de `skipped` según `errorStrategy`, los reintentos con `retryAt`, los grupos y sus dependencias internas, el lock de ejecución, y el ciclo start/resume/cancel a través del handler.
-- **Frontend, lógica pura:** `dateUtils` (incluye cruce de medianoche por offset), `canvasUtils`, `taskMetadata`, `soapCall`, el interceptor `apiFetch`, y los hooks `useBuildCursor`, `useViewport` y `useTechLogs`.
-- **Componentes (RTL):** `Sheet` (Escape, bloqueo de scroll, portal, backdrop), `OrchList` (favoritos en `localStorage` y su orden, propagación de eventos en los botones de fila), `ConnectionForm` (orden de validación, normalización de la URL, alta vs edición), `SapLoginModal` (login, y la sesión productiva paralela que se abre en sandbox), `TaskNode` (estados, badge de promovido, estrategia de error), `TechLogs` (agrupado de llamadas consecutivas) e `ImportOrchestrationsModal` (clasificación de duplicadas, aviso de tenant distinto).
-
-Los tests viven en `tests/` y no co-locados: Vercel trata todo archivo dentro de `api/` como función serverless. Detalle en [CONTRIBUTING.md](../CONTRIBUTING.md#tests).
-
-Sin cubrir por ahora: los handlers `connections.js`, `cron-tick.js` y `cids.js`, y —por relación costo/beneficio— los contenedores grandes que son sobre todo orquestación de fetch y markup (`TaskMonitor`, `Resumen`, `GlobalResumen`, `Orchestrations`, `RunModal`). Su lógica de valor ya está testeada por separado en `soapCall`, `dateUtils`, `canvasUtils` y el motor. La medición de cobertura con `@vitest/coverage-v8` se trata por separado en [#22](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/22): implica acordar umbrales para el CI, y un umbral global se leería engañosamente bajo por esos contenedores que se dejaron sin testear a propósito.
+Todas las guardas se verificaron negativamente: reintroduciendo el patron, fallan.
 
 ### Dos defectos encontrados al escribir los tests
 
