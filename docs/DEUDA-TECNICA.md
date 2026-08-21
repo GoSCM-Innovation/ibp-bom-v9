@@ -20,6 +20,7 @@ Severidad: critical (riesgo alto o bloquea evolución), high (impacto fuerte en 
 | 10 | medium | Manejo de errores inconsistente | [#10](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/10) |
 | 11 | medium | Modales de Run duplicados | [#11](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/11) |
 | 12 | low | Bundle único grande (>500 KB) | [#12](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/12) |
+| 22 | low | Alcance de la medición de cobertura de tests | [#22](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/22) |
 
 ## Detalle
 
@@ -109,7 +110,7 @@ Recomendación: code-splitting con `import()` dinámico (p. ej. lazy-load del ca
 
 Los tests viven en `tests/` y no co-locados: Vercel trata todo archivo dentro de `api/` como función serverless. Detalle en [CONTRIBUTING.md](../CONTRIBUTING.md#tests).
 
-Sin cubrir por ahora: los handlers `connections.js`, `cron-tick.js` y `cids.js`, y —por relación costo/beneficio— los contenedores grandes que son sobre todo orquestación de fetch y markup (`TaskMonitor`, `Resumen`, `GlobalResumen`, `Orchestrations`, `RunModal`). Su lógica de valor ya está testeada por separado en `soapCall`, `dateUtils`, `canvasUtils` y el motor. La cobertura con `@vitest/coverage-v8` queda como decisión aparte, porque implica acordar umbrales para el CI.
+Sin cubrir por ahora: los handlers `connections.js`, `cron-tick.js` y `cids.js`, y —por relación costo/beneficio— los contenedores grandes que son sobre todo orquestación de fetch y markup (`TaskMonitor`, `Resumen`, `GlobalResumen`, `Orchestrations`, `RunModal`). Su lógica de valor ya está testeada por separado en `soapCall`, `dateUtils`, `canvasUtils` y el motor. La medición de cobertura con `@vitest/coverage-v8` se trata por separado en [#22](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/22): implica acordar umbrales para el CI, y un umbral global se leería engañosamente bajo por esos contenedores que se dejaron sin testear a propósito.
 
 ### Dos defectos encontrados al escribir los tests
 
