@@ -46,7 +46,7 @@ export default function Sheet({
           gap: 12, background: 'var(--bg2)',
         }}>
           <div style={{
-            fontSize: 15, fontWeight: 700,
+            fontSize: 16, fontWeight: 700,
             color: 'var(--text)', minWidth: 0,
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           }}>
@@ -117,7 +117,7 @@ export default function Sheet({
             gap: 12,
           }}>
             <div style={{
-              fontSize: 13, fontWeight: 700,
+              fontSize: 14, fontWeight: 700,
               color: 'var(--text)', minWidth: 0,
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             }}>
@@ -129,7 +129,7 @@ export default function Sheet({
                 aria-label="Cerrar"
                 style={{
                   background: 'none', border: 'none', color: 'var(--text2)',
-                  fontSize: 22, cursor: 'pointer', lineHeight: 1, padding: 0,
+                  fontSize: 24, cursor: 'pointer', lineHeight: 1, padding: 0,
                   width: 32, height: 32,
                   flexShrink: 0,
                 }}

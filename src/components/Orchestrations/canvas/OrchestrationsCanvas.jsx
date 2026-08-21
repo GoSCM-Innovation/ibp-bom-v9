@@ -416,10 +416,10 @@ function CanvasInner({
           <Panel position="top-center" style={{ margin: 8 }}>
             <div style={{
               background: alpha.warning(.08), border: `1px solid ${alpha.warning(.35)}`,
-              borderRadius: 6, padding: '5px 12px', fontSize: 11, color: color.warning,
+              borderRadius: 6, padding: '4px 12px', fontSize: 11, color: color.warning,
               display: 'flex', alignItems: 'center', gap: 6, userSelect: 'none',
             }}>
-              <span style={{ fontSize: 13 }}>⬡</span> Canvas bloqueado — orquestacion en ejecucion
+              <span style={{ fontSize: 14 }}>⬡</span> Canvas bloqueado — orquestacion en ejecucion
             </div>
           </Panel>
         )}
@@ -436,8 +436,8 @@ function CanvasInner({
         {nodes.length === 0 && (
           <Panel position="center">
             <div style={{ textAlign: 'center', color: 'var(--text2)', pointerEvents: 'none' }}>
-              <div style={{ fontSize: 28, marginBottom: 8, opacity: 0.4 }}>⬡</div>
-              <div style={{ fontSize: 13, fontWeight: 600, opacity: 0.5 }}>
+              <div style={{ fontSize: 32, marginBottom: 8, opacity: 0.4 }}>⬡</div>
+              <div style={{ fontSize: 14, fontWeight: 600, opacity: 0.5 }}>
                 Arrastra tasks desde el panel izquierdo
               </div>
               <div style={{ fontSize: 11, marginTop: 4, opacity: 0.35 }}>
@@ -452,7 +452,7 @@ function CanvasInner({
 }
 
 const toolbarBtn = {
-  padding: '5px 10px', borderRadius: 6, border: '1px solid var(--border2)',
+  padding: '4px 10px', borderRadius: 6, border: '1px solid var(--border2)',
   background: 'var(--bg2)', color: 'var(--text2)', fontSize: 11, fontWeight: 600,
   cursor: 'pointer',
 }

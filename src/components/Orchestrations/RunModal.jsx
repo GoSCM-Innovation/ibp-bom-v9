@@ -8,7 +8,7 @@ function FieldRow({ label, count, rawData, children }) {
   const [showRaw, setShowRaw] = useState(false)
   return (
     <div style={{ marginBottom: 14 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
         <label style={labelStyle}>{label}</label>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ fontSize: 9, color: count === 0 ? '#f97316' : 'var(--text3)', fontFamily: 'var(--mono)' }}>
@@ -16,7 +16,7 @@ function FieldRow({ label, count, rawData, children }) {
           </span>
           {rawData !== null && (
             <button onClick={() => setShowRaw(v => !v)} style={{
-              fontSize: 9, padding: '1px 5px', borderRadius: 4, cursor: 'pointer',
+              fontSize: 9, padding: '1px 4px', borderRadius: 4, cursor: 'pointer',
               background: 'var(--bg3)', border: '1px solid var(--border)', color: 'var(--text3)',
             }}>
               {showRaw ? 'ocultar' : 'raw'}
@@ -210,12 +210,12 @@ export default function RunModal({ connection, sessionId, orchNodes = [], onConf
           display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0,
         }}>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>Iniciar orquestación</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>Iniciar orquestación</div>
             <div style={{ fontSize: 10, color: 'var(--text3)', marginTop: 2 }}>
               Agente y configuración por defecto para nodos sin valores propios
             </div>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text2)', fontSize: 18, cursor: 'pointer', lineHeight: 1 }}>×</button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text2)', fontSize: 20, cursor: 'pointer', lineHeight: 1 }}>×</button>
         </div>
 
         {/* Body — scrollable */}
@@ -237,7 +237,7 @@ export default function RunModal({ connection, sessionId, orchNodes = [], onConf
                     <button
                       onClick={e => deletePreset(e, p.id)}
                       style={{
-                        fontSize: 10, padding: '4px 5px', borderRadius: '0 4px 4px 0', cursor: 'pointer',
+                        fontSize: 10, padding: '4px 4px', borderRadius: '0 4px 4px 0', cursor: 'pointer',
                         background: 'var(--bg3)', border: '1px solid var(--border)', borderLeft: 'none',
                         color: 'var(--text3)',
                       }}
@@ -272,7 +272,7 @@ export default function RunModal({ connection, sessionId, orchNodes = [], onConf
               {!error && (
                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
                   <button onClick={() => setUseManual(v => !v)} style={{
-                    fontSize: 9, padding: '2px 7px', borderRadius: 4, cursor: 'pointer',
+                    fontSize: 9, padding: '2px 6px', borderRadius: 4, cursor: 'pointer',
                     background: 'var(--bg3)', border: '1px solid var(--border)', color: 'var(--text2)',
                   }}>
                     {useManual ? '← Usar dropdown' : 'Escribir manualmente →'}
@@ -322,14 +322,14 @@ export default function RunModal({ connection, sessionId, orchNodes = [], onConf
 
               {/* Variables globales de orquestación */}
               <div style={{ marginBottom: 14 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
                   <label style={labelStyle}>
                     {varsHeader}
                     {varsStatus === 'loading' && <span style={{ marginLeft: 4, fontSize: 9, color: 'var(--text3)' }}>⏳</span>}
                     {varsStatus === 'error' && <span style={{ marginLeft: 4, fontSize: 9, color: 'var(--red)' }}>Error SAP</span>}
                   </label>
                   <button onClick={addGlobalVar} style={{
-                    fontSize: 9, padding: '2px 7px', borderRadius: 4, cursor: 'pointer',
+                    fontSize: 9, padding: '2px 6px', borderRadius: 4, cursor: 'pointer',
                     background: 'var(--bg3)', border: '1px solid var(--border)', color: 'var(--text2)',
                     flexShrink: 0,
                   }}>+ Variable</button>
@@ -418,7 +418,7 @@ export default function RunModal({ connection, sessionId, orchNodes = [], onConf
             onClick={handleConfirm}
             disabled={loading}
             style={{
-              padding: '6px 18px', borderRadius: 6, fontSize: 11, fontWeight: 600,
+              padding: '6px 16px', borderRadius: 6, fontSize: 11, fontWeight: 600,
               background: loading ? 'var(--bg3)' : alpha.green(.133),
               color: loading ? 'var(--text2)' : 'var(--green)',
               border: `1px solid ${loading ? 'var(--border)' : alpha.green(.267)}`,

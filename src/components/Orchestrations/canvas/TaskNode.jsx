@@ -60,14 +60,14 @@ export default function TaskNode({ data, selected, id }) {
         }}>
           {data.label || data.taskName}
         </span>
-        {promoted && <PromotedBadge fontSize={8} />}
+        {promoted && <PromotedBadge />}
         {hovered && data.onRunSingle && (
           <button
             onClick={e => { e.stopPropagation(); data.onRunSingle(id) }}
             title="Ejecutar solo este task"
             style={{
               background: alpha.green(.133), border: `1px solid ${alpha.green(.267)}`, borderRadius: 4,
-              color: 'var(--green)', fontSize: 9, fontWeight: 700, padding: '2px 5px',
+              color: 'var(--green)', fontSize: 9, fontWeight: 700, padding: '2px 4px',
               cursor: 'pointer', flexShrink: 0, lineHeight: 1,
             }}
           >▶</button>
@@ -75,7 +75,7 @@ export default function TaskNode({ data, selected, id }) {
       </div>
 
       {/* Details */}
-      <div style={{ padding: '6px 10px 8px', display: 'flex', flexDirection: 'column', gap: 3 }}>
+      <div style={{ padding: '6px 10px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
         {(data.agentName || data.profileName) && (
           <div style={{ fontSize: 9, color: 'var(--text3)', fontFamily: 'var(--mono)', display: 'flex', gap: 4, flexWrap: 'wrap' }}>
             {data.agentName   && <span>agent: {data.agentName}</span>}
@@ -89,7 +89,7 @@ export default function TaskNode({ data, selected, id }) {
         )}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span style={{
-            fontSize: 8, padding: '1px 5px', borderRadius: 6, fontFamily: 'var(--mono)',
+            fontSize: 9, padding: '1px 4px', borderRadius: 6, fontFamily: 'var(--mono)',
             background: withAlpha(strategyColor, .133),
             color: strategyColor,
             border: `1px solid ${withAlpha(strategyColor, .267)}`,

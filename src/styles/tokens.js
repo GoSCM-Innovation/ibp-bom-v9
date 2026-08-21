@@ -44,20 +44,38 @@ export const hex = {
 
 export const font = { sans: 'var(--font)', mono: 'var(--mono)' }
 
-// Escala tipográfica. Los seis pasos cubren 336 de los 385 usos previos.
+// Escala tipográfica. Los seis primeros pasos son texto; los cuatro últimos
+// son para glifos —los emoji de los estados vacíos y las × de cerrar—, que no
+// son tipografía y por eso saltan de a más.
 export const fontSize = {
   micro: 9,   // metadatos densos, chips
   xs:    10,  // labels en mayúsculas, notas al pie
   sm:    11,  // texto de tabla y barras de herramientas
   md:    12,  // cuerpo por defecto de formularios y modales
-  lg:    14,  // subtítulos
-  xl:    16,  // títulos de sección
+  lg:    14,  // subtítulos y títulos de sección
+  xl:    16,  // títulos de modal
+  icon:   20, // glifo de acción: cerrar, expandir
+  iconLg: 24,
+  hero:   32, // ilustración de estado vacío
+  heroLg: 40,
 }
 
 export const fontWeight = { normal: 400, semibold: 600, bold: 700 }
 
 // 64 de los 165 radios previos ya eran 6; el resto se agrupa en estos pasos.
-export const radius = { sm: 4, md: 6, lg: 8, xl: 10, pill: 999, circle: '50%' }
+// `pill` es para lo que debe quedar completamente redondeado sin depender de
+// su altura, que es lo que antes se escribía como un radio de 20.
+export const radius = { xs: 2, sm: 4, md: 6, lg: 8, xl: 10, xxl: 12, pill: 999, circle: '50%' }
+
+// Escala de espaciado, para padding, margin y gap.
+//
+// `hair` existe porque 1px es un valor real de diseño acá: es el padding
+// vertical de los micro-badges, y redondearlo a 0 los colapsa mientras que
+// redondearlo a 2 los duplica. No es ruido de rejilla.
+export const space = {
+  none: 0, hair: 1, xxs: 2, xs: 4, sm: 6, md: 8, lg: 10, xl: 12,
+  xxl: 14, xxxl: 16, gap: 20, section: 24, block: 28, page: 32, hero: 40,
+}
 
 // Convierte un hex de 6 dígitos a rgba(). Se usa para derivar los fondos y
 // bordes translúcidos de un badge a partir de su color, en vez de escribir a

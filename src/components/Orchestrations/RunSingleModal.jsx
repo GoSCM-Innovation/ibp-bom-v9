@@ -58,12 +58,12 @@ export default function RunSingleModal({ connection, sessionId, node, onClose })
         {/* Header */}
         <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>Ejecutar task individual</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>Ejecutar task individual</div>
             <div style={{ fontSize: 10, color: 'var(--accent)', marginTop: 2, fontFamily: 'var(--mono)' }}>
               {node.data.taskName}
             </div>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text2)', fontSize: 18, cursor: 'pointer', lineHeight: 1 }}>×</button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text2)', fontSize: 20, cursor: 'pointer', lineHeight: 1 }}>×</button>
         </div>
 
         {/* Body */}
@@ -117,7 +117,7 @@ export default function RunSingleModal({ connection, sessionId, node, onClose })
           </button>
           {!result && (
             <button onClick={handleRun} disabled={loading || running} style={{
-              padding: '6px 18px', borderRadius: 6, fontSize: 11, fontWeight: 600,
+              padding: '6px 16px', borderRadius: 6, fontSize: 11, fontWeight: 600,
               background: (loading || running) ? 'var(--bg3)' : alpha.green(.133),
               color: (loading || running) ? 'var(--text2)' : 'var(--green)',
               border: `1px solid ${(loading || running) ? 'var(--border)' : alpha.green(.267)}`,

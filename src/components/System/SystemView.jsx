@@ -139,7 +139,7 @@ export default function SystemView({ connection, onLoginCancel }) {
           </span>
           <button onClick={handleReconnect} style={{
             background: 'var(--accent)', border: 'none', borderRadius: 6,
-            color: color.onAccent, fontSize: 11, fontWeight: 700, padding: '5px 14px', cursor: 'pointer', flexShrink: 0,
+            color: color.onAccent, fontSize: 11, fontWeight: 700, padding: '4px 14px', cursor: 'pointer', flexShrink: 0,
           }}>Reconectar</button>
         </div>
       )}

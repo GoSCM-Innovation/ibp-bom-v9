@@ -82,8 +82,8 @@ export default function Sidebar({ connections, activeId, openConnIds = [], onSel
           </span>
         )}
         <button onClick={onToggle} style={{
-          background: 'none', border: '1px solid var(--border)', borderRadius: 5,
-          color: 'var(--text2)', padding: '3px 6px', fontSize: 11, flexShrink: 0,
+          background: 'none', border: '1px solid var(--border)', borderRadius: 6,
+          color: 'var(--text2)', padding: '2px 6px', fontSize: 11, flexShrink: 0,
         }} title={expanded ? 'Minimizar' : 'Expandir'}>
           {expanded ? '◀' : '▶'}
         </button>
@@ -194,7 +194,7 @@ export default function Sidebar({ connections, activeId, openConnIds = [], onSel
       {/* Add new */}
       <div style={{ padding: 8, borderTop: '1px solid var(--border)', flexShrink: 0 }}>
         <button onClick={() => onSelect('connections')} style={{
-          width: '100%', padding: '7px 0',
+          width: '100%', padding: '6px 0',
           background: alpha.accent(.08), border: `1px dashed ${alpha.accent(.3)}`,
           borderRadius: 6, color: 'var(--accent)', fontSize: 11, fontWeight: 600,
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
@@ -233,7 +233,7 @@ function SidebarItem({
       onDragEnd={onDragEnd}
       style={{
         width: '100%', display: 'flex', alignItems: 'center',
-        padding: '9px 14px',
+        padding: '8px 14px',
         justifyContent: 'flex-start',
         gap: 10,
         background: dropTarget ? alpha.accent(.18) : baseBg,

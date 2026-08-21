@@ -36,8 +36,8 @@ export default function ImportConnectionsModal({ parsed, existing, fileName, onC
         boxShadow: `0 8px 32px ${alpha.black(.5)}`, overflow: 'hidden',
       }}>
         {/* Header */}
-        <div style={{ padding: '18px 22px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: color.white }}>Importar conexiones</div>
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: color.white }}>Importar conexiones</div>
           {fileName && (
             <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4, fontFamily: 'var(--mono)' }}>
               {fileName}
@@ -46,7 +46,7 @@ export default function ImportConnectionsModal({ parsed, existing, fileName, onC
         </div>
 
         {/* Summary */}
-        <div style={{ padding: '14px 22px', display: 'flex', gap: 10, flexWrap: 'wrap', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+        <div style={{ padding: '14px 20px', display: 'flex', gap: 10, flexWrap: 'wrap', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
           <Pill color={hex.info}     label={`${parsed.connections.length} en archivo`} />
           <Pill color={hex.green}     label={`${newCount} nuevas`} />
           <Pill color={hex.warning}     label={`${dupCount} ya existen`} />
@@ -54,7 +54,7 @@ export default function ImportConnectionsModal({ parsed, existing, fileName, onC
         </div>
 
         {/* List */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '8px 22px' }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '8px 20px' }}>
           {empty ? (
             <div style={{ padding: '32px 0', textAlign: 'center', color: 'var(--text3)', fontSize: 12 }}>
               El archivo no contiene conexiones válidas
@@ -102,7 +102,7 @@ export default function ImportConnectionsModal({ parsed, existing, fileName, onC
 
         {/* Strategy */}
         {dupCount > 0 && (
-          <div style={{ padding: '12px 22px', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
+          <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--text)', cursor: 'pointer' }}>
               <input
                 type="checkbox"
@@ -112,17 +112,17 @@ export default function ImportConnectionsModal({ parsed, existing, fileName, onC
               />
               Reemplazar las {dupCount} conexion{dupCount === 1 ? '' : 'es'} ya existente{dupCount === 1 ? '' : 's'} con los datos del archivo
             </label>
-            <div style={{ fontSize: 10, color: 'var(--text3)', marginTop: 4, paddingLeft: 22 }}>
+            <div style={{ fontSize: 10, color: 'var(--text3)', marginTop: 4, paddingLeft: 20 }}>
               Si está desmarcado, las duplicadas se omiten y se conservan las actuales
             </div>
           </div>
         )}
 
         {/* Footer */}
-        <div style={{ padding: '14px 22px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: 10, flexShrink: 0 }}>
+        <div style={{ padding: '14px 20px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: 10, flexShrink: 0 }}>
           <button onClick={onCancel} style={{
             background: 'none', border: '1px solid var(--border2)', borderRadius: 6,
-            color: 'var(--text2)', fontSize: 12, fontWeight: 600, padding: '7px 18px', cursor: 'pointer',
+            color: 'var(--text2)', fontSize: 12, fontWeight: 600, padding: '6px 16px', cursor: 'pointer',
           }}>Cancelar</button>
           <button
             onClick={() => onConfirm({ replaceDuplicates })}
@@ -131,7 +131,7 @@ export default function ImportConnectionsModal({ parsed, existing, fileName, onC
               background: willImport === 0 ? 'var(--bg3)' : 'var(--accent)',
               border: 'none', borderRadius: 6,
               color: willImport === 0 ? 'var(--text3)' : color.onAccent,
-              fontSize: 12, fontWeight: 700, padding: '7px 18px',
+              fontSize: 12, fontWeight: 700, padding: '6px 16px',
               cursor: willImport === 0 ? 'not-allowed' : 'pointer',
             }}
           >
@@ -150,7 +150,7 @@ const GRAY = '#9ca3af'
 function Pill({ color, label }) {
   return (
     <span style={{
-      fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 10,
+      fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 10,
       background: withAlpha(color, .133), color, border: `1px solid ${withAlpha(color, .267)}`,
     }}>
       {label}

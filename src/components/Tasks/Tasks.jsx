@@ -116,7 +116,7 @@ export default function Tasks({ connection, sessionId, onSessionExpired, onTaskR
       <ProgressBar loading={loadingP} />
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18, flexShrink: 0, gap: 12, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexShrink: 0, gap: 12, flexWrap: 'wrap' }}>
         <div>
           <div style={{ fontSize: 16, fontWeight: 700, color: color.white }}>Projects & Tasks</div>
           <div style={{ fontSize: 11, color: 'var(--text2)', marginTop: 2 }}>
@@ -185,7 +185,7 @@ export default function Tasks({ connection, sessionId, onSessionExpired, onTaskR
               <div
                 onClick={() => toggleProject(proj)}
                 style={{
-                  display: 'flex', alignItems: 'center', gap: 10, padding: '11px 16px',
+                  display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px',
                   cursor: 'pointer', background: isExp ? alpha.accent(.05) : 'transparent',
                   transition: 'background .15s',
                 }}
@@ -207,7 +207,7 @@ export default function Tasks({ connection, sessionId, onSessionExpired, onTaskR
                 <span style={{ color: 'var(--text3)', fontSize: 11, width: 14, textAlign: 'center', flexShrink: 0 }}>
                   {isLoadingT ? '…' : isExp ? '▾' : '▸'}
                 </span>
-                <span style={{ fontSize: 13, color: isExp ? 'var(--accent)' : color.white, fontWeight: 600 }}>{proj.name}</span>
+                <span style={{ fontSize: 14, color: isExp ? 'var(--accent)' : color.white, fontWeight: 600 }}>{proj.name}</span>
                 {proj.description && (
                   <span style={{ fontSize: 11, color: 'var(--text3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     — {proj.description}
@@ -263,7 +263,7 @@ function TaskRow({ task, onRun, isLast }) {
   const promotedSet = usePromotedTasksContext()
   return (
     <div style={{
-      display: 'flex', alignItems: 'center', gap: 12, padding: '9px 16px 9px 40px',
+      display: 'flex', alignItems: 'center', gap: 12, padding: '8px 16px 8px 40px',
       borderBottom: !isLast ? '1px solid var(--border)' : 'none',
       background: 'var(--bg)',
     }}>
@@ -284,7 +284,7 @@ function TaskRow({ task, onRun, isLast }) {
         )}
       </div>
       <button onClick={e => { e.stopPropagation(); onRun() }} style={{
-        padding: '4px 12px', borderRadius: 5, border: `1px solid ${alpha.running(.35)}`,
+        padding: '4px 12px', borderRadius: 6, border: `1px solid ${alpha.running(.35)}`,
         background: alpha.running(.08), color: 'var(--running)',
         fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
       }}>▶ Ejecutar</button>
@@ -423,7 +423,7 @@ function RunModal({ task, connection, sessionId, onClose, onSuccess, addLog, onT
                         value={varValues[v.name] || ''}
                         onChange={e => setVarValues(p => ({ ...p, [v.name]: e.target.value }))}
                         placeholder={v.defaultValue || `${v.dataType}`}
-                        style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text)', fontFamily: 'var(--mono)', fontSize: 12, padding: '7px 10px', width: '100%', boxSizing: 'border-box', outline: 'none' }}
+                        style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text)', fontFamily: 'var(--mono)', fontSize: 12, padding: '6px 10px', width: '100%', boxSizing: 'border-box', outline: 'none' }}
                       />
                     </div>
                   ))}
@@ -442,7 +442,7 @@ function RunModal({ task, connection, sessionId, onClose, onSuccess, addLog, onT
 
         {step === 'done' && (
           <div>
-            <div style={{ color: 'var(--green)', fontWeight: 700, fontSize: 13, marginBottom: 8 }}>✓ Task enviada</div>
+            <div style={{ color: 'var(--green)', fontWeight: 700, fontSize: 14, marginBottom: 8 }}>✓ Task enviada</div>
             <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 20 }}>
               RunID: <span style={{ fontFamily: 'var(--mono)', color: 'var(--text)' }}>{runId}</span>
             </div>
@@ -458,7 +458,7 @@ function RunModal({ task, connection, sessionId, onClose, onSuccess, addLog, onT
             <div style={{ color: 'var(--red)', fontSize: 12, marginBottom: 16 }}>✕ {errMsg}</div>
             <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={onClose} style={secondaryBtn}>Cerrar</button>
-              <button onClick={() => setStep('loading')} style={{ ...softBtn, padding: '7px 18px', fontSize: 12, color: 'var(--text)' }}>Reintentar</button>
+              <button onClick={() => setStep('loading')} style={{ ...softBtn, padding: '6px 16px', fontSize: 12, color: 'var(--text)' }}>Reintentar</button>
             </div>
           </div>
         )}

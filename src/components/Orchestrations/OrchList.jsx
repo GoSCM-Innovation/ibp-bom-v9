@@ -79,7 +79,7 @@ export default function OrchList({ orchs, selectedId, onSelect, onCreate, onDupl
             >↓</button>
           )}
           <button onClick={onCreate} title="Nueva orquestación" style={mobile ? {
-            ...mobileIconBtnStyle, color: 'var(--accent)', fontSize: 22,
+            ...mobileIconBtnStyle, color: 'var(--accent)', fontSize: 24,
           } : {
             background: 'none', border: 'none', color: 'var(--accent)',
             fontSize: 20, cursor: 'pointer', lineHeight: 1, padding: '0 2px',

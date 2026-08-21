@@ -9,7 +9,7 @@ import { soapCall } from '../../api/soapCall'
 import { taskStatus } from '../../constants/status'
 import { filterInputStyle as inputStyle } from '../../styles/forms'
 import { toolbarBtn, disabled as btnDisabled } from '../../styles/buttons'
-import { alpha, color } from '../../styles/tokens'
+import { alpha, color, radius } from '../../styles/tokens'
 
 const REFRESH_MS = 30000
 const PAGE_SIZE = 50
@@ -294,7 +294,7 @@ export default function TaskMonitor({ connection, sessionId, onSessionExpired, i
     { key: 'taskName',   label: 'Task',      w: 280, render: v => (
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, maxWidth: '100%' }}>
         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{v ?? '—'}</span>
-        {isTaskPromoted(promotedSet, v) && <PromotedBadge fontSize={8} />}
+        {isTaskPromoted(promotedSet, v) && <PromotedBadge />}
       </span>
     ) },
     { key: 'startDate',  label: 'Inicio',    w: 180, render: v => formatEpochMs(v, tzMode) },
@@ -349,10 +349,10 @@ export default function TaskMonitor({ connection, sessionId, onSessionExpired, i
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           {/* Timezone selector */}
-          <div style={{ display: 'flex', borderRadius: 5, overflow: 'hidden', border: '1px solid var(--border)', flexShrink: 0 }}>
+          <div style={{ display: 'flex', borderRadius: 6, overflow: 'hidden', border: '1px solid var(--border)', flexShrink: 0 }}>
             {TZ_OPTIONS.filter(o => o.value !== 'local').map(opt => (
               <button key={opt.value} onClick={() => handleTzChange(opt.value)} style={{
-                padding: '5px 9px', fontSize: 10, fontWeight: 700, border: 'none', cursor: 'pointer',
+                padding: '4px 8px', fontSize: 10, fontWeight: 700, border: 'none', cursor: 'pointer',
                 background: tzMode === opt.value ? 'var(--accent)' : 'var(--bg3)',
                 color:      tzMode === opt.value ? color.onAccent          : 'var(--text2)',
                 transition: 'background .15s',
@@ -401,7 +401,7 @@ export default function TaskMonitor({ connection, sessionId, onSessionExpired, i
             <thead>
               <tr style={{ background: 'var(--bg2)', position: 'sticky', top: 0, zIndex: 1 }}>
                 {COLS.map(col => (
-                  <th key={col.key} style={{ width: col.w, minWidth: col.w, padding: '9px 12px', textAlign: 'left', color: 'var(--text2)', fontWeight: 600, whiteSpace: 'nowrap', borderBottom: '1px solid var(--border)', position: 'relative', userSelect: 'none' }}>
+                  <th key={col.key} style={{ width: col.w, minWidth: col.w, padding: '8px 12px', textAlign: 'left', color: 'var(--text2)', fontWeight: 600, whiteSpace: 'nowrap', borderBottom: '1px solid var(--border)', position: 'relative', userSelect: 'none' }}>
                     {col.label}
                     <span style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 5, cursor: 'col-resize' }} onMouseDown={e => onResizeStart(col.key, e)} onClick={e => e.stopPropagation()} />
                   </th>
@@ -418,7 +418,7 @@ export default function TaskMonitor({ connection, sessionId, onSessionExpired, i
                 return (
                   <tr key={row.runId || i} onClick={() => setSelected(isSel ? null : row)} style={{ background: isSel ? alpha.accent(.08) : i % 2 === 0 ? 'var(--bg)' : 'var(--bg2)', outline: isSel ? `1px solid ${alpha.accent(.35)}` : 'none', cursor: 'pointer' }}>
                     {COLS.map(col => (
-                      <td key={col.key} style={{ padding: '7px 12px', color: isSel ? color.white : 'var(--text)', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: col.w, maxWidth: col.w }} title={String(row[col.key] ?? '')}>
+                      <td key={col.key} style={{ padding: '6px 12px', color: isSel ? color.white : 'var(--text)', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: col.w, maxWidth: col.w }} title={String(row[col.key] ?? '')}>
                         {col.render ? col.render(row[col.key], row) : String(row[col.key] ?? '—')}
                       </td>
                     ))}
@@ -490,7 +490,7 @@ export default function TaskMonitor({ connection, sessionId, onSessionExpired, i
 function StatusBadge({ code }) {
   const m = taskStatus(code)
   return (
-    <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 20, fontSize: 10, fontWeight: 700, background: m.bg, color: m.color, border: `1px solid ${m.border}`, whiteSpace: 'nowrap' }}>
+    <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: radius.pill, fontSize: 10, fontWeight: 700, background: m.bg, color: m.color, border: `1px solid ${m.border}`, whiteSpace: 'nowrap' }}>
       {m.label}
     </span>
   )
@@ -499,7 +499,7 @@ function StatusBadge({ code }) {
 function PageBtn({ disabled, onClick, children }) {
   return (
     <button onClick={onClick} disabled={disabled} style={{
-      ...toolbarBtn, padding: '5px 11px', whiteSpace: 'nowrap',
+      ...toolbarBtn, padding: '4px 10px', whiteSpace: 'nowrap',
       ...(disabled ? { ...btnDisabled, color: 'var(--text3)' } : {}),
     }}>{children}</button>
   )
@@ -507,9 +507,9 @@ function PageBtn({ disabled, onClick, children }) {
 
 function FilterBtn({ active, onClick, label, count, meta }) {
   return (
-    <button onClick={onClick} style={{ padding: '4px 12px', borderRadius: 20, border: `1px solid ${active ? meta.border : 'var(--border)'}`, background: active ? meta.bg : 'transparent', color: active ? meta.color : 'var(--text2)', fontSize: 11, fontWeight: active ? 700 : 400, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, transition: 'all .15s' }}>
+    <button onClick={onClick} style={{ padding: '4px 12px', borderRadius: radius.pill, border: `1px solid ${active ? meta.border : 'var(--border)'}`, background: active ? meta.bg : 'transparent', color: active ? meta.color : 'var(--text2)', fontSize: 11, fontWeight: active ? 700 : 400, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, transition: 'all .15s' }}>
       {label}
-      <span style={{ background: active ? meta.border : 'var(--border)', color: active ? meta.color : 'var(--text2)', borderRadius: 10, padding: '0 5px', fontSize: 10, fontWeight: 700 }}>{count}</span>
+      <span style={{ background: active ? meta.border : 'var(--border)', color: active ? meta.color : 'var(--text2)', borderRadius: 10, padding: '0 4px', fontSize: 10, fontWeight: 700 }}>{count}</span>
     </button>
   )
 }
@@ -559,10 +559,10 @@ function LogsModal({ runId, connection, sessionId, onClose }) {
         {/* Modal header */}
         <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: color.white }}>Logs de ejecución</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: color.white }}>Logs de ejecución</div>
             <div style={{ fontSize: 10, color: 'var(--text3)', fontFamily: 'var(--mono)', marginTop: 2 }}>RunID: {runId}</div>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text2)', fontSize: 18, cursor: 'pointer', lineHeight: 1 }}>×</button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text2)', fontSize: 20, cursor: 'pointer', lineHeight: 1 }}>×</button>
         </div>
 
         {/* Log type tabs */}

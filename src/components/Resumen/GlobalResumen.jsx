@@ -10,7 +10,7 @@ import { soapCall } from '../../api/soapCall'
 import { taskStatus, TASK_STATUS } from '../../constants/status'
 import { filterInputStyle as inputStyle } from '../../styles/forms'
 import { toolbarBtn } from '../../styles/buttons'
-import { alpha, color, hex, withAlpha } from '../../styles/tokens'
+import { alpha, color, hex, radius, withAlpha } from '../../styles/tokens'
 
 const REFRESH_MS = 5 * 60 * 1000
 
@@ -251,10 +251,10 @@ export default function GlobalResumen({ connections, onOpenConnection }) {
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', borderRadius: 5, overflow: 'hidden', border: '1px solid var(--border)', flexShrink: 0 }}>
+          <div style={{ display: 'flex', borderRadius: 6, overflow: 'hidden', border: '1px solid var(--border)', flexShrink: 0 }}>
             {TZ_OPTIONS.filter(o => o.value !== 'local').map(opt => (
               <button key={opt.value} onClick={() => handleTzChange(opt.value)} style={{
-                padding: '5px 9px', fontSize: 10, fontWeight: 700, border: 'none', cursor: 'pointer',
+                padding: '4px 8px', fontSize: 10, fontWeight: 700, border: 'none', cursor: 'pointer',
                 background: tzMode === opt.value ? 'var(--accent)' : 'var(--bg3)',
                 color:      tzMode === opt.value ? color.onAccent          : 'var(--text2)',
                 transition: 'background .15s',
@@ -273,7 +273,7 @@ export default function GlobalResumen({ connections, onOpenConnection }) {
       {connections.length > 1 && (
         <div style={{
           display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
-          marginBottom: 18, padding: '10px 14px',
+          marginBottom: 16, padding: '10px 14px',
           background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 10,
         }}>
           <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '.06em', flexShrink: 0 }}>
@@ -289,7 +289,7 @@ export default function GlobalResumen({ connections, onOpenConnection }) {
                   title={active ? `Quitar ${conn.name} del filtro` : `Agregar ${conn.name} al filtro`}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 6,
-                    padding: '5px 11px', borderRadius: 20,
+                    padding: '4px 10px', borderRadius: radius.pill,
                     border: active ? '1px solid var(--accent)' : '1px solid var(--border)',
                     cursor: 'pointer', flexShrink: 0,
                     background: active ? 'var(--accent)' : 'var(--bg3)',
@@ -312,7 +312,7 @@ export default function GlobalResumen({ connections, onOpenConnection }) {
               style={{
                 background: 'none', border: '1px solid var(--border2)', borderRadius: 6,
                 color: 'var(--text2)', fontSize: 11, fontWeight: 600,
-                padding: '5px 11px', cursor: 'pointer', flexShrink: 0,
+                padding: '4px 10px', cursor: 'pointer', flexShrink: 0,
               }}
             >
               Limpiar ({selectedIds.size})
@@ -372,7 +372,7 @@ export default function GlobalResumen({ connections, onOpenConnection }) {
               <ConnectionAvatar name={conn.name} logoUrl={conn.logoUrl} size={28} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{conn.name}</div>
-                <div style={{ fontSize: 10, color: 'var(--text3)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                <div style={{ fontSize: 10, color: 'var(--text3)', display: 'flex', alignItems: 'center', gap: 4 }}>
                   <span>{conn.isProduction ? 'Producción' : 'Sandbox'}</span>
                   <EnvBadge isProduction={conn.isProduction} />
                 </div>
@@ -385,8 +385,8 @@ export default function GlobalResumen({ connections, onOpenConnection }) {
                   title="Abrir conexión para iniciar sesión SAP"
                   style={{
                     background: alpha.accent(.12), border: `1px solid ${alpha.accent(.35)}`,
-                    borderRadius: 5, color: 'var(--accent)', fontSize: 10, fontWeight: 700,
-                    padding: '4px 9px', cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap',
+                    borderRadius: 6, color: 'var(--accent)', fontSize: 10, fontWeight: 700,
+                    padding: '4px 8px', cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap',
                   }}
                 >
                   Iniciar sesión
@@ -467,7 +467,7 @@ export default function GlobalResumen({ connections, onOpenConnection }) {
               )}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 12px', marginTop: 8 }}>
                 {donutData.map((d, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: 'var(--text2)' }}>
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: 'var(--text2)' }}>
                     <div style={{ width: 8, height: 8, borderRadius: 2, background: taskStatus(d.code).color, flexShrink: 0 }} />
                     {d.name} ({d.value})
                   </div>
@@ -519,9 +519,9 @@ export default function GlobalResumen({ connections, onOpenConnection }) {
             {recentFailed.length === 0
               ? <div style={{ fontSize: 12, color: 'var(--green)', marginTop: 8 }}>✓ Sin fallos en el período</div>
               : recentFailed.map((r, i) => (
-                <div key={i} style={{ padding: '7px 0', borderBottom: i < recentFailed.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                <div key={i} style={{ padding: '6px 0', borderBottom: i < recentFailed.length - 1 ? '1px solid var(--border)' : 'none' }}>
                   <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--red)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.taskName || '—'}</div>
-                  <div style={{ fontSize: 10, color: 'var(--text3)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <div style={{ fontSize: 10, color: 'var(--text3)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
                     <span>{r._connName}</span>
                     <EnvBadge isProduction={r._isProduction} />
                   </div>
@@ -538,8 +538,8 @@ export default function GlobalResumen({ connections, onOpenConnection }) {
 function ChartPill({ active, onClick, label, count, conn }) {
   return (
     <button onClick={onClick} style={{
-      display: 'flex', alignItems: 'center', gap: 5,
-      padding: '5px 12px', borderRadius: 20, border: active ? 'none' : '1px solid var(--border)',
+      display: 'flex', alignItems: 'center', gap: 4,
+      padding: '4px 12px', borderRadius: radius.pill, border: active ? 'none' : '1px solid var(--border)',
       cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap', transition: 'background .15s, color .15s',
       background: active ? 'var(--accent)' : 'var(--bg3)',
       color:      active ? color.onAccent          : 'var(--text2)',
@@ -565,7 +565,7 @@ function EnvBadge({ isProduction, inverted = false }) {
     <span style={{
       ...style,
       fontSize: 9, fontWeight: 700, letterSpacing: '.04em',
-      padding: '1px 5px', borderRadius: 4, lineHeight: 1.4, flexShrink: 0,
+      padding: '1px 4px', borderRadius: 4, lineHeight: 1.4, flexShrink: 0,
     }}>
       {prod ? 'PROD' : 'SAND'}
     </span>
@@ -576,7 +576,7 @@ function arrowBtnStyle(disabled) {
   return {
     background: 'var(--bg3)', border: '1px solid var(--border)',
     borderRadius: 6, color: disabled ? 'var(--text3)' : 'var(--text)',
-    fontSize: 18, fontWeight: 700, padding: '2px 10px', cursor: disabled ? 'default' : 'pointer',
+    fontSize: 20, fontWeight: 700, padding: '2px 10px', cursor: disabled ? 'default' : 'pointer',
     flexShrink: 0, lineHeight: 1.4, opacity: disabled ? .35 : 1, transition: 'opacity .15s',
   }
 }
@@ -592,7 +592,7 @@ function StatusBadge({ status, error }) {
   }
   const { color, label } = configs[status] || configs['idle']
   return (
-    <div title={error || undefined} style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+    <div title={error || undefined} style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
       <div style={{ width: 7, height: 7, borderRadius: '50%', background: color, flexShrink: 0 }} />
       <span style={{ fontSize: 10, color, fontWeight: 600, whiteSpace: 'nowrap' }}>{label}</span>
     </div>
@@ -624,7 +624,7 @@ function RankRow({ rank, label, count, max, color, conn }) {
   const pct = max > 0 ? (count / max) * 100 : 0
   return (
     <div style={{ marginBottom: 10 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3, gap: 8 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2, gap: 8 }}>
         <div style={{ fontSize: 11, color: 'var(--text)', display: 'flex', gap: 6, alignItems: 'center', minWidth: 0, flex: 1 }}>
           <span style={{ color: 'var(--text3)', fontWeight: 700, flexShrink: 0 }}>#{rank}</span>
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
@@ -632,7 +632,7 @@ function RankRow({ rank, label, count, max, color, conn }) {
         <span style={{ fontSize: 11, fontWeight: 700, color, flexShrink: 0 }}>{count}</span>
       </div>
       {conn && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 4, fontSize: 10, color: 'var(--text3)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4, fontSize: 10, color: 'var(--text3)' }}>
           <ConnectionAvatar name={conn.name} logoUrl={conn.logoUrl} size={12} />
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{conn.name}</span>
           <EnvBadge isProduction={conn.isProduction} />
@@ -649,5 +649,5 @@ function Empty() {
   return <div style={{ fontSize: 12, color: 'var(--text3)', padding: '16px 0' }}>Sin datos en el período</div>
 }
 
-const cardStyle  = { background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 10, padding: '16px 18px' }
+const cardStyle  = { background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 10, padding: '16px 16px' }
 const cardTitle  = { fontSize: 11, fontWeight: 700, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 12 }

@@ -221,7 +221,7 @@ export default function Orchestrations({ connection, sessionId, onSessionExpired
             <span style={{ flex: 1 }}>{importFeedback.kind === 'ok' ? '✓' : '✕'} {importFeedback.text}</span>
             <button onClick={() => setImportFeedback(null)} style={{
               background: 'none', border: 'none', color: 'inherit',
-              cursor: 'pointer', fontSize: 18, lineHeight: 1, opacity: .7,
+              cursor: 'pointer', fontSize: 20, lineHeight: 1, opacity: .7,
             }}>×</button>
           </div>
         )}
@@ -380,7 +380,7 @@ export default function Orchestrations({ connection, sessionId, onSessionExpired
               onClick={() => setFullscreen(false)}
               style={{
                 ...actionBtn(hex.purple, false),
-                fontWeight: 700, fontSize: 13, padding: '5px 12px',
+                fontWeight: 700, fontSize: 14, padding: '4px 12px',
               }}
               title="Salir de pantalla completa (Esc)"
             >
@@ -401,8 +401,8 @@ export default function Orchestrations({ connection, sessionId, onSessionExpired
               }}
               style={{
                 background: 'var(--bg3)', border: '1px solid var(--border)',
-                borderRadius: 5, color: 'var(--text)', fontSize: 14, fontWeight: 700,
-                padding: '3px 8px', outline: 'none', minWidth: 160,
+                borderRadius: 6, color: 'var(--text)', fontSize: 14, fontWeight: 700,
+                padding: '2px 8px', outline: 'none', minWidth: 160,
               }}
             />
           ) : (
@@ -501,7 +501,7 @@ export default function Orchestrations({ connection, sessionId, onSessionExpired
         {/* Orphan tasks warning */}
         {orphanWarning && (
           <div style={{
-            padding: '7px 14px', background: alpha.warning(.1),
+            padding: '6px 14px', background: alpha.warning(.1),
             borderBottom: `1px solid ${alpha.warning(.3)}`,
             display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0,
           }}>
@@ -605,8 +605,8 @@ export default function Orchestrations({ connection, sessionId, onSessionExpired
 
       {!selected ? (
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ textAlign: 'center', color: 'var(--text2)', fontSize: 13 }}>
-            <div style={{ fontSize: 36, marginBottom: 10, opacity: 0.4 }}>⚙</div>
+          <div style={{ textAlign: 'center', color: 'var(--text2)', fontSize: 14 }}>
+            <div style={{ fontSize: 40, marginBottom: 10, opacity: 0.4 }}>⚙</div>
             Selecciona una orquestación o crea una nueva
           </div>
         </div>
@@ -666,7 +666,7 @@ export default function Orchestrations({ connection, sessionId, onSessionExpired
 function actionBtn(color, disabled, active = false) {
   if (!color) color = hex.slate
   return {
-    padding: '5px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600,
+    padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600,
     background: disabled ? 'var(--bg3)' : withAlpha(color, active ? .133 : .082),
     color:      disabled ? 'var(--text2)' : color,
     border:     `1px solid ${disabled ? 'var(--border)' : withAlpha(color, active ? .333 : .188)}`,

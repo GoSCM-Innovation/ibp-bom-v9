@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
-import { alpha, color, hex, radius, fontSize } from '../../src/styles/tokens.js'
+import { alpha, color, hex, radius, fontSize, space } from '../../src/styles/tokens.js'
 
 // Guarda del design system (#3). Estos tests son estaticos: leen el codigo de
 // src/ y fallan si vuelve a aparecer un color de la paleta escrito a mano.
@@ -151,10 +151,66 @@ describe('tokens', () => {
   })
 
   it('las escalas son monotonas y sin duplicados', () => {
-    const fs = Object.values(fontSize)
-    expect(fs).toEqual([...fs].sort((a, b) => a - b))
-    expect(new Set(fs).size).toBe(fs.length)
-    const rs = [radius.sm, radius.md, radius.lg, radius.xl]
+    for (const scale of [Object.values(fontSize), Object.values(space)]) {
+      expect(scale).toEqual([...scale].sort((a, b) => a - b))
+      expect(new Set(scale).size).toBe(scale.length)
+    }
+    const rs = [radius.xs, radius.sm, radius.md, radius.lg, radius.xl, radius.xxl]
     expect(rs).toEqual([...rs].sort((a, b) => a - b))
+  })
+})
+
+describe('escalas adoptadas', () => {
+  // Definir la escala no sirve de nada si el codigo sigue usando valores
+  // sueltos. Estos tests escanean src/ y fallan ante un valor fuera de escala,
+  // que es lo que impide que la deriva vuelva con el proximo componente.
+  const SPACE = new Set(Object.values(space))
+  const FONT = new Set(Object.values(fontSize))
+  const RADIUS = new Set(Object.values(radius))
+  const SPACE_PROP = /(?:padding|margin|gap|rowGap|columnGap)(?:Top|Bottom|Left|Right|Inline|Block)?/
+  // Incluye las esquinas sueltas (borderTopLeftRadius y compania), que es por
+  // donde se cuela un radio fuera de escala sin que nadie lo note.
+  const RADIUS_PROP = /border(?:Top|Bottom)?(?:Left|Right|Start|End)?Radius\s*:\s*(\d+)\b/g
+
+  function scan(re, fn) {
+    const hits = []
+    for (const [name, src] of FILES) {
+      if (name.startsWith('styles/')) continue
+      for (const m of src.matchAll(re)) fn(hits, m, name)
+    }
+    return hits
+  }
+
+  it('padding, margin y gap usan solo pasos de la escala', () => {
+    const re = new RegExp(SPACE_PROP.source + String.raw`\s*:\s*('[^'\n]*'|\d+)`, 'g')
+    const hits = scan(re, (hits, m, name) => {
+      const body = m[1].replace(/'/g, '')
+      for (const tok of body.split(/\s+/)) {
+        const num = /^(\d+)(px)?$/.exec(tok)
+        if (num && !SPACE.has(+num[1])) hits.push(`${name}: ${m[0]} (${num[1]} fuera de escala)`)
+      }
+    })
+    expect(hits).toEqual([])
+  })
+
+  it('fontSize usa solo pasos de la escala', () => {
+    const hits = scan(/fontSize\s*:\s*(\d+)\b/g, (hits, m, name) => {
+      if (!FONT.has(+m[1])) hits.push(`${name}: fontSize ${m[1]}`)
+    })
+    expect(hits).toEqual([])
+  })
+
+  it('borderRadius usa solo pasos de la escala', () => {
+    const hits = scan(RADIUS_PROP, (hits, m, name) => {
+      if (!RADIUS.has(+m[1])) hits.push(`${name}: borderRadius ${m[1]}`)
+    })
+    expect(hits).toEqual([])
+  })
+
+  it('lo completamente redondeado se declara pill, no un radio grande', () => {
+    const hits = scan(RADIUS_PROP, (hits, m, name) => {
+      if (+m[1] >= 16 && +m[1] < 999) hits.push(`${name}: borderRadius ${m[1]}, usar radius.pill`)
+    })
+    expect(hits).toEqual([])
   })
 })

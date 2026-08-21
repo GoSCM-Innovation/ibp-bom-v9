@@ -57,12 +57,12 @@ export default function GroupNode({ data, selected, id }) {
           {data.label || 'Grupo'}
         </span>
         <span style={{
-          fontSize: 9, padding: '1px 5px', borderRadius: 6,
+          fontSize: 9, padding: '1px 4px', borderRadius: 6,
           background: modeColor + '22', color: modeColor, border: `1px solid ${modeColor}44`,
           fontFamily: 'var(--mono)', flexShrink: 0, marginRight: 4,
         }}>{modeLabel}</span>
         <span style={{
-          fontSize: 9, padding: '1px 5px', borderRadius: 6,
+          fontSize: 9, padding: '1px 4px', borderRadius: 6,
           background: color + '22', color, border: `1px solid ${color}44`,
           fontFamily: 'var(--mono)', flexShrink: 0,
         }}>{icon}</span>

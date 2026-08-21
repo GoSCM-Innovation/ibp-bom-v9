@@ -171,7 +171,7 @@ function NodeConfigPanelForm({ node, connection, sessionId, onUpdate, onClose, p
               {node.data.taskName || node.data.label}
             </div>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text2)', fontSize: 18, cursor: 'pointer', lineHeight: 1 }}>×</button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text2)', fontSize: 20, cursor: 'pointer', lineHeight: 1 }}>×</button>
         </div>
       )}
 
@@ -238,7 +238,7 @@ function NodeConfigPanelForm({ node, connection, sessionId, onUpdate, onClose, p
 
               {/* Status message when no vars */}
               {varsStatus === 'loaded' && taskVars.length === 0 && (
-                <div style={{ padding: '6px 8px', borderRadius: 5, background: 'var(--bg3)', border: '1px solid var(--border)', fontSize: 10, color: 'var(--text3)' }}>
+                <div style={{ padding: '6px 8px', borderRadius: 6, background: 'var(--bg3)', border: '1px solid var(--border)', fontSize: 10, color: 'var(--text3)' }}>
                   Este task no tiene variables globales en SAP.
                 </div>
               )}
@@ -283,7 +283,7 @@ function NodeConfigPanelForm({ node, connection, sessionId, onUpdate, onClose, p
               {/* + Variable button — only when vars available */}
               {canAddVars ? (
                 <button onClick={addVar} style={{
-                  fontSize: 10, padding: '3px 8px', borderRadius: 4, cursor: 'pointer',
+                  fontSize: 10, padding: '2px 8px', borderRadius: 4, cursor: 'pointer',
                   background: 'var(--bg3)', border: '1px solid var(--border)', color: 'var(--text2)',
                 }}>+ Variable</button>
               ) : varsStatus === 'idle' || varsStatus === 'error' ? (
@@ -300,7 +300,7 @@ function NodeConfigPanelForm({ node, connection, sessionId, onUpdate, onClose, p
           <button
             onClick={handleDelete}
             style={{
-              width: '100%', padding: '7px', borderRadius: 6,
+              width: '100%', padding: '6px', borderRadius: 6,
               border: `1px solid ${alpha.red(.3)}`, background: alpha.red(.08),
               color: 'var(--red)', fontSize: 11, fontWeight: 600, cursor: 'pointer',
             }}
