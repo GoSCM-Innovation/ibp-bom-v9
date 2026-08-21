@@ -78,7 +78,7 @@ export default function WizardStep({
         <div style={{
           position: 'absolute', inset: 0, display: 'flex',
           justifyContent: 'flex-end', alignItems: 'center',
-          paddingRight: 18, color: 'var(--red)', fontSize: 12, fontWeight: 700,
+          paddingRight: 16, color: 'var(--red)', fontSize: 12, fontWeight: 700,
           pointerEvents: 'none',
         }}>
           Eliminar
@@ -112,7 +112,7 @@ export default function WizardStep({
           <>
             {isParallel && (
               <span style={{
-                fontSize: 13, color: 'var(--cyan)', fontWeight: 700,
+                fontSize: 14, color: 'var(--cyan)', fontWeight: 700,
                 fontFamily: 'var(--mono)', flexShrink: 0,
               }} title="Paralelo con el paso anterior">∥</span>
             )}
@@ -129,7 +129,7 @@ export default function WizardStep({
           <>
             {isParallel && (
               <span style={{
-                fontSize: 13, color: 'var(--cyan)', fontWeight: 700,
+                fontSize: 14, color: 'var(--cyan)', fontWeight: 700,
                 fontFamily: 'var(--mono)', flexShrink: 0,
               }} title="Paralelo con el paso anterior">∥</span>
             )}

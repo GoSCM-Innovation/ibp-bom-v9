@@ -11,7 +11,7 @@ import { soapCall } from '../../api/soapCall'
 import { taskStatus, TASK_STATUS } from '../../constants/status'
 import { filterInputStyle as inputStyle } from '../../styles/forms'
 import { toolbarBtn } from '../../styles/buttons'
-import { alpha } from '../../styles/tokens'
+import { alpha, color } from '../../styles/tokens'
 
 const REFRESH_MS = 5 * 60 * 1000
 
@@ -121,7 +121,7 @@ export default function Resumen({ connection, sessionId, onSessionExpired }) {
   )
 
   if (loading && rows.length === 0) return (
-    <div style={{ padding: 32, color: 'var(--text2)', fontSize: 13, position: 'relative' }}>
+    <div style={{ padding: 32, color: 'var(--text2)', fontSize: 14, position: 'relative' }}>
       <ProgressBar loading />
       Cargando resumen de {connection.name}…
     </div>
@@ -134,19 +134,19 @@ export default function Resumen({ connection, sessionId, onSessionExpired }) {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>Resumen</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: color.white }}>Resumen</div>
           <div style={{ fontSize: 11, color: 'var(--text2)', marginTop: 2 }}>
             {connection.name} · {total} ejecuciones en el período
             {lastRefresh && !loading && <span style={{ marginLeft: 8, opacity: .6 }}>· {lastRefresh.toLocaleTimeString()}</span>}
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', borderRadius: 5, overflow: 'hidden', border: '1px solid var(--border)', flexShrink: 0 }}>
+          <div style={{ display: 'flex', borderRadius: 6, overflow: 'hidden', border: '1px solid var(--border)', flexShrink: 0 }}>
             {TZ_OPTIONS.filter(o => o.value !== 'local').map(opt => (
               <button key={opt.value} onClick={() => handleTzChange(opt.value)} style={{
-                padding: '5px 9px', fontSize: 10, fontWeight: 700, border: 'none', cursor: 'pointer',
+                padding: '4px 8px', fontSize: 10, fontWeight: 700, border: 'none', cursor: 'pointer',
                 background: tzMode === opt.value ? 'var(--accent)' : 'var(--bg3)',
-                color:      tzMode === opt.value ? '#000'          : 'var(--text2)',
+                color:      tzMode === opt.value ? color.onAccent          : 'var(--text2)',
                 transition: 'background .15s',
               }}>{opt.label}</button>
             ))}
@@ -185,7 +185,7 @@ export default function Resumen({ connection, sessionId, onSessionExpired }) {
           )}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 12px', marginTop: 8 }}>
             {donutData.map((d, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: 'var(--text2)' }}>
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: 'var(--text2)' }}>
                 <div style={{ width: 8, height: 8, borderRadius: 2, background: taskStatus(d.code).color, flexShrink: 0 }} />
                 {d.name} ({d.value})
               </div>
@@ -226,7 +226,7 @@ export default function Resumen({ connection, sessionId, onSessionExpired }) {
           {recentFailed.length === 0
             ? <div style={{ fontSize: 12, color: 'var(--green)', marginTop: 8 }}>✓ Sin fallos en el período</div>
             : recentFailed.map((r, i) => (
-              <div key={i} style={{ padding: '7px 0', borderBottom: i < recentFailed.length-1 ? '1px solid var(--border)' : 'none' }}>
+              <div key={i} style={{ padding: '6px 0', borderBottom: i < recentFailed.length-1 ? '1px solid var(--border)' : 'none' }}>
                 <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--red)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.taskName || '—'}</div>
                 <div style={{ fontSize: 10, color: 'var(--text2)', marginTop: 2, fontFamily: 'var(--mono)' }}>RunID: {r.runId}</div>
               </div>
@@ -240,7 +240,7 @@ export default function Resumen({ connection, sessionId, onSessionExpired }) {
             const status = a.agentStatus?.replace('AGENT:', '') || 'UNKNOWN'
             const color = status === 'CONNECTED' ? 'var(--green)' : status === 'MAINTENANCE' ? 'var(--accent)' : 'var(--text3)'
             return (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: i < agents.length-1 ? '1px solid var(--border)' : 'none' }}>
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', borderBottom: i < agents.length-1 ? '1px solid var(--border)' : 'none' }}>
                 <div style={{ width: 7, height: 7, borderRadius: '50%', background: color, flexShrink: 0 }} />
                 <div style={{ flex: 1, fontSize: 11, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.name}</div>
                 <div style={{ fontSize: 10, color, fontWeight: 600, flexShrink: 0 }}>{status}</div>
@@ -254,7 +254,7 @@ export default function Resumen({ connection, sessionId, onSessionExpired }) {
           {warnings === 0
             ? <div style={{ fontSize: 12, color: 'var(--green)', marginTop: 8 }}>✓ Sin warnings en el período</div>
             : rows.filter(r => ['SUCCESS_WITH_ERRORS_D','SUCCESS_WITH_ERRORS_E'].includes(r.statusCode)).slice(0, 5).map((r, i) => (
-              <div key={i} style={{ padding: '7px 0', borderBottom: '1px solid var(--border)' }}>
+              <div key={i} style={{ padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
                 <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.taskName || '—'}</div>
                 <div style={{ fontSize: 10, color: 'var(--text3)', marginTop: 2 }}>{r.statusCode === 'SUCCESS_WITH_ERRORS_D' ? 'Éxito con errores (ignorados)' : 'Éxito con errores (críticos)'}</div>
               </div>
@@ -281,7 +281,7 @@ function RankRow({ rank, label, count, max, color }) {
   const pct = max > 0 ? (count / max) * 100 : 0
   return (
     <div style={{ marginBottom: 8 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
         <div style={{ fontSize: 11, color: 'var(--text)', display: 'flex', gap: 6, alignItems: 'center', minWidth: 0 }}>
           <span style={{ color: 'var(--text3)', fontWeight: 700, flexShrink: 0 }}>#{rank}</span>
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
@@ -297,5 +297,5 @@ function RankRow({ rank, label, count, max, color }) {
 
 function Empty() { return <div style={{ fontSize: 12, color: 'var(--text3)', padding: '16px 0' }}>Sin datos en el período</div> }
 
-const cardStyle = { background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 10, padding: '16px 18px' }
+const cardStyle = { background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 10, padding: '16px 16px' }
 const cardTitle = { fontSize: 11, fontWeight: 700, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 12 }

@@ -104,10 +104,10 @@ export function hasCycle(nodes, edges) {
 // ─── Status colors (shared with run state) ───────────────────────────────────
 
 export const STATUS_COLORS = {
-  pending:             '#64748b',
-  running:             '#22c55e',
+  pending:             hex.slate,
+  running:             hex.running,
   success:             hex.green,
-  success_with_errors: '#fbbf24',
+  success_with_errors: hex.warning,
   error:               hex.red,
   cancelled:           '#94a3b8',
   skipped:             '#475569',
@@ -116,4 +116,10 @@ export const STATUS_COLORS = {
 export const STATUS_ICONS = {
   pending: '○', running: '◉', success: '✓',
   success_with_errors: '⚠', error: '✕', cancelled: '⊘', skipped: '–',
+}
+
+// Nunca devuelve undefined. Los consumidores repetian `STATUS_COLORS[x] ||
+// '#64748b'` en diez sitios, que es el color de `pending` escrito a mano.
+export function nodeStatusColor(status) {
+  return STATUS_COLORS[status] || STATUS_COLORS.pending
 }

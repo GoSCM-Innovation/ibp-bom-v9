@@ -9,9 +9,9 @@ import RunLogModal                 from './RunLogModal'
 import ImportOrchestrationsModal   from './ImportOrchestrationsModal'
 import WizardEditor                from './mobile/WizardEditor'
 import { useOrchestration }        from './useOrchestration'
-import { STATUS_COLORS }           from './canvasUtils'
+import { nodeStatusColor }        from './canvasUtils'
 import { useIsMobile }             from '../../hooks/useViewport'
-import { alpha, hex, withAlpha } from '../../styles/tokens'
+import { alpha, color, hex, withAlpha } from '../../styles/tokens'
 
 function parseOrchImportText(text) {
   let raw
@@ -58,7 +58,7 @@ function parseOrchImportText(text) {
 function RunBadge({ status }) {
   const labels = { running: 'Ejecutando', success: 'Completado', error: 'Error', cancelled: 'Cancelado' }
   if (!status || status === 'idle') return null
-  const color = STATUS_COLORS[status] || '#64748b'
+  const color = nodeStatusColor(status)
   return (
     <span style={{
       fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 10,
@@ -221,7 +221,7 @@ export default function Orchestrations({ connection, sessionId, onSessionExpired
             <span style={{ flex: 1 }}>{importFeedback.kind === 'ok' ? '✓' : '✕'} {importFeedback.text}</span>
             <button onClick={() => setImportFeedback(null)} style={{
               background: 'none', border: 'none', color: 'inherit',
-              cursor: 'pointer', fontSize: 18, lineHeight: 1, opacity: .7,
+              cursor: 'pointer', fontSize: 20, lineHeight: 1, opacity: .7,
             }}>×</button>
           </div>
         )}
@@ -230,8 +230,8 @@ export default function Orchestrations({ connection, sessionId, onSessionExpired
           <div style={{
             position: 'fixed', bottom: 16, left: 16, right: 16, zIndex: 1100,
             padding: '10px 14px', borderRadius: 8, fontSize: 12,
-            background: 'rgba(251,191,36,.15)',
-            border: '1px solid rgba(251,191,36,.4)', color: '#fbbf24',
+            background: alpha.warning(.15),
+            border: `1px solid ${alpha.warning(.4)}`, color: color.warning,
             boxShadow: `0 6px 20px ${alpha.black(.35)}`,
           }}>
             ⚠ Tasks fuera de grupo: <strong>{orphanWarning}</strong>
@@ -380,7 +380,7 @@ export default function Orchestrations({ connection, sessionId, onSessionExpired
               onClick={() => setFullscreen(false)}
               style={{
                 ...actionBtn(hex.purple, false),
-                fontWeight: 700, fontSize: 13, padding: '5px 12px',
+                fontWeight: 700, fontSize: 14, padding: '4px 12px',
               }}
               title="Salir de pantalla completa (Esc)"
             >
@@ -401,8 +401,8 @@ export default function Orchestrations({ connection, sessionId, onSessionExpired
               }}
               style={{
                 background: 'var(--bg3)', border: '1px solid var(--border)',
-                borderRadius: 5, color: 'var(--text)', fontSize: 14, fontWeight: 700,
-                padding: '3px 8px', outline: 'none', minWidth: 160,
+                borderRadius: 6, color: 'var(--text)', fontSize: 14, fontWeight: 700,
+                padding: '2px 8px', outline: 'none', minWidth: 160,
               }}
             />
           ) : (
@@ -420,7 +420,7 @@ export default function Orchestrations({ connection, sessionId, onSessionExpired
           {/* Run state */}
           {run && <RunBadge status={run.status} />}
           {isRunning && totalSteps > 0 && (
-            <span style={{ fontSize: 10, color: '#3b82f6', fontFamily: 'var(--mono)' }}>
+            <span style={{ fontSize: 10, color: color.info, fontFamily: 'var(--mono)' }}>
               {doneSteps}/{totalSteps}
             </span>
           )}
@@ -439,7 +439,7 @@ export default function Orchestrations({ connection, sessionId, onSessionExpired
           {!fullscreen && (
             <button
               onClick={() => setFullscreen(true)}
-              style={actionBtn('#64748b', false)}
+              style={actionBtn(hex.slate, false)}
               title="Pantalla completa"
             >
               ⛶
@@ -461,7 +461,7 @@ export default function Orchestrations({ connection, sessionId, onSessionExpired
             <button
               onClick={() => handleStart(lastRunParams)}
               disabled={starting}
-              style={actionBtn('#3b82f6', starting)}
+              style={actionBtn(hex.info, starting)}
               title={`Repetir con ${lastRunParams.agentName || 'default'} / ${lastRunParams.profileName || 'default'}`}
             >
               {starting ? 'Iniciando…' : '↺ Repetir'}
@@ -501,14 +501,14 @@ export default function Orchestrations({ connection, sessionId, onSessionExpired
         {/* Orphan tasks warning */}
         {orphanWarning && (
           <div style={{
-            padding: '7px 14px', background: 'rgba(251,191,36,.1)',
-            borderBottom: '1px solid rgba(251,191,36,.3)',
+            padding: '6px 14px', background: alpha.warning(.1),
+            borderBottom: `1px solid ${alpha.warning(.3)}`,
             display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0,
           }}>
-            <span style={{ fontSize: 11, color: '#fbbf24' }}>
+            <span style={{ fontSize: 11, color: color.warning }}>
               ⚠ Los siguientes tasks deben estar dentro de un grupo para poder iniciar: <strong>{orphanWarning}</strong>
             </span>
-            <button onClick={() => setOrphanWarning(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#fbbf24', cursor: 'pointer', fontSize: 14, lineHeight: 1 }}>×</button>
+            <button onClick={() => setOrphanWarning(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: color.warning, cursor: 'pointer', fontSize: 14, lineHeight: 1 }}>×</button>
           </div>
         )}
 
@@ -605,8 +605,8 @@ export default function Orchestrations({ connection, sessionId, onSessionExpired
 
       {!selected ? (
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ textAlign: 'center', color: 'var(--text2)', fontSize: 13 }}>
-            <div style={{ fontSize: 36, marginBottom: 10, opacity: 0.4 }}>⚙</div>
+          <div style={{ textAlign: 'center', color: 'var(--text2)', fontSize: 14 }}>
+            <div style={{ fontSize: 40, marginBottom: 10, opacity: 0.4 }}>⚙</div>
             Selecciona una orquestación o crea una nueva
           </div>
         </div>
@@ -664,9 +664,9 @@ export default function Orchestrations({ connection, sessionId, onSessionExpired
 }
 
 function actionBtn(color, disabled, active = false) {
-  if (!color) color = '#64748b'
+  if (!color) color = hex.slate
   return {
-    padding: '5px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600,
+    padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600,
     background: disabled ? 'var(--bg3)' : withAlpha(color, active ? .133 : .082),
     color:      disabled ? 'var(--text2)' : color,
     border:     `1px solid ${disabled ? 'var(--border)' : withAlpha(color, active ? .333 : .188)}`,

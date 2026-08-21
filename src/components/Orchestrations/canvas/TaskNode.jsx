@@ -3,12 +3,11 @@ import { Handle, Position } from '@xyflow/react'
 import { STATUS_COLORS, STATUS_ICONS } from '../canvasUtils'
 import PromotedBadge from '../../ui/PromotedBadge'
 import { usePromotedTasksContext, isTaskPromoted } from '../../../hooks/usePromotedTasks'
-import { alpha } from '../../../styles/tokens'
+import { alpha, hex, withAlpha } from '../../../styles/tokens'
+import { taskType } from '../../../constants/taskType'
 
-const STRATEGY_COLOR = { stop: '#64748b', continue: '#fbbf24', retry: '#3b82f6' }
+const STRATEGY_COLOR = { stop: hex.slate, continue: hex.warning, retry: hex.info }
 const STRATEGY_LABEL = { stop: 'error: detener', continue: 'error: continuar', retry: 'error: reintentar' }
-const RUNNING_GREEN = '#22c55e'
-const TYPE_COLOR = { PROCESS: '#8b5cf6', TASK: '#06b6d4' }
 
 export default function TaskNode({ data, selected, id }) {
   const [hovered, setHovered] = useState(false)
@@ -16,7 +15,8 @@ export default function TaskNode({ data, selected, id }) {
   const color    = STATUS_COLORS[status]
   const icon     = STATUS_ICONS[status]
   const isActive = status === 'running'
-  const typeColor = TYPE_COLOR[data.taskType] || TYPE_COLOR.TASK
+  const typeColor = taskType(data.taskType).color
+  const strategyColor = STRATEGY_COLOR[data.errorStrategy] || STRATEGY_COLOR.stop
   const promotedSet = usePromotedTasksContext()
   const promoted = isTaskPromoted(promotedSet, data.taskName)
 
@@ -26,10 +26,10 @@ export default function TaskNode({ data, selected, id }) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        width: 210, background: isActive ? `${RUNNING_GREEN}12` : 'var(--bg2)',
-        border: `1.5px solid ${selected ? 'var(--accent)' : isActive ? RUNNING_GREEN : 'var(--border2)'}`,
+        width: 210, background: isActive ? alpha.running(.071) : 'var(--bg2)',
+        border: `1.5px solid ${selected ? 'var(--accent)' : isActive ? 'var(--running)' : 'var(--border2)'}`,
         borderRadius: 10, overflow: 'hidden', cursor: 'pointer',
-        boxShadow: selected ? `0 0 0 2px ${alpha.accent(.25)}` : isActive ? '0 0 0 2px rgba(34,197,94,.25)' : 'none',
+        boxShadow: selected ? `0 0 0 2px ${alpha.accent(.25)}` : isActive ? `0 0 0 2px ${alpha.running(.25)}` : 'none',
         transition: 'border-color .2s, box-shadow .2s',
         userSelect: 'none', position: 'relative',
       }}
@@ -48,7 +48,7 @@ export default function TaskNode({ data, selected, id }) {
 
       {/* Header */}
       <div style={{
-        padding: '8px 10px 6px', background: isActive ? `${RUNNING_GREEN}18` : 'var(--bg3)',
+        padding: '8px 10px 6px', background: isActive ? alpha.running(.094) : 'var(--bg3)',
         display: 'flex', alignItems: 'center', gap: 6,
       }}>
         <span style={{ fontSize: 11, color, fontWeight: 700, flexShrink: 0, fontFamily: 'var(--mono)' }}>
@@ -60,14 +60,14 @@ export default function TaskNode({ data, selected, id }) {
         }}>
           {data.label || data.taskName}
         </span>
-        {promoted && <PromotedBadge fontSize={8} />}
+        {promoted && <PromotedBadge />}
         {hovered && data.onRunSingle && (
           <button
             onClick={e => { e.stopPropagation(); data.onRunSingle(id) }}
             title="Ejecutar solo este task"
             style={{
               background: alpha.green(.133), border: `1px solid ${alpha.green(.267)}`, borderRadius: 4,
-              color: 'var(--green)', fontSize: 9, fontWeight: 700, padding: '2px 5px',
+              color: 'var(--green)', fontSize: 9, fontWeight: 700, padding: '2px 4px',
               cursor: 'pointer', flexShrink: 0, lineHeight: 1,
             }}
           >▶</button>
@@ -75,7 +75,7 @@ export default function TaskNode({ data, selected, id }) {
       </div>
 
       {/* Details */}
-      <div style={{ padding: '6px 10px 8px', display: 'flex', flexDirection: 'column', gap: 3 }}>
+      <div style={{ padding: '6px 10px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
         {(data.agentName || data.profileName) && (
           <div style={{ fontSize: 9, color: 'var(--text3)', fontFamily: 'var(--mono)', display: 'flex', gap: 4, flexWrap: 'wrap' }}>
             {data.agentName   && <span>agent: {data.agentName}</span>}
@@ -89,16 +89,16 @@ export default function TaskNode({ data, selected, id }) {
         )}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span style={{
-            fontSize: 8, padding: '1px 5px', borderRadius: 6, fontFamily: 'var(--mono)',
-            background: (STRATEGY_COLOR[data.errorStrategy] || '#64748b') + '22',
-            color: STRATEGY_COLOR[data.errorStrategy] || '#64748b',
-            border: `1px solid ${(STRATEGY_COLOR[data.errorStrategy] || '#64748b')}44`,
+            fontSize: 9, padding: '1px 4px', borderRadius: 6, fontFamily: 'var(--mono)',
+            background: withAlpha(strategyColor, .133),
+            color: strategyColor,
+            border: `1px solid ${withAlpha(strategyColor, .267)}`,
           }}>
             {STRATEGY_LABEL[data.errorStrategy] || STRATEGY_LABEL.stop}
             {data.errorStrategy === 'retry' && data.maxRetries ? ` ×${data.maxRetries}` : ''}
           </span>
           {data.sapRunId && (
-            <span style={{ fontSize: 9, color: '#3b82f6', fontFamily: 'var(--mono)' }}>
+            <span style={{ fontSize: 9, color: 'var(--info)', fontFamily: 'var(--mono)' }}>
               #{String(data.sapRunId).slice(-6)}
             </span>
           )}

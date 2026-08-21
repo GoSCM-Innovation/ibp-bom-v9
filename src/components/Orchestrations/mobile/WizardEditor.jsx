@@ -152,7 +152,7 @@ export default function WizardEditor({
           style={{
             flex: 1, minWidth: 0, textAlign: 'left',
             background: 'none', border: 'none', color: 'var(--text)',
-            fontSize: 15, fontWeight: 700, padding: 4,
+            fontSize: 16, fontWeight: 700, padding: 4,
             cursor: isRunning ? 'default' : 'pointer',
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           }}
@@ -224,9 +224,9 @@ export default function WizardEditor({
         {rows.length === 0 ? (
           <div style={{
             padding: '40px 20px', textAlign: 'center',
-            color: 'var(--text2)', fontSize: 13,
+            color: 'var(--text2)', fontSize: 14,
           }}>
-            <div style={{ fontSize: 36, opacity: .35, marginBottom: 10 }}>⚙</div>
+            <div style={{ fontSize: 40, opacity: .35, marginBottom: 10 }}>⚙</div>
             Sin pasos todavía.<br />
             Tocá el botón <b>+</b> para empezar.
           </div>
@@ -293,7 +293,7 @@ export default function WizardEditor({
                 width: 44, height: 44, borderRadius: '50%',
                 border: '1px solid var(--border)',
                 background: 'var(--bg2)', color: 'var(--text)',
-                fontSize: 18, lineHeight: 1, cursor: 'pointer',
+                fontSize: 20, lineHeight: 1, cursor: 'pointer',
                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                 boxShadow: `0 4px 12px ${alpha.black(.35)}`,
               }}
@@ -305,7 +305,7 @@ export default function WizardEditor({
             style={{
               width: 56, height: 56, borderRadius: '50%',
               border: 'none', background: 'var(--accent)', color: 'var(--bg)',
-              fontSize: 30, fontWeight: 300, lineHeight: 1, cursor: 'pointer',
+              fontSize: 32, fontWeight: 300, lineHeight: 1, cursor: 'pointer',
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
               boxShadow: `0 8px 24px ${alpha.accent(.45)}, 0 2px 8px ${alpha.black(.35)}`,
               transition: 'transform .12s',
@@ -391,7 +391,7 @@ function crumbBtn(active) {
     background: active ? alpha.accent(.15) : 'var(--bg3)',
     border: `1px solid ${active ? alpha.accent(.4) : 'var(--border)'}`,
     color: active ? 'var(--accent)' : 'var(--text)',
-    fontSize: 11, padding: '3px 8px', borderRadius: 5,
+    fontSize: 11, padding: '2px 8px', borderRadius: 6,
     cursor: 'pointer',
   }
 }

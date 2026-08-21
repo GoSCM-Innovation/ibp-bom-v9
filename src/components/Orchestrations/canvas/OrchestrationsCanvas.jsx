@@ -7,8 +7,8 @@ import '@xyflow/react/dist/style.css'
 
 import TaskNode  from './TaskNode'
 import GroupNode from './GroupNode'
-import { STATUS_COLORS, autoLayout, hasCycle } from '../canvasUtils'
-import { alpha } from '../../../styles/tokens'
+import { nodeStatusColor, autoLayout, hasCycle } from '../canvasUtils'
+import { alpha, color } from '../../../styles/tokens'
 
 const NODE_TYPES = { orchTask: TaskNode, orchGroup: GroupNode }
 
@@ -376,7 +376,7 @@ function CanvasInner({
     }
   }, [autoConnect])
 
-  const nodeColor = (n) => STATUS_COLORS[n.data?.runStatus || 'pending'] || '#64748b'
+  const nodeColor = (n) => nodeStatusColor(n.data?.runStatus)
 
   return (
     <div style={{ flex: 1, position: 'relative' }}
@@ -415,11 +415,11 @@ function CanvasInner({
         {isRunning && (
           <Panel position="top-center" style={{ margin: 8 }}>
             <div style={{
-              background: 'rgba(251,191,36,.08)', border: '1px solid rgba(251,191,36,.35)',
-              borderRadius: 6, padding: '5px 12px', fontSize: 11, color: '#fbbf24',
+              background: alpha.warning(.08), border: `1px solid ${alpha.warning(.35)}`,
+              borderRadius: 6, padding: '4px 12px', fontSize: 11, color: color.warning,
               display: 'flex', alignItems: 'center', gap: 6, userSelect: 'none',
             }}>
-              <span style={{ fontSize: 13 }}>⬡</span> Canvas bloqueado — orquestacion en ejecucion
+              <span style={{ fontSize: 14 }}>⬡</span> Canvas bloqueado — orquestacion en ejecucion
             </div>
           </Panel>
         )}
@@ -436,8 +436,8 @@ function CanvasInner({
         {nodes.length === 0 && (
           <Panel position="center">
             <div style={{ textAlign: 'center', color: 'var(--text2)', pointerEvents: 'none' }}>
-              <div style={{ fontSize: 28, marginBottom: 8, opacity: 0.4 }}>⬡</div>
-              <div style={{ fontSize: 13, fontWeight: 600, opacity: 0.5 }}>
+              <div style={{ fontSize: 32, marginBottom: 8, opacity: 0.4 }}>⬡</div>
+              <div style={{ fontSize: 14, fontWeight: 600, opacity: 0.5 }}>
                 Arrastra tasks desde el panel izquierdo
               </div>
               <div style={{ fontSize: 11, marginTop: 4, opacity: 0.35 }}>
@@ -452,7 +452,7 @@ function CanvasInner({
 }
 
 const toolbarBtn = {
-  padding: '5px 10px', borderRadius: 6, border: '1px solid var(--border2)',
+  padding: '4px 10px', borderRadius: 6, border: '1px solid var(--border2)',
   background: 'var(--bg2)', color: 'var(--text2)', fontSize: 11, fontWeight: 600,
   cursor: 'pointer',
 }

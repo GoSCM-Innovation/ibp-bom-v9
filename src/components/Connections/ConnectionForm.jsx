@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { primaryBtn, secondaryBtn } from '../../styles/buttons'
+import { color } from '../../styles/tokens'
 
 export default function ConnectionForm({ initial, onSave, onCancel }) {
   const [form, setForm] = useState({
@@ -30,7 +31,7 @@ export default function ConnectionForm({ initial, onSave, onCancel }) {
 
   return (
     <div style={{ background: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: 10, padding: 24 }}>
-      <div style={{ fontSize: 14, fontWeight: 700, color: '#fff', marginBottom: 20 }}>
+      <div style={{ fontSize: 14, fontWeight: 700, color: color.white, marginBottom: 20 }}>
         {initial ? 'Editar conexión' : 'Nueva conexión'}
       </div>
 
@@ -58,7 +59,7 @@ export default function ConnectionForm({ initial, onSave, onCancel }) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
         <Field label="Usuario SAP (opcional, pre-rellena el login)" value={form.user} onChange={v => set('user', v)} placeholder="WebServicesUser" mono />
         {initial ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <label style={{ fontSize: 10, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '.07em' }}>
               Repositorio
             </label>
@@ -92,7 +93,7 @@ export default function ConnectionForm({ initial, onSave, onCancel }) {
 
 function Field({ label, value, onChange, placeholder, type = 'text', mono }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
       <label style={{ fontSize: 10, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '.07em' }}>{label}</label>
       <input
         type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}

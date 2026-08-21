@@ -6,7 +6,7 @@ import Orchestrations from '../Orchestrations/Orchestrations'
 import ConnectionAvatar from '../Connections/ConnectionAvatar'
 import SapLoginModal from '../Connections/SapLoginModal'
 import { usePromotedTasks, PromotedTasksContext } from '../../hooks/usePromotedTasks'
-import { alpha } from '../../styles/tokens'
+import { alpha, color } from '../../styles/tokens'
 
 const TABS = [
   { id: 'resumen',        label: 'Resumen'          },
@@ -79,7 +79,7 @@ export default function SystemView({ connection, onLoginCancel }) {
         }}>
           <ConnectionAvatar name={connection.name} logoUrl={connection.logoUrl} size={34} />
           <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 700, color: '#fff', fontSize: 14 }}>{connection.name}</div>
+            <div style={{ fontWeight: 700, color: color.white, fontSize: 14 }}>{connection.name}</div>
             <div style={{ fontSize: 10, color: 'var(--text2)', fontFamily: 'var(--mono)', marginTop: 1 }}>
               {connection.hciUrl} · {connection.orgName} · {connection.isProduction ? 'Producción' : 'Sandbox'}
             </div>
@@ -139,7 +139,7 @@ export default function SystemView({ connection, onLoginCancel }) {
           </span>
           <button onClick={handleReconnect} style={{
             background: 'var(--accent)', border: 'none', borderRadius: 6,
-            color: '#000', fontSize: 11, fontWeight: 700, padding: '5px 14px', cursor: 'pointer', flexShrink: 0,
+            color: color.onAccent, fontSize: 11, fontWeight: 700, padding: '4px 14px', cursor: 'pointer', flexShrink: 0,
           }}>Reconectar</button>
         </div>
       )}

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
-import { alpha, color, hex, radius, fontSize } from '../../src/styles/tokens.js'
+import { alpha, color, hex, radius, fontSize, space } from '../../src/styles/tokens.js'
 
 // Guarda del design system (#3). Estos tests son estaticos: leen el codigo de
 // src/ y fallan si vuelve a aparecer un color de la paleta escrito a mano.
@@ -16,12 +16,21 @@ function walk(dir) {
   })
 }
 
-const FILES = walk(SRC).map(p => [p.slice(SRC.length).replace(/\\/g, '/'), readFileSync(p, 'utf8')])
+// Los comentarios se descartan antes de escanear: documentar un color citando
+// su hex es legitimo, y es justo lo que hace tokens.js al explicar por que un
+// tono se queda fuera de la paleta.
+function stripComments(src) {
+  return src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1')
+}
+
+const FILES = walk(SRC).map(p => [p.slice(SRC.length).replace(/\\/g, '/'), stripComments(readFileSync(p, 'utf8'))])
 
 // Los tripletes RGB de la paleta de index.css.
 const PALETTE = {
   '247,168,0': '--accent', '232,98,42': '--accent2', '41,171,226': '--cyan',
   '52,211,153': '--green', '255,107,107': '--red', '167,139,250': '--purple',
+  '251,191,36': '--warning', '59,130,246': '--info', '139,92,246': '--violet',
+  '100,116,139': '--slate', '34,197,94': '--running',
 }
 
 describe('paleta', () => {
@@ -45,10 +54,17 @@ describe('paleta', () => {
     const HEX = {
       f7a800: '--accent', e8622a: '--accent2', '29abe2': '--cyan',
       a78bfa: '--purple', '34d399': '--green', ff6b6b: '--red',
+      fbbf24: '--warning', '3b82f6': '--info', '8b5cf6': '--violet',
+      '64748b': '--slate', '22c55e': '--running',
     }
+    // avatar.js queda fuera a proposito: su rueda de identidad NO debe seguir
+    // al tema, justamente para que un cambio de paleta no recoloree avatares
+    // que el usuario ya asocia a una conexion. Coincide con dos tonos de la
+    // paleta por casualidad, no por dependencia. Tiene su test aparte.
+    const EXENTOS = new Set(['styles/tokens.js', 'constants/avatar.js'])
     const hits = []
     for (const [name, src] of FILES) {
-      if (name === 'styles/tokens.js') continue   // es donde se definen
+      if (EXENTOS.has(name)) continue
       for (const m of src.matchAll(/#([0-9a-fA-F]{6})\b/g)) {
         const h = m[1].toLowerCase()
         if (HEX[h]) hits.push(`${name}: #${h} es ${HEX[h]}, usar hex.* o color.*`)
@@ -76,6 +92,15 @@ describe('paleta', () => {
     const hits = []
     for (const [name, src] of FILES) {
       for (const m of src.matchAll(/#[0-9a-fA-F]{8}\b/g)) hits.push(`${name}: ${m[0]}`)
+    }
+    expect(hits).toEqual([])
+  })
+
+  it('blanco y negro salen de color.white / color.onAccent', () => {
+    const hits = []
+    for (const [name, src] of FILES) {
+      if (name === 'styles/tokens.js') continue
+      for (const m of src.matchAll(/'#(fff|ffffff|000|000000)'/gi)) hits.push(`${name}: ${m[0]}`)
     }
     expect(hits).toEqual([])
   })
@@ -126,10 +151,66 @@ describe('tokens', () => {
   })
 
   it('las escalas son monotonas y sin duplicados', () => {
-    const fs = Object.values(fontSize)
-    expect(fs).toEqual([...fs].sort((a, b) => a - b))
-    expect(new Set(fs).size).toBe(fs.length)
-    const rs = [radius.sm, radius.md, radius.lg, radius.xl]
+    for (const scale of [Object.values(fontSize), Object.values(space)]) {
+      expect(scale).toEqual([...scale].sort((a, b) => a - b))
+      expect(new Set(scale).size).toBe(scale.length)
+    }
+    const rs = [radius.xs, radius.sm, radius.md, radius.lg, radius.xl, radius.xxl]
     expect(rs).toEqual([...rs].sort((a, b) => a - b))
+  })
+})
+
+describe('escalas adoptadas', () => {
+  // Definir la escala no sirve de nada si el codigo sigue usando valores
+  // sueltos. Estos tests escanean src/ y fallan ante un valor fuera de escala,
+  // que es lo que impide que la deriva vuelva con el proximo componente.
+  const SPACE = new Set(Object.values(space))
+  const FONT = new Set(Object.values(fontSize))
+  const RADIUS = new Set(Object.values(radius))
+  const SPACE_PROP = /(?:padding|margin|gap|rowGap|columnGap)(?:Top|Bottom|Left|Right|Inline|Block)?/
+  // Incluye las esquinas sueltas (borderTopLeftRadius y compania), que es por
+  // donde se cuela un radio fuera de escala sin que nadie lo note.
+  const RADIUS_PROP = /border(?:Top|Bottom)?(?:Left|Right|Start|End)?Radius\s*:\s*(\d+)\b/g
+
+  function scan(re, fn) {
+    const hits = []
+    for (const [name, src] of FILES) {
+      if (name.startsWith('styles/')) continue
+      for (const m of src.matchAll(re)) fn(hits, m, name)
+    }
+    return hits
+  }
+
+  it('padding, margin y gap usan solo pasos de la escala', () => {
+    const re = new RegExp(SPACE_PROP.source + String.raw`\s*:\s*('[^'\n]*'|\d+)`, 'g')
+    const hits = scan(re, (hits, m, name) => {
+      const body = m[1].replace(/'/g, '')
+      for (const tok of body.split(/\s+/)) {
+        const num = /^(\d+)(px)?$/.exec(tok)
+        if (num && !SPACE.has(+num[1])) hits.push(`${name}: ${m[0]} (${num[1]} fuera de escala)`)
+      }
+    })
+    expect(hits).toEqual([])
+  })
+
+  it('fontSize usa solo pasos de la escala', () => {
+    const hits = scan(/fontSize\s*:\s*(\d+)\b/g, (hits, m, name) => {
+      if (!FONT.has(+m[1])) hits.push(`${name}: fontSize ${m[1]}`)
+    })
+    expect(hits).toEqual([])
+  })
+
+  it('borderRadius usa solo pasos de la escala', () => {
+    const hits = scan(RADIUS_PROP, (hits, m, name) => {
+      if (!RADIUS.has(+m[1])) hits.push(`${name}: borderRadius ${m[1]}`)
+    })
+    expect(hits).toEqual([])
+  })
+
+  it('lo completamente redondeado se declara pill, no un radio grande', () => {
+    const hits = scan(RADIUS_PROP, (hits, m, name) => {
+      if (+m[1] >= 16 && +m[1] < 999) hits.push(`${name}: borderRadius ${m[1]}, usar radius.pill`)
+    })
+    expect(hits).toEqual([])
   })
 })

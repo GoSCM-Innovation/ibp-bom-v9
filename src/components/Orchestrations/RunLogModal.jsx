@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { STATUS_COLORS } from './canvasUtils'
+import { nodeStatusColor } from './canvasUtils'
 import { soapCall } from '../../api/soapCall'
-import { alpha, hex, withAlpha } from '../../styles/tokens'
+import { alpha, color, hex, withAlpha } from '../../styles/tokens'
 
 const STATUS_LABEL = {
   pending: 'Pendiente', running: 'Ejecutando', success: 'Completado',
@@ -23,7 +23,7 @@ function duration(start, end) {
 }
 
 function StatusBadge({ status }) {
-  const color = STATUS_COLORS[status] || '#64748b'
+  const color = nodeStatusColor(status)
   return (
     <span style={{
       fontSize: 9, padding: '1px 6px', borderRadius: 8, fontFamily: 'var(--mono)', fontWeight: 700,
@@ -66,7 +66,7 @@ function SapLogsButton({ connection, sessionId, sapRunId }) {
         {loading ? '…' : open ? 'ocultar logs' : '📄 Logs SAP'}
       </button>
       {open && logs && (
-        <div style={{ marginTop: 5 }}>
+        <div style={{ marginTop: 4 }}>
           {logs._error
             ? <div style={{ fontSize: 9, color: 'var(--red)', fontFamily: 'var(--mono)' }}>Error: {logs._error}</div>
             : ['monitorLog', 'errorLog', 'traceLog'].map(key => {
@@ -75,7 +75,7 @@ function SapLogsButton({ connection, sessionId, sapRunId }) {
                 const text = section.messageLines.join('\n')
                 return (
                   <div key={key} style={{ marginBottom: 4 }}>
-                    <div style={{ fontSize: 8, color: 'var(--text3)', fontFamily: 'var(--mono)', marginBottom: 2, textTransform: 'uppercase' }}>{key}</div>
+                    <div style={{ fontSize: 9, color: 'var(--text3)', fontFamily: 'var(--mono)', marginBottom: 2, textTransform: 'uppercase' }}>{key}</div>
                     <pre style={{
                       margin: 0, padding: '6px 8px', borderRadius: 4, fontSize: 9,
                       background: 'var(--bg)', color: 'var(--text2)', overflow: 'auto',
@@ -106,10 +106,10 @@ function NodeRow({ ns, nodeDef, connection, sessionId, indent }) {
     }}>
       <div style={{
         display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap',
-        padding: '7px 0', borderBottom: '1px solid var(--border)',
+        padding: '6px 0', borderBottom: '1px solid var(--border)',
       }}>
         <span style={{
-          fontSize: 9, padding: '1px 5px', borderRadius: 8, flexShrink: 0,
+          fontSize: 9, padding: '1px 4px', borderRadius: 8, flexShrink: 0,
           background: withAlpha(typeColor, .133), color: typeColor, border: `1px solid ${withAlpha(typeColor, .267)}`,
           fontFamily: 'var(--mono)',
         }}>{typeLabel}</span>
@@ -124,13 +124,13 @@ function NodeRow({ ns, nodeDef, connection, sessionId, indent }) {
           {duration(ns.startedAt, ns.finishedAt)}
         </span>
         {ns.sapRunId && (
-          <span style={{ fontSize: 9, color: '#3b82f6', fontFamily: 'var(--mono)', flexShrink: 0 }}>
+          <span style={{ fontSize: 9, color: color.info, fontFamily: 'var(--mono)', flexShrink: 0 }}>
             #{String(ns.sapRunId).slice(-6)}
           </span>
         )}
       </div>
       {ns.error && (
-        <div style={{ padding: '3px 0 5px', fontSize: 9, color: 'var(--red)', fontFamily: 'var(--mono)', wordBreak: 'break-all' }}>
+        <div style={{ padding: '2px 0 4px', fontSize: 9, color: 'var(--red)', fontFamily: 'var(--mono)', wordBreak: 'break-all' }}>
           {ns.error}
         </div>
       )}
@@ -142,7 +142,7 @@ function NodeRow({ ns, nodeDef, connection, sessionId, indent }) {
 }
 
 export default function RunLogModal({ run, connection, sessionId, nodes = [], onClose }) {
-  const overallColor = STATUS_COLORS[run.status] || '#64748b'
+  const overallColor = nodeStatusColor(run.status)
 
   const topLevel = Object.values(run.nodes)
     .filter(ns => {
@@ -164,7 +164,7 @@ export default function RunLogModal({ run, connection, sessionId, nodes = [], on
         {/* Header */}
         <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>Log de ejecución</span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>Log de ejecución</span>
             <span style={{
               fontSize: 10, padding: '2px 8px', borderRadius: 10, fontFamily: 'var(--mono)', fontWeight: 700,
               background: overallColor + '22', color: overallColor, border: `1px solid ${overallColor}44`,
@@ -173,7 +173,7 @@ export default function RunLogModal({ run, connection, sessionId, nodes = [], on
               {formatTime(run.startedAt)} · {duration(run.startedAt, run.finishedAt)}
             </span>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text2)', fontSize: 18, cursor: 'pointer', lineHeight: 1 }}>×</button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text2)', fontSize: 20, cursor: 'pointer', lineHeight: 1 }}>×</button>
         </div>
 
         {/* Timeline */}
@@ -200,7 +200,7 @@ export default function RunLogModal({ run, connection, sessionId, nodes = [], on
         {/* Footer */}
         <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', flexShrink: 0 }}>
           <button onClick={onClose} style={{
-            padding: '6px 18px', borderRadius: 6, fontSize: 11, fontWeight: 600,
+            padding: '6px 16px', borderRadius: 6, fontSize: 11, fontWeight: 600,
             background: 'var(--bg3)', color: 'var(--text2)', border: '1px solid var(--border)', cursor: 'pointer',
           }}>Cerrar</button>
         </div>

@@ -3,6 +3,7 @@ import PromotedBadge from '../../ui/PromotedBadge'
 import { usePromotedTasksContext, isTaskPromoted } from '../../../hooks/usePromotedTasks'
 import { soapCall } from '../../../api/soapCall'
 import { alpha } from '../../../styles/tokens'
+import { taskType } from '../../../constants/taskType'
 
 function DragChip({ task, style, fullscreen, onPick, selectable = false, selected = false, onToggleSelect }) {
   const tapMode = typeof onPick === 'function' || selectable
@@ -52,7 +53,7 @@ function DragChip({ task, style, fullscreen, onPick, selectable = false, selecte
           marginTop: showInlineDesc ? 2 : 0,
           border: `1.5px solid ${selected ? 'var(--accent)' : 'var(--text3)'}`,
           background: selected ? 'var(--accent)' : 'transparent',
-          color: 'var(--bg)', fontSize: 13, fontWeight: 700, lineHeight: '15px',
+          color: 'var(--bg)', fontSize: 14, fontWeight: 700, lineHeight: '15px',
           display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
         }}>{selected ? '✓' : ''}</span>
       )}
@@ -60,16 +61,16 @@ function DragChip({ task, style, fullscreen, onPick, selectable = false, selecte
         <span style={{ fontSize: 9, color: 'var(--text3)', flexShrink: 0, marginTop: showInlineDesc ? 3 : 0 }}>⠿</span>
       )}
       <span style={{
-        fontSize: 8, fontWeight: 700, padding: '1px 5px', borderRadius: 8, flexShrink: 0,
+        fontSize: 9, fontWeight: 700, padding: '1px 4px', borderRadius: 8, flexShrink: 0,
         marginTop: showInlineDesc ? 2 : 0,
-        background: task.type === 'PROCESS' ? 'rgba(139,92,246,.15)' : 'rgba(6,182,212,.15)',
-        color: task.type === 'PROCESS' ? 'var(--purple)' : 'var(--cyan)',
-        border: `1px solid ${task.type === 'PROCESS' ? 'rgba(139,92,246,.3)' : 'rgba(6,182,212,.3)'}`,
+        background: taskType(task.type).bg,
+        color: taskType(task.type).color,
+        border: `1px solid ${taskType(task.type).border}`,
         textTransform: 'uppercase',
       }}>{task.type || 'TASK'}</span>
       {promoted && (
         <span style={{ flexShrink: 0, marginTop: showInlineDesc ? 2 : 0, display: 'inline-flex' }}>
-          <PromotedBadge fontSize={8} />
+          <PromotedBadge />
         </span>
       )}
       <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
@@ -210,8 +211,8 @@ export default function TaskPalette({
             style={{
               width: '100%', boxSizing: 'border-box',
               background: 'var(--bg3)', border: '1px solid var(--border)',
-              borderRadius: 6, color: 'var(--text)', fontSize: 13,
-              padding: '9px 10px', outline: 'none',
+              borderRadius: 6, color: 'var(--text)', fontSize: 14,
+              padding: '8px 10px', outline: 'none',
               minHeight: 'var(--tap-min)',
             }}
           />
@@ -234,9 +235,9 @@ export default function TaskPalette({
         {/* Project tree */}
         <div style={{ flex: 1, overflowY: 'auto' }}>
           {loadingP ? (
-            <div style={{ padding: '16px 14px', fontSize: 13, color: 'var(--text2)' }}>Cargando proyectos…</div>
+            <div style={{ padding: '16px 14px', fontSize: 14, color: 'var(--text2)' }}>Cargando proyectos…</div>
           ) : visibleProjects.length === 0 ? (
-            <div style={{ padding: '16px 14px', fontSize: 13, color: 'var(--text3)' }}>
+            <div style={{ padding: '16px 14px', fontSize: 14, color: 'var(--text3)' }}>
               {filterPinned && hasPins ? 'Sin proyectos fijados coincidentes' : 'Sin proyectos'}
             </div>
           ) : visibleProjects.map(proj => {
@@ -259,11 +260,11 @@ export default function TaskPalette({
                     background: isExp ? alpha.accent(.05) : 'transparent',
                   }}
                 >
-                  <span style={{ color: 'var(--text2)', fontSize: 18, width: 18, textAlign: 'center', flexShrink: 0 }}>
+                  <span style={{ color: 'var(--text2)', fontSize: 20, width: 18, textAlign: 'center', flexShrink: 0 }}>
                     {isLoadingT ? '…' : isExp ? '▾' : '▸'}
                   </span>
                   <span style={{
-                    fontSize: 13, fontWeight: 600, color: isExp ? 'var(--accent)' : 'var(--text)',
+                    fontSize: 14, fontWeight: 600, color: isExp ? 'var(--accent)' : 'var(--text)',
                     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
                   }} title={proj.name}>{proj.name}</span>
                   <button
@@ -280,7 +281,7 @@ export default function TaskPalette({
                 {isExp && (
                   <div>
                     {filteredTasks.length === 0 && !isLoadingT
-                      ? <div style={{ padding: '10px 22px', fontSize: 12, color: 'var(--text3)' }}>Sin tasks</div>
+                      ? <div style={{ padding: '10px 20px', fontSize: 12, color: 'var(--text3)' }}>Sin tasks</div>
                       : filteredTasks.map(t => {
                         const key = t.taskGuid || t.taskName
                         const isSelected = selectable && selectedKeys ? selectedKeys.has(key) : false
@@ -361,7 +362,7 @@ export default function TaskPalette({
                 background: filterPinned ? alpha.accent(.15) : 'none',
                 border: filterPinned ? `1px solid ${alpha.accent(.4)}` : '1px solid transparent',
                 borderRadius: 4, color: filterPinned ? 'var(--accent)' : hasPins ? 'var(--text2)' : 'var(--text3)',
-                cursor: 'pointer', fontSize: 13, lineHeight: 1, padding: '2px 5px',
+                cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: '2px 4px',
                 position: 'relative',
               }}
             >
@@ -369,9 +370,9 @@ export default function TaskPalette({
               {hasPins && (
                 <span style={{
                   position: 'absolute', top: -4, right: -4,
-                  fontSize: 8, fontWeight: 700, lineHeight: 1,
+                  fontSize: 9, fontWeight: 700, lineHeight: 1,
                   background: filterPinned ? 'var(--accent)' : 'var(--text3)',
-                  color: 'var(--bg)', borderRadius: 8, padding: '1px 3px',
+                  color: 'var(--bg)', borderRadius: 8, padding: '1px 2px',
                   minWidth: 12, textAlign: 'center',
                 }}>
                   {pinnedGuids.size}
@@ -394,8 +395,8 @@ export default function TaskPalette({
           style={{
             width: '100%', boxSizing: 'border-box',
             background: 'var(--bg3)', border: '1px solid var(--border)',
-            borderRadius: 5, color: 'var(--text)', fontSize: 11,
-            padding: '5px 8px', outline: 'none',
+            borderRadius: 6, color: 'var(--text)', fontSize: 11,
+            padding: '4px 8px', outline: 'none',
           }}
         />
 
@@ -403,7 +404,7 @@ export default function TaskPalette({
         {filterPinned && hasPins && (
           <div style={{
             marginTop: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '3px 6px', borderRadius: 4,
+            padding: '2px 6px', borderRadius: 4,
             background: alpha.accent(.08), border: `1px solid ${alpha.accent(.2)}`,
           }}>
             <span style={{ fontSize: 9, color: 'var(--accent)' }}>

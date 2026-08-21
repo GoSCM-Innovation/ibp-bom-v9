@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { alpha } from '../styles/tokens'
+import { alpha, color } from '../styles/tokens'
 
 const REQUIREMENTS = [
   {
@@ -69,7 +69,7 @@ export default function Header({ onMenuToggle }) {
           style={{
             display: 'none',
             background: 'none', border: '1px solid var(--border)',
-            borderRadius: 6, color: 'var(--text2)', padding: '5px 9px',
+            borderRadius: 6, color: 'var(--text2)', padding: '4px 8px',
             fontSize: 16, cursor: 'pointer', flexShrink: 0,
           }}
         >☰</button>
@@ -83,7 +83,7 @@ export default function Header({ onMenuToggle }) {
         />
         <div className="header-sep" style={{ width: 1, height: 28, background: alpha.white(.12) }} />
         <div className="header-title">
-          <div style={{ fontSize: 14, fontWeight: 700, color: '#fff', letterSpacing: '.01em', lineHeight: 1.2 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: color.white, letterSpacing: '.01em', lineHeight: 1.2 }}>
             CI-DS Studio
           </div>
         </div>
@@ -96,7 +96,7 @@ export default function Header({ onMenuToggle }) {
           style={{
             background: showReqs ? alpha.accent(.15) : alpha.white(.06),
             border: `1px solid ${showReqs ? alpha.accent(.4) : alpha.white(.12)}`,
-            borderRadius: 7, color: showReqs ? 'var(--accent)' : 'var(--text2)',
+            borderRadius: 8, color: showReqs ? 'var(--accent)' : 'var(--text2)',
             fontSize: 12, fontWeight: 600, padding: '6px 14px',
             cursor: 'pointer', transition: 'all .15s', display: 'flex', alignItems: 'center', gap: 6,
           }}
@@ -111,13 +111,13 @@ export default function Header({ onMenuToggle }) {
             border: `1px solid ${alpha.accent(.25)}`, borderRadius: 10,
             boxShadow: `0 8px 32px ${alpha.black(.6)}`, padding: 20, zIndex: 300,
           }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: color.white, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
               <span>📋</span> Requisitos Técnicos — Conexión a SAP CI-DS
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {REQUIREMENTS.map((r, i) => (
                 <div key={i} style={{
-                  background: alpha.white(.04), borderRadius: 7,
+                  background: alpha.white(.04), borderRadius: 8,
                   border: `1px solid ${alpha.white(.07)}`, padding: '10px 14px',
                   overflow: 'hidden',
                 }}>

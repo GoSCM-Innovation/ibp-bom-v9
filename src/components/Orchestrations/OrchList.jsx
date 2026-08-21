@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { alpha } from '../../styles/tokens'
+import { alpha, color } from '../../styles/tokens'
 
 export default function OrchList({ orchs, selectedId, onSelect, onCreate, onDuplicate, onDelete, onExport, onImportClick, connectionId, collapsed = false, onToggle, mobile = false }) {
   const FAVS_KEY = `ibp-favs-${connectionId}`
@@ -79,7 +79,7 @@ export default function OrchList({ orchs, selectedId, onSelect, onCreate, onDupl
             >↓</button>
           )}
           <button onClick={onCreate} title="Nueva orquestación" style={mobile ? {
-            ...mobileIconBtnStyle, color: 'var(--accent)', fontSize: 22,
+            ...mobileIconBtnStyle, color: 'var(--accent)', fontSize: 24,
           } : {
             background: 'none', border: 'none', color: 'var(--accent)',
             fontSize: 20, cursor: 'pointer', lineHeight: 1, padding: '0 2px',
@@ -134,7 +134,7 @@ export default function OrchList({ orchs, selectedId, onSelect, onCreate, onDupl
                 onClick={e => { e.stopPropagation(); onDuplicate(o.id) }}
                 title="Duplicar orquestación"
                 style={{ background: 'none', border: 'none', color: 'var(--border2)', cursor: 'pointer', fontSize: 12, padding: '0 2px', flexShrink: 0, lineHeight: 1 }}
-                onMouseEnter={e => e.currentTarget.style.color = '#3b82f6'}
+                onMouseEnter={e => e.currentTarget.style.color = color.info}
                 onMouseLeave={e => e.currentTarget.style.color = 'var(--border2)'}
               >⎘</button>
               <button

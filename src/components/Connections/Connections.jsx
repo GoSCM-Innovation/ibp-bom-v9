@@ -6,7 +6,7 @@ import ImportConnectionsModal from './ImportConnectionsModal'
 import TechLogs from '../TechLogs'
 import { useTechLogs } from '../../hooks/useTechLogs'
 import { primaryBtn, secondaryBtn } from '../../styles/buttons'
-import { alpha } from '../../styles/tokens'
+import { alpha, color, radius } from '../../styles/tokens'
 
 const EXPORT_VERSION = '1.0'
 
@@ -182,8 +182,8 @@ export default function Connections({ connections, onAdd, onUpdate, onDelete, on
       {/* Title */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, gap: 12, flexWrap: 'wrap' }}>
         <div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: '#fff' }}>Conexiones</div>
-          <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 3 }}>
+          <div style={{ fontSize: 20, fontWeight: 700, color: color.white }}>Conexiones</div>
+          <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 2 }}>
             Gestiona los sistemas SAP CI-DS — las conexiones se guardan en este navegador
           </div>
         </div>
@@ -251,7 +251,7 @@ export default function Connections({ connections, onAdd, onUpdate, onDelete, on
 
       {/* Help / tutorial panel */}
       {showHelp && (
-        <div style={{ marginBottom: 18 }}>
+        <div style={{ marginBottom: 16 }}>
           <HelpPanel onClose={() => setShowHelp(false)} />
         </div>
       )}
@@ -271,7 +271,7 @@ export default function Connections({ connections, onAdd, onUpdate, onDelete, on
       {connections.length === 0 && !showForm && (
         <div style={{
           background: 'var(--bg2)', border: '1px dashed var(--border2)', borderRadius: 10,
-          padding: '48px 24px', textAlign: 'center',
+          padding: '40px 24px', textAlign: 'center',
         }}>
           <div style={{ fontSize: 32, marginBottom: 12 }}>⚡</div>
           <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 6 }}>
@@ -315,7 +315,7 @@ export default function Connections({ connections, onAdd, onUpdate, onDelete, on
               <ConnectionAvatar name={conn.name} logoUrl={conn.logoUrl} size={40} />
 
               <div style={{ flex: '1 1 200px', minWidth: 0 }}>
-                <div style={{ fontWeight: 700, color: '#fff', fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div style={{ fontWeight: 700, color: color.white, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {conn.name} <span style={{ color: 'var(--text2)', fontWeight: 500 }}>({conn.isProduction ? 'Productivo' : 'Sandbox'})</span>
                 </div>
                 {conn.hciUrl && <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{conn.hciUrl}</div>}
@@ -323,7 +323,7 @@ export default function Connections({ connections, onAdd, onUpdate, onDelete, on
 
               {testResult[conn.id] && (
                 <div style={{
-                  fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 20,
+                  fontSize: 11, fontWeight: 600, padding: '2px 10px', borderRadius: radius.pill,
                   background: testResult[conn.id] === 'ok' ? alpha.green(.15) : alpha.red(.15),
                   color: testResult[conn.id] === 'ok' ? 'var(--green)' : 'var(--red)',
                   border: `1px solid ${testResult[conn.id] === 'ok' ? alpha.green(.3) : alpha.red(.3)}`,
@@ -372,7 +372,7 @@ export default function Connections({ connections, onAdd, onUpdate, onDelete, on
 }
 
 const secondaryBtnStyle = {
-  background: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: 7,
+  background: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: 8,
   color: 'var(--text2)', fontWeight: 600, fontSize: 12, padding: '8px 14px', cursor: 'pointer',
 }
 
@@ -380,7 +380,7 @@ function btnStyle(color) {
   return {
     background: 'none', border: `1px solid ${color}33`,
     borderRadius: 6, color, fontSize: 11, fontWeight: 600,
-    padding: '5px 12px', transition: 'all .15s',
+    padding: '4px 12px', transition: 'all .15s',
   }
 }
 
@@ -388,18 +388,18 @@ function HelpPanel({ onClose }) {
   return (
     <div style={{
       background: 'var(--bg2)', border: '1px solid rgba(96,165,250,.35)', borderRadius: 10,
-      padding: '18px 20px', position: 'relative',
+      padding: '16px 20px', position: 'relative',
     }}>
       <button
         onClick={onClose}
         title="Cerrar guía"
         style={{
           position: 'absolute', top: 10, right: 12, background: 'none', border: 'none',
-          color: 'var(--text2)', cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: 4,
+          color: 'var(--text2)', cursor: 'pointer', fontSize: 20, lineHeight: 1, padding: 4,
         }}
       >×</button>
 
-      <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 4 }}>
+      <div style={{ fontSize: 14, fontWeight: 700, color: color.white, marginBottom: 4 }}>
         Cómo crear una conexión a SAP CI-DS
       </div>
       <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 14 }}>
@@ -435,7 +435,7 @@ function HelpPanel({ onClose }) {
       <HelpStep n="3" title="Cómo formar la URL del servicio">
         <div style={{ fontSize: 12, color: 'var(--text)', lineHeight: 1.55 }}>
           Depende de la plataforma donde corre tu tenant:
-          <ul style={{ margin: '8px 0 8px 18px', padding: 0 }}>
+          <ul style={{ margin: '8px 0 8px 16px', padding: 0 }}>
             <li><b>Kyma</b> (lo más común): <code style={codeStyle}>https://&lt;host&gt;/webservices</code><br/>
               <span style={{ color: 'var(--text2)' }}>Ej.: <code style={codeStyle}>https://us.cids.cloud.sap/webservices</code>, <code style={codeStyle}>https://eu.cids.cloud.sap/webservices</code></span>
             </li>
@@ -472,11 +472,11 @@ function HelpStep({ n, title, children }) {
     <div style={{ display: 'flex', gap: 12, marginBottom: 14 }}>
       <div style={{
         flexShrink: 0, width: 22, height: 22, borderRadius: '50%',
-        background: 'var(--accent)', color: '#000', fontWeight: 700, fontSize: 11,
+        background: 'var(--accent)', color: color.onAccent, fontWeight: 700, fontSize: 11,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>{n}</div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: '#fff', marginBottom: 4 }}>{title}</div>
+        <div style={{ fontSize: 12, fontWeight: 700, color: color.white, marginBottom: 4 }}>{title}</div>
         <div style={{ fontSize: 12, color: 'var(--text)', lineHeight: 1.55 }}>{children}</div>
       </div>
     </div>
@@ -485,4 +485,4 @@ function HelpStep({ n, title, children }) {
 
 const thStyle = { padding: '6px 8px', borderBottom: '1px solid var(--border)', fontWeight: 600 }
 const tdStyle = { padding: '6px 8px', borderBottom: '1px solid var(--border)', verticalAlign: 'top' }
-const codeStyle = { fontFamily: 'var(--mono)', fontSize: 11, background: 'var(--bg)', padding: '1px 5px', borderRadius: 4, border: '1px solid var(--border)' }
+const codeStyle = { fontFamily: 'var(--mono)', fontSize: 11, background: 'var(--bg)', padding: '1px 4px', borderRadius: 4, border: '1px solid var(--border)' }

@@ -22,12 +22,12 @@ function status(code, color, label, chartLabel) {
 }
 
 export const TASK_STATUS = Object.fromEntries([
-  status('RUNNING',               '#3b82f6', 'Running'),
+  status('RUNNING',               hex.info, 'Running'),
   status('SUCCESS',               hex.green, 'Success'),
-  status('SUCCESS_WITH_ERRORS_D', '#fbbf24', 'Success w/ errors D', 'Success w/err D'),
+  status('SUCCESS_WITH_ERRORS_D', hex.warning, 'Success w/ errors D', 'Success w/err D'),
   status('SUCCESS_WITH_ERRORS_E', '#f97316', 'Success w/ errors E', 'Success w/err E'),
   status('ERROR',                 hex.red, 'Error'),
-  status('QUEUEING',              '#8b5cf6', 'Queueing'),
+  status('QUEUEING',              hex.violet, 'Queueing'),
   status('IMPORTED',              '#06b6d4', 'Imported'),
   status('FETCHED',               '#22d3ee', 'Fetched'),
   status('TERMINATED',            '#9ca3af', 'Terminated'),

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { primaryBtn, secondaryBtn } from '../../styles/buttons'
-import { alpha } from '../../styles/tokens'
+import { alpha, color } from '../../styles/tokens'
 
 export default function SapLoginModal({ connection, onSuccess, onCancel }) {
   const [user, setUser]         = useState(connection.user || '')
@@ -61,7 +61,7 @@ export default function SapLoginModal({ connection, onSuccess, onCancel }) {
         background: 'var(--bg2)', border: '1px solid var(--border2)',
         borderRadius: 12, padding: 28, width: 340, boxShadow: `0 8px 32px ${alpha.black(.5)}`,
       }}>
-        <div style={{ fontSize: 15, fontWeight: 700, color: '#fff', marginBottom: 4 }}>
+        <div style={{ fontSize: 16, fontWeight: 700, color: color.white, marginBottom: 4 }}>
           Conectar a SAP
         </div>
         <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 20 }}>
@@ -92,7 +92,7 @@ export default function SapLoginModal({ connection, onSuccess, onCancel }) {
 
 function Field({ label, value, onChange, placeholder, type = 'text', onKeyDown, autoFocus }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
       <label style={{ fontSize: 10, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '.07em' }}>{label}</label>
       <input
         type={type} value={value} onChange={e => onChange(e.target.value)}
