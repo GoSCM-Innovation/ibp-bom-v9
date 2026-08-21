@@ -6,6 +6,7 @@ import PromotedBadge from '../ui/PromotedBadge'
 import { usePromotedTasksContext, isTaskPromoted } from '../../hooks/usePromotedTasks'
 import { getTzMode, setTzMode, toInputDate, inputDateToDate, formatEpochMs, formatSapTs, TZ_OPTIONS } from '../../utils/dateUtils'
 import { soapCall } from '../../api/soapCall'
+import { taskStatus } from '../../constants/status'
 
 const REFRESH_MS = 30000
 const PAGE_SIZE = 50
@@ -58,20 +59,6 @@ async function runPool(items, limit, worker) {
       await worker(items[idx])
     }
   }))
-}
-
-const STATUS_META = {
-  'RUNNING':               { label: 'Running',             bg: 'rgba(59,130,246,.15)',  color: '#3b82f6', border: 'rgba(59,130,246,.3)'  },
-  'SUCCESS':               { label: 'Success',             bg: 'rgba(52,211,153,.15)',  color: '#34d399', border: 'rgba(52,211,153,.3)'  },
-  'SUCCESS_WITH_ERRORS_D': { label: 'Success w/ errors D', bg: 'rgba(251,191,36,.15)',  color: '#fbbf24', border: 'rgba(251,191,36,.3)'  },
-  'SUCCESS_WITH_ERRORS_E': { label: 'Success w/ errors E', bg: 'rgba(249,115,22,.15)',  color: '#f97316', border: 'rgba(249,115,22,.3)'  },
-  'ERROR':                 { label: 'Error',               bg: 'rgba(255,107,107,.15)', color: '#ff6b6b', border: 'rgba(255,107,107,.3)' },
-  'QUEUEING':              { label: 'Queueing',            bg: 'rgba(139,92,246,.15)',  color: '#8b5cf6', border: 'rgba(139,92,246,.3)'  },
-  'IMPORTED':              { label: 'Imported',            bg: 'rgba(6,182,212,.15)',   color: '#06b6d4', border: 'rgba(6,182,212,.3)'   },
-  'FETCHED':               { label: 'Fetched',             bg: 'rgba(6,182,212,.1)',    color: '#22d3ee', border: 'rgba(6,182,212,.2)'   },
-  'TERMINATED':            { label: 'Terminated',          bg: 'rgba(156,163,175,.15)', color: '#9ca3af', border: 'rgba(156,163,175,.3)' },
-  'TERMINATION_FAILED':    { label: 'Termination failed',  bg: 'rgba(249,115,22,.12)',  color: '#f97316', border: 'rgba(249,115,22,.25)' },
-  'UNKNOWN':               { label: 'Unknown',             bg: 'rgba(75,85,99,.15)',    color: '#6b7280', border: 'rgba(75,85,99,.3)'    },
 }
 
 const CANCELABLE = new Set(['RUNNING', 'QUEUEING', 'IMPORTED', 'FETCHED'])
@@ -208,7 +195,7 @@ export default function TaskMonitor({ connection, sessionId, onSessionExpired, i
     const header = ['Estado', 'Task', 'Inicio', 'Fin', 'Duración', 'RunID', 'JobID']
     const lines = paged.map(r => {
       const d = details[r.runId]
-      const estado = STATUS_META[r.statusCode]?.label || r.statusCode || ''
+      const estado = taskStatus(r.statusCode).label
       const inicio = formatEpochMs(r.startDate, tzMode)
       const fin    = d ? (d.end ? formatSapTs(d.end, tzMode) : 'En curso') : ''
       const dur    = d ? formatDuration(d.durSec) : ''
@@ -398,7 +385,7 @@ export default function TaskMonitor({ connection, sessionId, onSessionExpired, i
         <FilterBtn active={activeStatus === 'ALL'} onClick={() => setActive('ALL')} label="Todos" count={filteredBase.length} meta={{ bg: 'rgba(59,130,246,.1)', color: '#3b82f6', border: 'rgba(59,130,246,.3)' }} />
         {presentStatuses.map(s => (
           <FilterBtn key={s} active={activeStatus === s} onClick={() => setActive(s)}
-            label={STATUS_META[s]?.label || s} count={countByStatus[s] || 0} meta={STATUS_META[s] || STATUS_META['UNKNOWN']} />
+            label={taskStatus(s).label} count={countByStatus[s] || 0} meta={taskStatus(s)} />
         ))}
       </div>
 
@@ -498,7 +485,7 @@ export default function TaskMonitor({ connection, sessionId, onSessionExpired, i
 }
 
 function StatusBadge({ code }) {
-  const m = STATUS_META[code] || STATUS_META['UNKNOWN']
+  const m = taskStatus(code)
   return (
     <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 20, fontSize: 10, fontWeight: 700, background: m.bg, color: m.color, border: `1px solid ${m.border}`, whiteSpace: 'nowrap' }}>
       {m.label}
