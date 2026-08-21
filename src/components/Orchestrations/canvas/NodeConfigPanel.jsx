@@ -1,28 +1,9 @@
 import { useState, useEffect } from 'react'
 import { soapCall } from '../../../api/soapCall'
+import { inputStyle, selectStyle, labelStyle } from '../../../styles/forms'
+import Field from '../../ui/Field'
+import { alpha } from '../../../styles/tokens'
 
-const inputStyle = {
-  background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 6,
-  color: 'var(--text)', fontSize: 12, padding: '6px 10px', fontFamily: 'var(--font)',
-  outline: 'none', width: '100%', boxSizing: 'border-box',
-}
-const selectStyle = {
-  ...inputStyle, cursor: 'pointer',
-}
-const labelStyle = {
-  fontSize: 10, fontWeight: 700, color: 'var(--text2)',
-  textTransform: 'uppercase', letterSpacing: '.06em',
-  display: 'block', marginBottom: 4,
-}
-
-function Field({ label, children }) {
-  return (
-    <div style={{ marginBottom: 12 }}>
-      <label style={labelStyle}>{label}</label>
-      {children}
-    </div>
-  )
-}
 
 function initForm(data) {
   return {
@@ -320,7 +301,7 @@ function NodeConfigPanelForm({ node, connection, sessionId, onUpdate, onClose, p
             onClick={handleDelete}
             style={{
               width: '100%', padding: '7px', borderRadius: 6,
-              border: '1px solid rgba(255,107,107,.3)', background: 'rgba(255,107,107,.08)',
+              border: `1px solid ${alpha.red(.3)}`, background: alpha.red(.08),
               color: 'var(--red)', fontSize: 11, fontWeight: 600, cursor: 'pointer',
             }}
           >
@@ -335,9 +316,9 @@ function NodeConfigPanelForm({ node, connection, sessionId, onUpdate, onClose, p
             disabled={saving}
             style={{
               width: '100%', padding: '8px', borderRadius: 6,
-              border: `1px solid ${dirty ? 'rgba(52,211,153,.5)' : 'rgba(52,211,153,.2)'}`,
-              background: dirty ? 'rgba(52,211,153,.18)' : 'rgba(52,211,153,.06)',
-              color: dirty ? '#34d399' : 'rgba(52,211,153,.5)',
+              border: `1px solid ${dirty ? alpha.green(.5) : alpha.green(.2)}`,
+              background: dirty ? alpha.green(.18) : alpha.green(.06),
+              color: dirty ? 'var(--green)' : alpha.green(.5),
               fontSize: 12, fontWeight: 700,
               cursor: saving ? 'default' : 'pointer',
               transition: 'all .15s',

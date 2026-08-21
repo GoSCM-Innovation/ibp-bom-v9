@@ -1,10 +1,11 @@
 import { Handle, Position, NodeResizer } from '@xyflow/react'
 import { STATUS_COLORS, STATUS_ICONS } from '../canvasUtils'
+import { hex, withAlpha } from '../../../styles/tokens'
 
 const MODE_STYLES = {
-  parallel: { color: '#29ABE2', r: 41,  g: 171, b: 226, label: '⊞ En paralelo'   },
-  serial:   { color: '#F7A800', r: 247, g: 168, b: 0,   label: '→ En secuencia'  },
-  hybrid:   { color: '#8B5CF6', r: 139, g: 92,  b: 246, label: '⟛ Híbrido'       },
+  parallel: { color: hex.cyan,   label: '⊞ En paralelo'   },
+  serial:   { color: hex.accent, label: '→ En secuencia'  },
+  hybrid:   { color: '#8b5cf6',  label: '⟛ Híbrido'       },
 }
 
 export default function GroupNode({ data, selected, id }) {
@@ -15,12 +16,11 @@ export default function GroupNode({ data, selected, id }) {
 
   const mode   = data.groupMode || 'parallel'
   const ms     = MODE_STYLES[mode] || MODE_STYLES.parallel
-  const { r, g, b } = ms
   const modeColor  = ms.color
   const modeLabel  = ms.label
-  const bg         = `rgba(${r},${g},${b},${isActive ? 0.08 : 0.04})`
-  const borderColor = selected ? 'var(--accent)' : isActive ? color : `rgba(${r},${g},${b},0.4)`
-  const hBorder     = `rgba(${r},${g},${b},${selected ? 0.3 : 0.15})`
+  const bg         = withAlpha(modeColor, isActive ? 0.08 : 0.04)
+  const borderColor = selected ? 'var(--accent)' : isActive ? color : withAlpha(modeColor, 0.4)
+  const hBorder     = withAlpha(modeColor, selected ? 0.3 : 0.15)
 
   return (
     <div

@@ -83,6 +83,8 @@ src/            Frontend React
   api/          Cliente SOAP compartido del frontend (soapCall)
   components/   UI por feature (Connections, Resumen, Tasks, Orchestrations, ...)
   hooks/        Hooks reutilizables
+  styles/       Tokens de diseño y estilos compartidos (formularios, botones)
+  constants/    Constantes de dominio (estados de SAP)
   utils/        Utilidades (fechas, metadata de tasks)
 tests/          Tests con Vitest, espejando api/ y src/ (no co-locados: ver CONTRIBUTING)
 public/legacy/  Módulos heredados en vanilla JS (Explorer, Mapping Dataflow)
@@ -100,6 +102,7 @@ El deploy es automático en Vercel al hacer push a `master`. La configuración d
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): arquitectura, flujos de datos, módulos clave.
 - [docs/MODULOS-LEGACY.md](docs/MODULOS-LEGACY.md): las sub-apps heredadas (Mapping Dataflow Generator, Integration Explorer).
 - [CONTRIBUTING.md](CONTRIBUTING.md): cómo desarrollar, convenciones de código y commits.
+- [docs/DESIGN-SYSTEM.md](docs/DESIGN-SYSTEM.md): paleta, tokens, estilos de formulario y botones.
 - [docs/SECURITY.md](docs/SECURITY.md): modelo de autenticación, SSRF, CORS, manejo de secretos.
 - [docs/DEUDA-TECNICA.md](docs/DEUDA-TECNICA.md): problemas conocidos y roadmap de mejora.
 - [docs/CATALOGO-DATOS-API.md](docs/CATALOGO-DATOS-API.md): catálogo de datos SAP CI-DS y KPIs.

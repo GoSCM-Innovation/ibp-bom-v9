@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { STATUS_COLORS } from './canvasUtils'
 import { soapCall } from '../../api/soapCall'
+import { alpha, hex, withAlpha } from '../../styles/tokens'
 
 const STATUS_LABEL = {
   pending: 'Pendiente', running: 'Ejecutando', success: 'Completado',
@@ -94,7 +95,7 @@ function SapLogsButton({ connection, sessionId, sapRunId }) {
 function NodeRow({ ns, nodeDef, connection, sessionId, indent }) {
   const name = nodeDef?.data?.label || nodeDef?.data?.taskName || ns.nodeId
   const isGroup = ns.type === 'group'
-  const typeColor = isGroup ? '#a78bfa' : '#29ABE2'
+  const typeColor = isGroup ? hex.purple : hex.cyan
   const typeLabel = isGroup ? 'grupo' : 'task'
 
   return (
@@ -109,7 +110,7 @@ function NodeRow({ ns, nodeDef, connection, sessionId, indent }) {
       }}>
         <span style={{
           fontSize: 9, padding: '1px 5px', borderRadius: 8, flexShrink: 0,
-          background: typeColor + '22', color: typeColor, border: `1px solid ${typeColor}44`,
+          background: withAlpha(typeColor, .133), color: typeColor, border: `1px solid ${withAlpha(typeColor, .267)}`,
           fontFamily: 'var(--mono)',
         }}>{typeLabel}</span>
         <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text)', flex: 1, minWidth: 80, wordBreak: 'break-word' }}>
@@ -152,13 +153,13 @@ export default function RunLogModal({ run, connection, sessionId, nodes = [], on
 
   return (
     <div
-      style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+      style={{ position: 'fixed', inset: 0, zIndex: 1000, background: alpha.black(0.55), display: 'flex', alignItems: 'center', justifyContent: 'center' }}
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
       <div style={{
         background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 10,
         width: 'min(640px, 95vw)', maxHeight: '85vh',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.4)', display: 'flex', flexDirection: 'column', overflow: 'hidden',
+        boxShadow: `0 8px 32px ${alpha.black(0.4)}`, display: 'flex', flexDirection: 'column', overflow: 'hidden',
       }}>
         {/* Header */}
         <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>

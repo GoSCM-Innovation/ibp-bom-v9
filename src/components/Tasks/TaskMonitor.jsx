@@ -6,6 +6,10 @@ import PromotedBadge from '../ui/PromotedBadge'
 import { usePromotedTasksContext, isTaskPromoted } from '../../hooks/usePromotedTasks'
 import { getTzMode, setTzMode, toInputDate, inputDateToDate, formatEpochMs, formatSapTs, TZ_OPTIONS } from '../../utils/dateUtils'
 import { soapCall } from '../../api/soapCall'
+import { taskStatus } from '../../constants/status'
+import { filterInputStyle as inputStyle } from '../../styles/forms'
+import { toolbarBtn, disabled as btnDisabled } from '../../styles/buttons'
+import { alpha } from '../../styles/tokens'
 
 const REFRESH_MS = 30000
 const PAGE_SIZE = 50
@@ -58,20 +62,6 @@ async function runPool(items, limit, worker) {
       await worker(items[idx])
     }
   }))
-}
-
-const STATUS_META = {
-  'RUNNING':               { label: 'Running',             bg: 'rgba(59,130,246,.15)',  color: '#3b82f6', border: 'rgba(59,130,246,.3)'  },
-  'SUCCESS':               { label: 'Success',             bg: 'rgba(52,211,153,.15)',  color: '#34d399', border: 'rgba(52,211,153,.3)'  },
-  'SUCCESS_WITH_ERRORS_D': { label: 'Success w/ errors D', bg: 'rgba(251,191,36,.15)',  color: '#fbbf24', border: 'rgba(251,191,36,.3)'  },
-  'SUCCESS_WITH_ERRORS_E': { label: 'Success w/ errors E', bg: 'rgba(249,115,22,.15)',  color: '#f97316', border: 'rgba(249,115,22,.3)'  },
-  'ERROR':                 { label: 'Error',               bg: 'rgba(255,107,107,.15)', color: '#ff6b6b', border: 'rgba(255,107,107,.3)' },
-  'QUEUEING':              { label: 'Queueing',            bg: 'rgba(139,92,246,.15)',  color: '#8b5cf6', border: 'rgba(139,92,246,.3)'  },
-  'IMPORTED':              { label: 'Imported',            bg: 'rgba(6,182,212,.15)',   color: '#06b6d4', border: 'rgba(6,182,212,.3)'   },
-  'FETCHED':               { label: 'Fetched',             bg: 'rgba(6,182,212,.1)',    color: '#22d3ee', border: 'rgba(6,182,212,.2)'   },
-  'TERMINATED':            { label: 'Terminated',          bg: 'rgba(156,163,175,.15)', color: '#9ca3af', border: 'rgba(156,163,175,.3)' },
-  'TERMINATION_FAILED':    { label: 'Termination failed',  bg: 'rgba(249,115,22,.12)',  color: '#f97316', border: 'rgba(249,115,22,.25)' },
-  'UNKNOWN':               { label: 'Unknown',             bg: 'rgba(75,85,99,.15)',    color: '#6b7280', border: 'rgba(75,85,99,.3)'    },
 }
 
 const CANCELABLE = new Set(['RUNNING', 'QUEUEING', 'IMPORTED', 'FETCHED'])
@@ -208,7 +198,7 @@ export default function TaskMonitor({ connection, sessionId, onSessionExpired, i
     const header = ['Estado', 'Task', 'Inicio', 'Fin', 'Duración', 'RunID', 'JobID']
     const lines = paged.map(r => {
       const d = details[r.runId]
-      const estado = STATUS_META[r.statusCode]?.label || r.statusCode || ''
+      const estado = taskStatus(r.statusCode).label
       const inicio = formatEpochMs(r.startDate, tzMode)
       const fin    = d ? (d.end ? formatSapTs(d.end, tzMode) : 'En curso') : ''
       const dur    = d ? formatDuration(d.durSec) : ''
@@ -381,14 +371,14 @@ export default function TaskMonitor({ connection, sessionId, onSessionExpired, i
           <button onClick={handleCopyPage} disabled={paged.length === 0 || enriching}
             title={enriching ? 'Esperá a que termine de cargar la página' : 'Copiar la página actual (formato tabla, pegable en Excel)'}
             style={{
-              background: copyState === 'ok' ? 'rgba(52,211,153,.15)' : copyState === 'err' ? 'rgba(255,107,107,.15)' : 'var(--bg2)',
-              border: `1px solid ${copyState === 'ok' ? 'rgba(52,211,153,.4)' : copyState === 'err' ? 'rgba(255,107,107,.4)' : 'var(--border2)'}`,
+              background: copyState === 'ok' ? alpha.green(.15) : copyState === 'err' ? alpha.red(.15) : 'var(--bg2)',
+              border: `1px solid ${copyState === 'ok' ? alpha.green(.4) : copyState === 'err' ? alpha.red(.4) : 'var(--border2)'}`,
               borderRadius: 6, color: copyState === 'ok' ? 'var(--green)' : copyState === 'err' ? 'var(--red)' : 'var(--text2)',
               fontSize: 11, fontWeight: 600, padding: '6px 12px', cursor: (paged.length === 0 || enriching) ? 'not-allowed' : 'pointer', opacity: enriching ? .5 : 1,
             }}>
             {copyState === 'ok' ? '✓ Copiado' : copyState === 'err' ? '✕ Error' : '⧉ Copiar'}
           </button>
-          <button onClick={loadTasks} disabled={loading} style={{ background: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: 6, color: 'var(--text2)', fontSize: 11, fontWeight: 600, padding: '6px 12px', cursor: 'pointer' }}>↺ Refresh</button>
+          <button onClick={loadTasks} disabled={loading} style={toolbarBtn}>↺ Refresh</button>
           <span style={{ fontSize: 10, color: 'var(--text3)', padding: '4px 8px', background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 6 }}>🔄 Auto {REFRESH_MS / 1000}s</span>
         </div>
       </div>
@@ -398,11 +388,11 @@ export default function TaskMonitor({ connection, sessionId, onSessionExpired, i
         <FilterBtn active={activeStatus === 'ALL'} onClick={() => setActive('ALL')} label="Todos" count={filteredBase.length} meta={{ bg: 'rgba(59,130,246,.1)', color: '#3b82f6', border: 'rgba(59,130,246,.3)' }} />
         {presentStatuses.map(s => (
           <FilterBtn key={s} active={activeStatus === s} onClick={() => setActive(s)}
-            label={STATUS_META[s]?.label || s} count={countByStatus[s] || 0} meta={STATUS_META[s] || STATUS_META['UNKNOWN']} />
+            label={taskStatus(s).label} count={countByStatus[s] || 0} meta={taskStatus(s)} />
         ))}
       </div>
 
-      {error && <div style={{ background: 'rgba(255,107,107,.1)', border: '1px solid rgba(255,107,107,.3)', borderRadius: 8, padding: '12px 16px', color: 'var(--red)', fontSize: 12, marginBottom: 14 }}>✕ {error}</div>}
+      {error && <div style={{ background: alpha.red(.1), border: `1px solid ${alpha.red(.3)}`, borderRadius: 8, padding: '12px 16px', color: 'var(--red)', fontSize: 12, marginBottom: 14 }}>✕ {error}</div>}
 
       {/* Table */}
       {!error && (
@@ -426,7 +416,7 @@ export default function TaskMonitor({ connection, sessionId, onSessionExpired, i
               ) : paged.map((row, i) => {
                 const isSel = selectedRow?.runId === row.runId
                 return (
-                  <tr key={row.runId || i} onClick={() => setSelected(isSel ? null : row)} style={{ background: isSel ? 'rgba(247,168,0,.08)' : i % 2 === 0 ? 'var(--bg)' : 'var(--bg2)', outline: isSel ? '1px solid rgba(247,168,0,.35)' : 'none', cursor: 'pointer' }}>
+                  <tr key={row.runId || i} onClick={() => setSelected(isSel ? null : row)} style={{ background: isSel ? alpha.accent(.08) : i % 2 === 0 ? 'var(--bg)' : 'var(--bg2)', outline: isSel ? `1px solid ${alpha.accent(.35)}` : 'none', cursor: 'pointer' }}>
                     {COLS.map(col => (
                       <td key={col.key} style={{ padding: '7px 12px', color: isSel ? '#fff' : 'var(--text)', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: col.w, maxWidth: col.w }} title={String(row[col.key] ?? '')}>
                         {col.render ? col.render(row[col.key], row) : String(row[col.key] ?? '—')}
@@ -473,7 +463,7 @@ export default function TaskMonitor({ connection, sessionId, onSessionExpired, i
             </button>
             <button onClick={handleCancel} disabled={!isCancelable || cancelling}
               title={!isCancelable ? 'Solo se pueden cancelar tasks en ejecución/cola' : ''}
-              style={{ padding: '6px 16px', borderRadius: 6, fontSize: 11, fontWeight: 700, border: '1px solid rgba(255,107,107,.4)', background: isCancelable ? 'rgba(255,107,107,.12)' : 'transparent', color: isCancelable ? 'var(--red)' : 'var(--text3)', cursor: isCancelable ? 'pointer' : 'not-allowed', opacity: cancelling ? .6 : 1 }}>
+              style={{ padding: '6px 16px', borderRadius: 6, fontSize: 11, fontWeight: 700, border: `1px solid ${alpha.red(.4)}`, background: isCancelable ? alpha.red(.12) : 'transparent', color: isCancelable ? 'var(--red)' : 'var(--text3)', cursor: isCancelable ? 'pointer' : 'not-allowed', opacity: cancelling ? .6 : 1 }}>
               {cancelling ? 'Cancelando…' : '✕ Cancelar'}
             </button>
             <button onClick={() => { setSelected(null); setCancelMsg('') }} style={{ padding: '6px 14px', borderRadius: 6, fontSize: 11, fontWeight: 600, border: '1px solid var(--border)', background: 'none', color: 'var(--text2)', cursor: 'pointer' }}>
@@ -498,7 +488,7 @@ export default function TaskMonitor({ connection, sessionId, onSessionExpired, i
 }
 
 function StatusBadge({ code }) {
-  const m = STATUS_META[code] || STATUS_META['UNKNOWN']
+  const m = taskStatus(code)
   return (
     <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 20, fontSize: 10, fontWeight: 700, background: m.bg, color: m.color, border: `1px solid ${m.border}`, whiteSpace: 'nowrap' }}>
       {m.label}
@@ -509,9 +499,8 @@ function StatusBadge({ code }) {
 function PageBtn({ disabled, onClick, children }) {
   return (
     <button onClick={onClick} disabled={disabled} style={{
-      background: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: 6,
-      color: disabled ? 'var(--text3)' : 'var(--text2)', fontSize: 11, fontWeight: 600,
-      padding: '5px 11px', cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? .5 : 1, whiteSpace: 'nowrap',
+      ...toolbarBtn, padding: '5px 11px', whiteSpace: 'nowrap',
+      ...(disabled ? { ...btnDisabled, color: 'var(--text3)' } : {}),
     }}>{children}</button>
   )
 }
@@ -565,8 +554,8 @@ function LogsModal({ runId, connection, sessionId, onClose }) {
   const lines = currentLog?.messageLines || []
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500 }}>
-      <div style={{ background: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: 12, width: 'min(720px, 95vw)', maxHeight: '85vh', display: 'flex', flexDirection: 'column', boxShadow: '0 16px 48px rgba(0,0,0,.6)' }}>
+    <div style={{ position: 'fixed', inset: 0, background: alpha.black(.7), display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500 }}>
+      <div style={{ background: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: 12, width: 'min(720px, 95vw)', maxHeight: '85vh', display: 'flex', flexDirection: 'column', boxShadow: `0 16px 48px ${alpha.black(.6)}` }}>
         {/* Modal header */}
         <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
           <div>
@@ -604,7 +593,3 @@ function LogsModal({ runId, connection, sessionId, onClose }) {
   )
 }
 
-const inputStyle = {
-  background: 'var(--bg2)', border: '1px solid var(--border)',
-  borderRadius: 6, color: 'var(--text)', fontSize: 11, padding: '6px 10px', outline: 'none',
-}

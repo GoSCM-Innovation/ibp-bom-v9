@@ -1,6 +1,6 @@
 # Guía de contribución
 
-Cómo desarrollar y aportar a CIDS Studio (ibp-bom-v9). Para entender la arquitectura antes de tocar código, leer [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+Cómo desarrollar y aportar a CIDS Studio (ibp-bom-v9). Para entender la arquitectura antes de tocar código, leer [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md); para tocar estilos, [docs/DESIGN-SYSTEM.md](docs/DESIGN-SYSTEM.md).
 
 ## Setup
 

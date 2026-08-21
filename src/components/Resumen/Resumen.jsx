@@ -8,30 +8,12 @@ import {
 import TechLogs from '../TechLogs'
 import { useTechLogs } from '../../hooks/useTechLogs'
 import { soapCall } from '../../api/soapCall'
+import { taskStatus, TASK_STATUS } from '../../constants/status'
+import { filterInputStyle as inputStyle } from '../../styles/forms'
+import { toolbarBtn } from '../../styles/buttons'
+import { alpha } from '../../styles/tokens'
 
 const REFRESH_MS = 5 * 60 * 1000
-
-const STATUS_COLORS = {
-  'RUNNING':               '#3b82f6',
-  'SUCCESS':               '#34d399',
-  'SUCCESS_WITH_ERRORS_D': '#fbbf24',
-  'SUCCESS_WITH_ERRORS_E': '#f97316',
-  'ERROR':                 '#ff6b6b',
-  'QUEUEING':              '#8b5cf6',
-  'IMPORTED':              '#06b6d4',
-  'FETCHED':               '#22d3ee',
-  'TERMINATED':            '#9ca3af',
-  'TERMINATION_FAILED':    '#ef4444',
-  'UNKNOWN':               '#6b7280',
-}
-
-const STATUS_LABELS = {
-  'RUNNING': 'Running', 'SUCCESS': 'Success',
-  'SUCCESS_WITH_ERRORS_D': 'Success w/err D', 'SUCCESS_WITH_ERRORS_E': 'Success w/err E',
-  'ERROR': 'Error', 'QUEUEING': 'Queueing', 'IMPORTED': 'Imported',
-  'FETCHED': 'Fetched', 'TERMINATED': 'Terminated',
-  'TERMINATION_FAILED': 'Termination failed', 'UNKNOWN': 'Unknown',
-}
 
 export default function Resumen({ connection, sessionId, onSessionExpired }) {
   const [rows, setRows]           = useState([])
@@ -106,7 +88,7 @@ export default function Resumen({ connection, sessionId, onSessionExpired }) {
   const statusCount = {}
   rows.forEach(r => { statusCount[r.statusCode] = (statusCount[r.statusCode] || 0) + 1 })
   const donutData = Object.entries(statusCount)
-    .map(([code, count]) => ({ name: STATUS_LABELS[code] || code, value: count, code }))
+    .map(([code, count]) => ({ name: taskStatus(code).chartLabel, value: count, code }))
     .sort((a, b) => b.value - a.value)
 
   // Bar by day
@@ -133,7 +115,7 @@ export default function Resumen({ connection, sessionId, onSessionExpired }) {
 
   if (error) return (
     <div style={{ padding: 32 }}>
-      <div style={{ background: 'rgba(255,107,107,.1)', border: '1px solid rgba(255,107,107,.3)', borderRadius: 8, padding: '12px 16px', color: 'var(--red)', fontSize: 12 }}>✕ {error}</div>
+      <div style={{ background: alpha.red(.1), border: `1px solid ${alpha.red(.3)}`, borderRadius: 8, padding: '12px 16px', color: 'var(--red)', fontSize: 12 }}>✕ {error}</div>
       <TechLogs logs={logs} />
     </div>
   )
@@ -172,7 +154,7 @@ export default function Resumen({ connection, sessionId, onSessionExpired }) {
           <input type="datetime-local" value={fromDate} onChange={e => setFromDate(e.target.value)} style={inputStyle} />
           <span style={{ color: 'var(--text2)', fontSize: 11 }}>→</span>
           <input type="datetime-local" value={toDate}   onChange={e => setToDate(e.target.value)}   style={inputStyle} />
-          <button onClick={loadData} disabled={loading} style={{ background: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: 6, color: 'var(--text2)', fontSize: 11, fontWeight: 600, padding: '6px 12px', cursor: 'pointer' }}>↺ Refresh</button>
+          <button onClick={loadData} disabled={loading} style={toolbarBtn}>↺ Refresh</button>
           <span style={{ fontSize: 10, color: 'var(--text3)', padding: '4px 8px', background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 6 }}>Auto-refresh 5 min</span>
         </div>
       </div>
@@ -195,7 +177,7 @@ export default function Resumen({ connection, sessionId, onSessionExpired }) {
             <ResponsiveContainer width="100%" height={220}>
               <PieChart>
                 <Pie data={donutData} cx="50%" cy="50%" innerRadius={55} outerRadius={85} paddingAngle={2} dataKey="value">
-                  {donutData.map((entry, i) => <Cell key={i} fill={STATUS_COLORS[entry.code] || '#6b7280'} />)}
+                  {donutData.map((entry, i) => <Cell key={i} fill={taskStatus(entry.code).color} />)}
                 </Pie>
                 <Tooltip contentStyle={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 11 }} />
               </PieChart>
@@ -204,7 +186,7 @@ export default function Resumen({ connection, sessionId, onSessionExpired }) {
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 12px', marginTop: 8 }}>
             {donutData.map((d, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: 'var(--text2)' }}>
-                <div style={{ width: 8, height: 8, borderRadius: 2, background: STATUS_COLORS[d.code] || '#6b7280', flexShrink: 0 }} />
+                <div style={{ width: 8, height: 8, borderRadius: 2, background: taskStatus(d.code).color, flexShrink: 0 }} />
                 {d.name} ({d.value})
               </div>
             ))}
@@ -221,9 +203,9 @@ export default function Resumen({ connection, sessionId, onSessionExpired }) {
                 <YAxis tick={{ fontSize: 10, fill: 'var(--text2)' }} allowDecimals={false} />
                 <Tooltip contentStyle={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 11 }} />
                 <Legend wrapperStyle={{ fontSize: 11, color: 'var(--text2)' }} />
-                <Bar dataKey="Exitosas" stackId="a" fill="#34d399" />
-                <Bar dataKey="Fallidas" stackId="a" fill="#ff6b6b" />
-                <Bar dataKey="Otras"    stackId="a" fill="#6b7280" radius={[3,3,0,0]} />
+                <Bar dataKey="Exitosas" stackId="a" fill={TASK_STATUS.SUCCESS.color} />
+                <Bar dataKey="Fallidas" stackId="a" fill={TASK_STATUS.ERROR.color} />
+                <Bar dataKey="Otras"    stackId="a" fill={TASK_STATUS.UNKNOWN.color} radius={[3,3,0,0]} />
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -317,4 +299,3 @@ function Empty() { return <div style={{ fontSize: 12, color: 'var(--text3)', pad
 
 const cardStyle = { background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 10, padding: '16px 18px' }
 const cardTitle = { fontSize: 11, fontWeight: 700, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 12 }
-const inputStyle = { background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text)', fontSize: 11, padding: '6px 10px', outline: 'none' }

@@ -11,6 +11,7 @@ import WizardEditor                from './mobile/WizardEditor'
 import { useOrchestration }        from './useOrchestration'
 import { STATUS_COLORS }           from './canvasUtils'
 import { useIsMobile }             from '../../hooks/useViewport'
+import { alpha, hex, withAlpha } from '../../styles/tokens'
 
 function parseOrchImportText(text) {
   let raw
@@ -211,11 +212,11 @@ export default function Orchestrations({ connection, sessionId, onSessionExpired
           <div style={{
             position: 'fixed', bottom: 16, left: 16, right: 16, zIndex: 1100,
             padding: '10px 14px', borderRadius: 8, fontSize: 12,
-            background: importFeedback.kind === 'ok' ? 'rgba(52,211,153,.15)' : 'rgba(255,107,107,.15)',
-            border:     `1px solid ${importFeedback.kind === 'ok' ? 'rgba(52,211,153,.40)' : 'rgba(255,107,107,.40)'}`,
+            background: importFeedback.kind === 'ok' ? alpha.green(.15) : alpha.red(.15),
+            border:     `1px solid ${importFeedback.kind === 'ok' ? alpha.green(.40) : alpha.red(.40)}`,
             color:      importFeedback.kind === 'ok' ? 'var(--green)' : 'var(--red)',
             display: 'flex', gap: 12, alignItems: 'center',
-            boxShadow: '0 6px 20px rgba(0,0,0,.35)',
+            boxShadow: `0 6px 20px ${alpha.black(.35)}`,
           }}>
             <span style={{ flex: 1 }}>{importFeedback.kind === 'ok' ? '✓' : '✕'} {importFeedback.text}</span>
             <button onClick={() => setImportFeedback(null)} style={{
@@ -231,7 +232,7 @@ export default function Orchestrations({ connection, sessionId, onSessionExpired
             padding: '10px 14px', borderRadius: 8, fontSize: 12,
             background: 'rgba(251,191,36,.15)',
             border: '1px solid rgba(251,191,36,.4)', color: '#fbbf24',
-            boxShadow: '0 6px 20px rgba(0,0,0,.35)',
+            boxShadow: `0 6px 20px ${alpha.black(.35)}`,
           }}>
             ⚠ Tasks fuera de grupo: <strong>{orphanWarning}</strong>
           </div>
@@ -378,7 +379,7 @@ export default function Orchestrations({ connection, sessionId, onSessionExpired
             <button
               onClick={() => setFullscreen(false)}
               style={{
-                ...actionBtn('#a78bfa', false),
+                ...actionBtn(hex.purple, false),
                 fontWeight: 700, fontSize: 13, padding: '5px 12px',
               }}
               title="Salir de pantalla completa (Esc)"
@@ -428,7 +429,7 @@ export default function Orchestrations({ connection, sessionId, onSessionExpired
           {/* Auto-connect toggle */}
           <button
             onClick={() => setAutoConnect(v => !v)}
-            style={actionBtn(autoConnect ? '#34d399' : null, false, autoConnect)}
+            style={actionBtn(autoConnect ? hex.green : null, false, autoConnect)}
             title="Conectar automáticamente cada task al anterior al soltarlo en el canvas"
           >
             ⚡{autoConnect ? ' Auto ON' : ' Auto'}
@@ -449,7 +450,7 @@ export default function Orchestrations({ connection, sessionId, onSessionExpired
           {run && (
             <button
               onClick={() => setShowLogModal(true)}
-              style={actionBtn('#a78bfa', false)}
+              style={actionBtn(hex.purple, false)}
               title="Ver log de la última ejecución"
             >
               📋 Log
@@ -481,7 +482,7 @@ export default function Orchestrations({ connection, sessionId, onSessionExpired
           <button
             onClick={() => { if (checkBeforeRun()) setShowRunModal(true) }}
             disabled={isRunning || !hasNodes || starting}
-            style={actionBtn('#34d399', isRunning || !hasNodes || starting)}
+            style={actionBtn(hex.green, isRunning || !hasNodes || starting)}
           >
             {starting ? 'Iniciando…' : '▶ Iniciar'}
           </button>
@@ -490,7 +491,7 @@ export default function Orchestrations({ connection, sessionId, onSessionExpired
             <button
               onClick={handleCancel}
               disabled={cancelling}
-              style={actionBtn('#ff6b6b', cancelling)}
+              style={actionBtn(hex.red, cancelling)}
             >
               {cancelling ? 'Cancelando…' : '■ Cancelar'}
             </button>
@@ -576,11 +577,11 @@ export default function Orchestrations({ connection, sessionId, onSessionExpired
         <div style={{
           position: 'fixed', bottom: 20, right: 20, zIndex: 1100,
           padding: '10px 16px', borderRadius: 8, fontSize: 12,
-          background: importFeedback.kind === 'ok' ? 'rgba(52,211,153,.15)' : 'rgba(255,107,107,.15)',
-          border:     `1px solid ${importFeedback.kind === 'ok' ? 'rgba(52,211,153,.40)' : 'rgba(255,107,107,.40)'}`,
+          background: importFeedback.kind === 'ok' ? alpha.green(.15) : alpha.red(.15),
+          border:     `1px solid ${importFeedback.kind === 'ok' ? alpha.green(.40) : alpha.red(.40)}`,
           color:      importFeedback.kind === 'ok' ? 'var(--green)' : 'var(--red)',
           display: 'flex', gap: 12, alignItems: 'center',
-          boxShadow: '0 6px 20px rgba(0,0,0,.35)',
+          boxShadow: `0 6px 20px ${alpha.black(.35)}`,
         }}>
           <span>{importFeedback.kind === 'ok' ? '✓' : '✕'} {importFeedback.text}</span>
           <button
@@ -666,9 +667,9 @@ function actionBtn(color, disabled, active = false) {
   if (!color) color = '#64748b'
   return {
     padding: '5px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600,
-    background: disabled ? 'var(--bg3)' : active ? color + '22' : color + '15',
+    background: disabled ? 'var(--bg3)' : withAlpha(color, active ? .133 : .082),
     color:      disabled ? 'var(--text2)' : color,
-    border:     `1px solid ${disabled ? 'var(--border)' : active ? color + '55' : color + '30'}`,
+    border:     `1px solid ${disabled ? 'var(--border)' : withAlpha(color, active ? .333 : .188)}`,
     cursor:     disabled ? 'default' : 'pointer', transition: 'all .15s',
     flexShrink: 0,
   }

@@ -6,6 +6,7 @@ import Orchestrations from '../Orchestrations/Orchestrations'
 import ConnectionAvatar from '../Connections/ConnectionAvatar'
 import SapLoginModal from '../Connections/SapLoginModal'
 import { usePromotedTasks, PromotedTasksContext } from '../../hooks/usePromotedTasks'
+import { alpha } from '../../styles/tokens'
 
 const TABS = [
   { id: 'resumen',        label: 'Resumen'          },
@@ -129,7 +130,7 @@ export default function SystemView({ connection, onLoginCancel }) {
       {/* Session expired banner */}
       {sessionExpired && !showLogin && (
         <div style={{
-          background: 'rgba(255,107,107,.08)', borderBottom: '1px solid rgba(255,107,107,.25)',
+          background: alpha.red(.08), borderBottom: `1px solid ${alpha.red(.25)}`,
           padding: '8px 24px', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0,
         }}>
           <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--red)', flexShrink: 0 }} />

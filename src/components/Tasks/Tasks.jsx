@@ -5,6 +5,10 @@ import TechLogs from '../TechLogs'
 import { useTechLogs } from '../../hooks/useTechLogs'
 import { usePromotedTasksContext, isTaskPromoted } from '../../hooks/usePromotedTasks'
 import { soapCall } from '../../api/soapCall'
+import { selectStyle, labelStyle } from '../../styles/forms'
+import Field from '../ui/Field'
+import { primaryBtn, secondaryBtn, softBtn, toolbarBtn } from '../../styles/buttons'
+import { alpha } from '../../styles/tokens'
 
 export default function Tasks({ connection, sessionId, onSessionExpired, onTaskRun }) {
   const PINS_KEY = `ibp-project-pins-${connection.id}`
@@ -145,21 +149,15 @@ export default function Tasks({ connection, sessionId, onSessionExpired, onTaskR
             <button
               onClick={clearPins}
               title="Quitar todos los fijados"
-              style={{
-                background: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: 6,
-                color: 'var(--text3)', fontSize: 11, fontWeight: 600, padding: '6px 10px', cursor: 'pointer',
-              }}
+              style={{ ...toolbarBtn, color: 'var(--text3)', padding: '6px 10px' }}
             >Limpiar</button>
           )}
-          <button onClick={load} disabled={loadingP} style={{
-            background: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: 6,
-            color: 'var(--text2)', fontSize: 11, fontWeight: 600, padding: '6px 12px', cursor: 'pointer',
-          }}>↺ Refresh</button>
+          <button onClick={load} disabled={loadingP} style={toolbarBtn}>↺ Refresh</button>
         </div>
       </div>
 
       {error && (
-        <div style={{ background: 'rgba(255,107,107,.1)', border: '1px solid rgba(255,107,107,.3)', borderRadius: 8, padding: '12px 16px', color: 'var(--red)', fontSize: 12, marginBottom: 14 }}>
+        <div style={{ background: alpha.red(.1), border: `1px solid ${alpha.red(.3)}`, borderRadius: 8, padding: '12px 16px', color: 'var(--red)', fontSize: 12, marginBottom: 14 }}>
           ✕ {error}
         </div>
       )}
@@ -187,7 +185,7 @@ export default function Tasks({ connection, sessionId, onSessionExpired, onTaskR
                 onClick={() => toggleProject(proj)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 10, padding: '11px 16px',
-                  cursor: 'pointer', background: isExp ? 'rgba(247,168,0,.05)' : 'transparent',
+                  cursor: 'pointer', background: isExp ? alpha.accent(.05) : 'transparent',
                   transition: 'background .15s',
                 }}
                 onMouseEnter={e => { if (!isExp) e.currentTarget.style.background = 'var(--bg2)' }}
@@ -380,8 +378,8 @@ function RunModal({ task, connection, sessionId, onClose, onSuccess, addLog, onT
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500 }}>
-      <div style={{ background: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: 12, padding: 28, width: 'min(520px, 94vw)', maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 16px 48px rgba(0,0,0,.6)' }}>
+    <div style={{ position: 'fixed', inset: 0, background: alpha.black(.65), display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500 }}>
+      <div style={{ background: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: 12, padding: 28, width: 'min(520px, 94vw)', maxHeight: '85vh', overflowY: 'auto', boxShadow: `0 16px 48px ${alpha.black(.6)}` }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: '#fff', marginBottom: 4 }}>▶ Ejecutar task</div>
         <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 20 }}>{task.taskName}</div>
 
@@ -390,26 +388,24 @@ function RunModal({ task, connection, sessionId, onClose, onSuccess, addLog, onT
         {step === 'form' && (
           <>
             {/* Agent selector */}
-            <div style={{ marginBottom: 14 }}>
-              <label style={labelStyle}>Agente (opcional)</label>
+            <Field label="Agente (opcional)" gap={14}>
               <select value={agentName} onChange={e => setAgentName(e.target.value)} style={selectStyle}>
                 <option value="">— Sin especificar —</option>
                 {agents.map(a => (
                   <option key={a.guid} value={a.name}>{a.name} ({a.agentStatus?.replace('AGENT:', '')})</option>
                 ))}
               </select>
-            </div>
+            </Field>
 
             {/* Profile selector */}
-            <div style={{ marginBottom: 14 }}>
-              <label style={labelStyle}>Configuración del sistema (opcional)</label>
+            <Field label="Configuración del sistema (opcional)" gap={14}>
               <select value={profileName} onChange={e => setProfileName(e.target.value)} style={selectStyle}>
                 <option value="">— Sin especificar —</option>
                 {profiles.map(p => (
                   <option key={p.guid} value={p.name}>{p.name}</option>
                 ))}
               </select>
-            </div>
+            </Field>
 
             {/* Global variables */}
             {(taskInfo?.globalVariables || []).length > 0 && (
@@ -435,8 +431,8 @@ function RunModal({ task, connection, sessionId, onClose, onSuccess, addLog, onT
             )}
 
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 8 }}>
-              <button onClick={onClose} style={{ padding: '7px 18px', borderRadius: 6, border: '1px solid var(--border)', background: 'none', color: 'var(--text2)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Cancelar</button>
-              <button onClick={handleRun} style={{ padding: '7px 18px', borderRadius: 6, border: 'none', background: 'var(--accent)', color: '#000', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>▶ Ejecutar</button>
+              <button onClick={onClose} style={secondaryBtn}>Cancelar</button>
+              <button onClick={handleRun} style={primaryBtn}>▶ Ejecutar</button>
             </div>
           </>
         )}
@@ -450,8 +446,8 @@ function RunModal({ task, connection, sessionId, onClose, onSuccess, addLog, onT
               RunID: <span style={{ fontFamily: 'var(--mono)', color: 'var(--text)' }}>{runId}</span>
             </div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-              <button onClick={onSuccess} style={{ padding: '7px 18px', borderRadius: 6, border: '1px solid var(--border)', background: 'none', color: 'var(--text2)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Cerrar</button>
-              <button onClick={() => { onTaskRun?.(task.taskName); onClose() }} style={{ padding: '7px 18px', borderRadius: 6, border: 'none', background: 'var(--accent)', color: '#000', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>▶ Ver en Task Monitor →</button>
+              <button onClick={onSuccess} style={secondaryBtn}>Cerrar</button>
+              <button onClick={() => { onTaskRun?.(task.taskName); onClose() }} style={primaryBtn}>▶ Ver en Task Monitor →</button>
             </div>
           </div>
         )}
@@ -460,8 +456,8 @@ function RunModal({ task, connection, sessionId, onClose, onSuccess, addLog, onT
           <div>
             <div style={{ color: 'var(--red)', fontSize: 12, marginBottom: 16 }}>✕ {errMsg}</div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={onClose} style={{ padding: '7px 18px', borderRadius: 6, border: '1px solid var(--border)', background: 'none', color: 'var(--text2)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Cerrar</button>
-              <button onClick={() => setStep('loading')} style={{ padding: '7px 18px', borderRadius: 6, border: 'none', background: 'var(--bg3)', color: 'var(--text)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Reintentar</button>
+              <button onClick={onClose} style={secondaryBtn}>Cerrar</button>
+              <button onClick={() => setStep('loading')} style={{ ...softBtn, padding: '7px 18px', fontSize: 12, color: 'var(--text)' }}>Reintentar</button>
             </div>
           </div>
         )}
@@ -470,5 +466,3 @@ function RunModal({ task, connection, sessionId, onClose, onSuccess, addLog, onT
   )
 }
 
-const labelStyle = { fontSize: 10, fontWeight: 700, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '.07em', display: 'block', marginBottom: 5 }
-const selectStyle = { background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text)', fontSize: 12, padding: '7px 10px', width: '100%', outline: 'none', cursor: 'pointer' }

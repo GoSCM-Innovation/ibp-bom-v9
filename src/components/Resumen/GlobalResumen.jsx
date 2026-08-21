@@ -7,30 +7,12 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend,
 } from 'recharts'
 import { soapCall } from '../../api/soapCall'
+import { taskStatus, TASK_STATUS } from '../../constants/status'
+import { filterInputStyle as inputStyle } from '../../styles/forms'
+import { toolbarBtn } from '../../styles/buttons'
+import { alpha, hex, withAlpha } from '../../styles/tokens'
 
 const REFRESH_MS = 5 * 60 * 1000
-
-const STATUS_COLORS = {
-  'RUNNING':               '#3b82f6',
-  'SUCCESS':               '#34d399',
-  'SUCCESS_WITH_ERRORS_D': '#fbbf24',
-  'SUCCESS_WITH_ERRORS_E': '#f97316',
-  'ERROR':                 '#ff6b6b',
-  'QUEUEING':              '#8b5cf6',
-  'IMPORTED':              '#06b6d4',
-  'FETCHED':               '#22d3ee',
-  'TERMINATED':            '#9ca3af',
-  'TERMINATION_FAILED':    '#ef4444',
-  'UNKNOWN':               '#6b7280',
-}
-
-const STATUS_LABELS = {
-  'RUNNING': 'Running', 'SUCCESS': 'Success',
-  'SUCCESS_WITH_ERRORS_D': 'Success w/err D', 'SUCCESS_WITH_ERRORS_E': 'Success w/err E',
-  'ERROR': 'Error', 'QUEUEING': 'Queueing', 'IMPORTED': 'Imported',
-  'FETCHED': 'Fetched', 'TERMINATED': 'Terminated',
-  'TERMINATION_FAILED': 'Termination failed', 'UNKNOWN': 'Unknown',
-}
 
 function computeRate(success, warnings, total) {
   if (total <= 0) return null
@@ -56,7 +38,7 @@ function buildChartData(rows, tzMode) {
   const statusCount = {}
   rows.forEach(r => { statusCount[r.statusCode] = (statusCount[r.statusCode] || 0) + 1 })
   const donutData = Object.entries(statusCount)
-    .map(([code, count]) => ({ name: STATUS_LABELS[code] || code, value: count, code }))
+    .map(([code, count]) => ({ name: taskStatus(code).chartLabel, value: count, code }))
     .sort((a, b) => b.value - a.value)
 
   const dayMap = {}
@@ -282,7 +264,7 @@ export default function GlobalResumen({ connections, onOpenConnection }) {
           <input type="datetime-local" value={fromDate} onChange={e => setFromDate(e.target.value)} style={inputStyle} />
           <span style={{ color: 'var(--text2)', fontSize: 11 }}>→</span>
           <input type="datetime-local" value={toDate}   onChange={e => setToDate(e.target.value)}   style={inputStyle} />
-          <button onClick={loadAll} disabled={loadingAll} style={{ background: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: 6, color: 'var(--text2)', fontSize: 11, fontWeight: 600, padding: '6px 12px', cursor: 'pointer' }}>↺ Refresh</button>
+          <button onClick={loadAll} disabled={loadingAll} style={toolbarBtn}>↺ Refresh</button>
           <span style={{ fontSize: 10, color: 'var(--text3)', padding: '4px 8px', background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 6 }}>Auto-refresh 5 min</span>
         </div>
       </div>
@@ -342,8 +324,8 @@ export default function GlobalResumen({ connections, onOpenConnection }) {
       {/* Validation banner — shows refresh result for the visible set */}
       {visibleConns.length > 0 && !loadingAll && lastRefresh && (counts.ok < visibleConns.length) && (
         <div style={{
-          background: allNoSession ? 'rgba(247,168,0,.08)' : 'rgba(255,255,255,.03)',
-          border: `1px solid ${allNoSession ? 'rgba(247,168,0,.25)' : 'var(--border)'}`,
+          background: allNoSession ? alpha.accent(.08) : alpha.white(.03),
+          border: `1px solid ${allNoSession ? alpha.accent(.25) : 'var(--border)'}`,
           borderRadius: 8, padding: '10px 14px', fontSize: 12, color: 'var(--text2)', marginBottom: 20,
           display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
         }}>
@@ -402,7 +384,7 @@ export default function GlobalResumen({ connections, onOpenConnection }) {
                   onClick={() => onOpenConnection(conn.id)}
                   title="Abrir conexión para iniciar sesión SAP"
                   style={{
-                    background: 'rgba(247,168,0,.12)', border: '1px solid rgba(247,168,0,.35)',
+                    background: alpha.accent(.12), border: `1px solid ${alpha.accent(.35)}`,
                     borderRadius: 5, color: 'var(--accent)', fontSize: 10, fontWeight: 700,
                     padding: '4px 9px', cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap',
                   }}
@@ -477,7 +459,7 @@ export default function GlobalResumen({ connections, onOpenConnection }) {
                 <ResponsiveContainer width="100%" height={220}>
                   <PieChart>
                     <Pie data={donutData} cx="50%" cy="50%" innerRadius={55} outerRadius={85} paddingAngle={2} dataKey="value">
-                      {donutData.map((entry, i) => <Cell key={i} fill={STATUS_COLORS[entry.code] || '#6b7280'} />)}
+                      {donutData.map((entry, i) => <Cell key={i} fill={taskStatus(entry.code).color} />)}
                     </Pie>
                     <Tooltip contentStyle={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 11 }} />
                   </PieChart>
@@ -486,7 +468,7 @@ export default function GlobalResumen({ connections, onOpenConnection }) {
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 12px', marginTop: 8 }}>
                 {donutData.map((d, i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: 'var(--text2)' }}>
-                    <div style={{ width: 8, height: 8, borderRadius: 2, background: STATUS_COLORS[d.code] || '#6b7280', flexShrink: 0 }} />
+                    <div style={{ width: 8, height: 8, borderRadius: 2, background: taskStatus(d.code).color, flexShrink: 0 }} />
                     {d.name} ({d.value})
                   </div>
                 ))}
@@ -503,9 +485,9 @@ export default function GlobalResumen({ connections, onOpenConnection }) {
                     <YAxis tick={{ fontSize: 10, fill: 'var(--text2)' }} allowDecimals={false} />
                     <Tooltip contentStyle={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 11 }} />
                     <Legend wrapperStyle={{ fontSize: 11, color: 'var(--text2)' }} />
-                    <Bar dataKey="Exitosas" stackId="a" fill="#34d399" />
-                    <Bar dataKey="Fallidas" stackId="a" fill="#ff6b6b" />
-                    <Bar dataKey="Otras"    stackId="a" fill="#6b7280" radius={[3, 3, 0, 0]} />
+                    <Bar dataKey="Exitosas" stackId="a" fill={TASK_STATUS.SUCCESS.color} />
+                    <Bar dataKey="Fallidas" stackId="a" fill={TASK_STATUS.ERROR.color} />
+                    <Bar dataKey="Otras"    stackId="a" fill={TASK_STATUS.UNKNOWN.color} radius={[3, 3, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               )}
@@ -573,12 +555,12 @@ function ChartPill({ active, onClick, label, count, conn }) {
 
 function EnvBadge({ isProduction, inverted = false }) {
   const prod = !!isProduction
-  const bg   = prod ? 'rgba(52,211,153,.18)' : 'rgba(247,168,0,.18)'
-  const fg   = prod ? '#34d399' : '#f7a800'
+  const bg   = prod ? alpha.green(.18) : alpha.accent(.18)
+  const fg   = prod ? hex.green : hex.accent
   // When sitting on an accent (yellow) background, swap to a darker readable style
   const style = inverted
-    ? { background: 'rgba(0,0,0,.18)', color: '#000', border: '1px solid rgba(0,0,0,.25)' }
-    : { background: bg, color: fg, border: `1px solid ${fg}33` }
+    ? { background: alpha.black(.18), color: '#000', border: `1px solid ${alpha.black(.25)}` }
+    : { background: bg, color: fg, border: `1px solid ${withAlpha(fg, .2)}` }
   return (
     <span style={{
       ...style,
@@ -669,4 +651,3 @@ function Empty() {
 
 const cardStyle  = { background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 10, padding: '16px 18px' }
 const cardTitle  = { fontSize: 11, fontWeight: 700, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 12 }
-const inputStyle = { background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text)', fontSize: 11, padding: '6px 10px', outline: 'none' }

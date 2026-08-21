@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react'
+import { alpha } from '../../../styles/tokens'
 
 // A single row in the wizard listing. Handles tap (config) and swipe-left (delete).
 // Visual variants:
@@ -71,7 +72,7 @@ export default function WizardStep({
   }
 
   return (
-    <div style={{ position: 'relative', background: 'rgba(255,107,107,.12)' }}>
+    <div style={{ position: 'relative', background: alpha.red(.12) }}>
       {/* Delete affordance behind the row */}
       {onDelete && (
         <div style={{
@@ -94,7 +95,7 @@ export default function WizardStep({
           display: 'flex', alignItems: 'center', gap: 10,
           padding: `12px 14px 12px ${indent}px`,
           minHeight: 'var(--tap-min)',
-          background: isGroupOpen ? 'rgba(247,168,0,.04)' : 'var(--bg2)',
+          background: isGroupOpen ? alpha.accent(.04) : 'var(--bg2)',
           borderBottom: '1px solid var(--border)',
           cursor: onTap ? 'pointer' : 'default',
           transform: `translateX(${tx}px)`,
@@ -152,7 +153,7 @@ export default function WizardStep({
         <div style={{
           height: 3, background: 'var(--accent)',
           marginLeft: indent, marginRight: 14,
-          boxShadow: '0 0 8px rgba(247,168,0,.55)',
+          boxShadow: `0 0 8px ${alpha.accent(.55)}`,
         }} />
       )}
     </div>

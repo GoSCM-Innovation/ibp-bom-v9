@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { primaryBtn, secondaryBtn } from '../../styles/buttons'
 
 export default function ConnectionForm({ initial, onSave, onCancel }) {
   const [form, setForm] = useState({
@@ -82,14 +83,8 @@ export default function ConnectionForm({ initial, onSave, onCancel }) {
       {error && <div style={{ marginTop: 4, fontSize: 12, color: 'var(--red)' }}>✕ {error}</div>}
 
       <div style={{ display: 'flex', gap: 10, marginTop: 20, justifyContent: 'flex-end' }}>
-        <button type="button" onClick={onCancel} style={{
-          background: 'none', border: '1px solid var(--border2)', borderRadius: 6,
-          color: 'var(--text2)', fontSize: 12, fontWeight: 600, padding: '7px 18px',
-        }}>Cancelar</button>
-        <button type="button" onClick={handleSave} style={{
-          background: 'var(--accent)', border: 'none', borderRadius: 6,
-          color: '#000', fontSize: 12, fontWeight: 700, padding: '7px 18px',
-        }}>{initial ? 'Guardar cambios' : 'Crear conexiones'}</button>
+        <button type="button" onClick={onCancel} style={secondaryBtn}>Cancelar</button>
+        <button type="button" onClick={handleSave} style={primaryBtn}>{initial ? 'Guardar cambios' : 'Crear conexiones'}</button>
       </div>
     </div>
   )

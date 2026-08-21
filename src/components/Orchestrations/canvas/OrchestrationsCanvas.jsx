@@ -8,12 +8,13 @@ import '@xyflow/react/dist/style.css'
 import TaskNode  from './TaskNode'
 import GroupNode from './GroupNode'
 import { STATUS_COLORS, autoLayout, hasCycle } from '../canvasUtils'
+import { alpha } from '../../../styles/tokens'
 
 const NODE_TYPES = { orchTask: TaskNode, orchGroup: GroupNode }
 
 const EDGE_DEFAULTS = {
   type: 'smoothstep',
-  style: { stroke: '#2e4168', strokeWidth: 1.5 },
+  style: { stroke: 'var(--border2)', strokeWidth: 1.5 },
   animated: false,
 }
 
@@ -72,7 +73,7 @@ function toRFEdges(edges, run, nodes = []) {
     const animated = sourceNs?.status === 'success' && targetNs?.status === 'running'
     return {
       ...e, ...EDGE_DEFAULTS,
-      style: { stroke: animated ? '#F7A800' : '#2e4168', strokeWidth: 1.5 },
+      style: { stroke: animated ? 'var(--accent)' : 'var(--border2)', strokeWidth: 1.5 },
       animated,
     }
   })
@@ -425,7 +426,7 @@ function CanvasInner({
         {cycleErr && (
           <Panel position="top-center" style={{ margin: 8 }}>
             <div style={{
-              background: 'rgba(255,107,107,.15)', border: '1px solid rgba(255,107,107,.4)',
+              background: alpha.red(.15), border: `1px solid ${alpha.red(.4)}`,
               borderRadius: 6, padding: '6px 12px', fontSize: 11, color: 'var(--red)',
             }}>
               ⚠ Ciclo detectado — esa conexión crearía un bucle
