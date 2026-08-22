@@ -123,6 +123,7 @@ Quedan fuera los botones que son de verdad únicos: el FAB del wizard móvil, la
 - aparece un hex de ocho dígitos (el canal alfa va por `alpha.*()`),
 - se usa `'#fff'` o `'#000'` en vez de `color.white` / `color.onAccent`,
 - alguien redefine `inputStyle`/`selectStyle`/`labelStyle` por su cuenta,
+- se deriva un tinte concatenando el alfa al hex (`color + '22'`, `` `${color}33` ``) en vez de usar `withAlpha()`,
 - un `padding`, `margin`, `gap`, `fontSize` o `borderRadius` usa un valor fuera de escala,
 - algo completamente redondeado usa un radio grande en vez de `radius.pill`.
 

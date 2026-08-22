@@ -12,7 +12,7 @@ Severidad: critical (riesgo alto o bloquea evolución), high (impacto fuerte en 
 | 2 | ~~high~~ | ~~Errores de lint preexistentes~~ - resuelto, ver abajo | [#2](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/2) |
 | 3 | ~~high~~ | ~~Estilos inline sin design system~~ — resuelto, ver abajo | [#3](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/3) |
 | 4 | ~~high~~ | ~~Constantes de estado (STATUS) duplicadas~~ — resuelto, ver abajo | [#4](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/4) |
-| 5 | high | `useOrchestration` con demasiadas responsabilidades | [#5](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/5) |
+| 5 | ~~high~~ | ~~`useOrchestration` con demasiadas responsabilidades~~ — resuelto, ver abajo | [#5](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/5) |
 | 6 | high | `VITE_API_TOKEN` público de facto | [#6](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/6) |
 | 7 | ~~medium~~ | ~~Estilos de formulario duplicados~~ — resuelto, ver abajo | [#7](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/7) |
 | 8 | medium | Prop drilling de `connection`/`sessionId` | [#8](https://github.com/GoSCM-Innovation/ibp-bom-v9/issues/8) |
@@ -65,9 +65,8 @@ Ver "Resuelto recientemente". Lo que queda es el hover simulado en JS, que se tr
 ### 4. Constantes de estado duplicadas (resuelto)
 Ver "Resuelto recientemente".
 
-### 5. `useOrchestration` hace demasiado (high)
-[src/components/Orchestrations/useOrchestration.js](../src/components/Orchestrations/useOrchestration.js) mezcla CRUD, ejecución, polling, notificaciones y migración de datos en un solo hook.
-Recomendación: separar en hooks por responsabilidad (CRUD, run, polling).
+### 5. `useOrchestration` hace demasiado (resuelto)
+Ver "Resuelto recientemente".
 
 ### 6. `VITE_API_TOKEN` público de facto (high)
 El token de API queda embebido en el bundle del frontend. Ver [SECURITY.md](SECURITY.md).
@@ -97,6 +96,32 @@ El build emite un solo chunk JS de ~950 KB (warning de Vite por >500 KB).
 Recomendación: code-splitting con `import()` dinámico (p. ej. lazy-load del canvas de orquestación o los gráficos).
 
 ## Resuelto recientemente
+
+### Separacion de `useOrchestration` (issue #5)
+
+El hook pasa de 305 lineas y seis responsabilidades a 45 que son solo composicion:
+
+| Modulo | Responsabilidad |
+|---|---|
+| [hooks/useOrchestrationCrud.js](../src/components/Orchestrations/hooks/useOrchestrationCrud.js) | Lista, seleccion, alta, baja y modificacion |
+| [hooks/useOrchestrationRun.js](../src/components/Orchestrations/hooks/useOrchestrationRun.js) | Estado de corrida y las tres acciones (start, resume, cancel) |
+| [hooks/usePolling.js](../src/components/Orchestrations/hooks/usePolling.js) | Intervalo generico, sin saber de orquestaciones |
+| [hooks/useOrchestrationTransfer.js](../src/components/Orchestrations/hooks/useOrchestrationTransfer.js) | Export e import en JSON |
+| [api.js](../src/components/Orchestrations/api.js) | Cliente de `/api/orchestrations` y `/api/orchestrate` |
+| [runNotifications.js](../src/components/Orchestrations/runNotifications.js) | Avisos del navegador |
+
+El contrato publico no cambio: `Orchestrations.jsx` desestructura las mismas 21 claves y no se toco.
+
+**Metodo.** Primero 36 tests de caracterizacion contra la implementacion vieja ([useOrchestration.test.jsx](../tests/src/useOrchestration.test.jsx)), verificados negativamente; despues la separacion, sin modificar ni un test. Mas 19 tests para las piezas que la separacion hizo testeables por separado.
+
+**Lo que la separacion dejo a la vista:**
+
+- Habia **tres mecanismos** para detener el mismo intervalo: una rama `else` en el efecto, un `clearInterval` dentro del propio tick, y el cleanup del efecto. Se comprobo quitando los dos primeros que el polling se seguia deteniendo. `usePolling` deja solo el cleanup.
+- Las seis operaciones CRUD repetian el mismo bloque de `fetch`. La de importacion masiva ademas difería: usaba `data.error || HTTP ${status}` mientras las otras solo `data.error`, que deja el mensaje en `undefined` si el backend responde un error sin cuerpo. Se unifica en la forma completa.
+- `start` y `resume` eran casi identicas; ahora comparten una funcion y solo difieren en el cuerpo y en si piden permiso de notificacion.
+- El 401 de `/api/orchestrate` significa **sesion SAP expirada**, no falta de auth de API. El cliente lo devuelve marcado en vez de lanzar, para que el llamador no tenga que interpretar codigos HTTP.
+
+Aparte, las diez concatenaciones de alfa al hex que quedaban (`color + '22'`, `` `${color}33` ``) pasan a `withAlpha()`, con una guarda nueva que las bloquea. Tres estaban en la forma `${x}33`, que el barrido del design system no habia detectado.
 
 ### Design system (issues #3, #4 y #7)
 

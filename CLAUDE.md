@@ -18,7 +18,7 @@ CIDS Studio: SPA de React (Vite) para monitorear y orquestar tareas de SAP CI-DS
 ## Mapa del repo
 
 - `api/`: funciones serverless (helpers con prefijo `_`: `_auth`, `_cors`, `_ssrf`). Núcleo SOAP en `api/soap.js`; motor de orquestación en `api/orchestrate.js`.
-- `src/`: frontend React. `src/api/soapCall.js` es el cliente SOAP compartido. Componentes por feature en `src/components/`. Estilos compartidos en `src/styles/` (tokens, formularios, botones) y constantes de estado en `src/constants/status.js`.
+- `src/`: frontend React. `src/api/soapCall.js` es el cliente SOAP compartido. Componentes por feature en `src/components/`. Estilos compartidos en `src/styles/` (tokens, formularios, botones) y constantes de dominio en `src/constants/` (estados de SAP, tipo de task, colores de avatar). La feature de orquestaciones tiene su propio cliente de API (`src/components/Orchestrations/api.js`) y sus hooks separados por responsabilidad en `hooks/`.
 - `public/legacy/`: módulos heredados en vanilla JS (Explorer, Mapping Dataflow) embebidos en iframe. No se modifica su código, pero sí se lintea: tiene un bloque propio en `eslint.config.js` con `sourceType: 'script'` y los globals compartidos declarados (son scripts globales cargados con `<script src>` en orden fijo, no módulos ES). Al agregar un global nuevo a esos scripts hay que declararlo también ahí. Doc detallada: `docs/MODULOS-LEGACY.md`.
 - `tests/`: tests con Vitest, espejando `api/` y `src/`. No se co-locan porque Vercel trata todo archivo dentro de `api/` como función serverless.
 - `docs/`: documentación.
