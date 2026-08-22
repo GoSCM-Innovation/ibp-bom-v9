@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import { alpha } from '../../../styles/tokens'
+import { alpha, withAlpha } from '../../../styles/tokens'
 
 // A single row in the wizard listing. Handles tap (config) and swipe-left (delete).
 // Visual variants:
@@ -141,7 +141,7 @@ export default function WizardStep({
               <span style={{
                 width: 9, height: 9, borderRadius: '50%',
                 background: statusColor, flexShrink: 0,
-                boxShadow: `0 0 0 2px ${statusColor}33`,
+                boxShadow: `0 0 0 2px ${withAlpha(statusColor, .2)}`,
               }} />
             )}
             <span style={{ fontSize: 16, color: 'var(--text3)', flexShrink: 0 }}>›</span>

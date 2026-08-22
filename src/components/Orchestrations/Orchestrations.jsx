@@ -62,7 +62,7 @@ function RunBadge({ status }) {
   return (
     <span style={{
       fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 10,
-      background: color + '22', color, border: `1px solid ${color}44`,
+      background: withAlpha(color, .133), color, border: `1px solid ${withAlpha(color, .267)}`,
       fontFamily: 'var(--mono)',
     }}>
       {labels[status] || status}

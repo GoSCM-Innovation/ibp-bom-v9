@@ -27,7 +27,7 @@ function StatusBadge({ status }) {
   return (
     <span style={{
       fontSize: 9, padding: '1px 6px', borderRadius: 8, fontFamily: 'var(--mono)', fontWeight: 700,
-      background: color + '22', color, border: `1px solid ${color}44`, flexShrink: 0,
+      background: withAlpha(color, .133), color, border: `1px solid ${withAlpha(color, .267)}`, flexShrink: 0,
     }}>
       {STATUS_LABEL[status] || status}
     </span>
@@ -167,7 +167,7 @@ export default function RunLogModal({ run, connection, sessionId, nodes = [], on
             <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>Log de ejecución</span>
             <span style={{
               fontSize: 10, padding: '2px 8px', borderRadius: 10, fontFamily: 'var(--mono)', fontWeight: 700,
-              background: overallColor + '22', color: overallColor, border: `1px solid ${overallColor}44`,
+              background: withAlpha(overallColor, .133), color: overallColor, border: `1px solid ${withAlpha(overallColor, .267)}`,
             }}>{run.status}</span>
             <span style={{ fontSize: 10, color: 'var(--text3)', fontFamily: 'var(--mono)' }}>
               {formatTime(run.startedAt)} · {duration(run.startedAt, run.finishedAt)}

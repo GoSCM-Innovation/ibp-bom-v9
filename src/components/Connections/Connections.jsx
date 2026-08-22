@@ -6,7 +6,7 @@ import ImportConnectionsModal from './ImportConnectionsModal'
 import TechLogs from '../TechLogs'
 import { useTechLogs } from '../../hooks/useTechLogs'
 import { primaryBtn, secondaryBtn } from '../../styles/buttons'
-import { alpha, color, radius } from '../../styles/tokens'
+import { alpha, color, radius, withAlpha } from '../../styles/tokens'
 
 const EXPORT_VERSION = '1.0'
 
@@ -378,7 +378,7 @@ const secondaryBtnStyle = {
 
 function btnStyle(color) {
   return {
-    background: 'none', border: `1px solid ${color}33`,
+    background: 'none', border: `1px solid ${withAlpha(color, .2)}`,
     borderRadius: 6, color, fontSize: 11, fontWeight: 600,
     padding: '4px 12px', transition: 'all .15s',
   }

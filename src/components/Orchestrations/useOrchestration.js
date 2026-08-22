@@ -1,305 +1,45 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
-import { migrateStepsToGraph } from './canvasUtils'
+import { useOrchestrationCrud } from './hooks/useOrchestrationCrud'
+import { useOrchestrationRun } from './hooks/useOrchestrationRun'
+import { useOrchestrationTransfer } from './hooks/useOrchestrationTransfer'
 
-const POLL_MS = 5000
-const TERMINAL = new Set(['success', 'error', 'cancelled'])
-
+// Composicion de los tres hooks de orquestacion. Existe para que
+// Orchestrations.jsx siga consumiendo una sola cosa; la logica vive en:
+//
+//   useOrchestrationCrud     lista, seleccion, alta/baja/modificacion
+//   useOrchestrationRun      estado de corrida, polling y las tres acciones
+//   useOrchestrationTransfer export e import en JSON
+//
+// El unico acoplamiento entre ellos es el que el dominio exige: run necesita
+// saber que orquestacion esta seleccionada y como se llama (para el aviso del
+// navegador), y transfer necesita la lista y poder recargarla.
 export function useOrchestration(connection, sessionId, onSessionExpired) {
-  const [orchs, setOrchs]     = useState([])
-  const [selectedId, setSelectedId] = useState(null)
-  const [run, setRun]         = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError]     = useState(null)
-  const [saving, setSaving]   = useState(false)
-  const [starting, setStarting]   = useState(false)
-  const [cancelling, setCancelling] = useState(false)
-  const pollRef          = useRef(null)
-  const prevStatusRef    = useRef(null)
-  const orchNameRef      = useRef('')
-
-  const selected  = orchs.find(o => o.id === selectedId) || null
-  const isRunning = run?.status === 'running'
-
-  useEffect(() => { orchNameRef.current = selected?.name || '' }, [selected?.name])
-
-  // ── Load orchestrations ──────────────────────────────────────────────────
-  const loadOrchs = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/orchestrations?connectionId=${connection.id}`)
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const data = await res.json()
-      setOrchs(data.map(migrateStepsToGraph))
-    } catch (e) {
-      setError(e.message)
-    } finally {
-      setLoading(false)
-    }
-  }, [connection.id])
-
-  useEffect(() => { loadOrchs() }, [loadOrchs])
-
-  // ── Load run state on selection change ───────────────────────────────────
-  useEffect(() => {
-    if (!selectedId) { setRun(null); return }
-    fetch(`/api/orchestrate?orchestrationId=${selectedId}`)
-      .then(r => r.json()).then(setRun).catch(() => setRun(null))
-  }, [selectedId])
-
-  // ── Polling ──────────────────────────────────────────────────────────────
-  function fireNotification(status) {
-    if (!('Notification' in window) || Notification.permission !== 'granted') return
-    const body = { success: 'Completada correctamente', error: 'Finalizó con error', cancelled: 'Cancelada' }
-    new Notification(orchNameRef.current || 'Orquestación', { body: body[status] || status })
-  }
-
-  const doTick = useCallback(async () => {
-    if (!selectedId) return
-    try {
-      const res  = await fetch(`/api/orchestrate?orchestrationId=${selectedId}&action=tick`)
-      const data = await res.json()
-      if (data && TERMINAL.has(data.status) && prevStatusRef.current === 'running') {
-        fireNotification(data.status)
-      }
-      prevStatusRef.current = data?.status || null
-      setRun(data)
-      if (data && TERMINAL.has(data.status)) {
-        clearInterval(pollRef.current); pollRef.current = null
-      }
-    } catch { /* silent */ }
-  }, [selectedId])
-
-  useEffect(() => {
-    if (isRunning && !pollRef.current) pollRef.current = setInterval(doTick, POLL_MS)
-    else if (!isRunning && pollRef.current) { clearInterval(pollRef.current); pollRef.current = null }
-    return () => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null } }
-  }, [isRunning, doTick])
-
-  // ── CRUD ──────────────────────────────────────────────────────────────────
-  async function createOrch() {
-    const name = prompt('Nombre de la nueva orquestación:')?.trim()
-    if (!name) return
-    try {
-      const res = await fetch('/api/orchestrations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ connectionId: connection.id, name }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
-      const migrated = migrateStepsToGraph(data)
-      setOrchs(prev => [...prev, migrated])
-      setSelectedId(migrated.id)
-    } catch (e) { alert(e.message) }
-  }
-
-  async function duplicateOrch(id) {
-    try {
-      const res = await fetch('/api/orchestrations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'duplicate', id }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
-      const migrated = migrateStepsToGraph(data)
-      setOrchs(prev => [...prev, migrated])
-      setSelectedId(migrated.id)
-    } catch (e) { alert(e.message) }
-  }
-
-  async function deleteOrch(id) {
-    if (!confirm('¿Eliminar esta orquestación?')) return
-    try {
-      const res = await fetch('/api/orchestrations', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
-      setOrchs(prev => prev.filter(o => o.id !== id))
-      if (selectedId === id) setSelectedId(null)
-    } catch (e) { alert(e.message) }
-  }
-
-  async function saveGraph(nodes, edges) {
-    if (!selectedId) return
-    // Optimistic: update local state immediately so controlled inputs don't revert
-    // while the PUT request is in flight
-    setOrchs(prev => prev.map(o => o.id === selectedId ? { ...o, nodes, edges } : o))
-    setSaving(true)
-    try {
-      const res = await fetch('/api/orchestrations', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: selectedId, nodes, edges }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
-    } catch (e) { console.error('Save error:', e.message) }
-    setSaving(false)
-  }
-
-  async function commitName(name) {
-    if (!name?.trim() || !selectedId) return
-    try {
-      const res = await fetch('/api/orchestrations', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: selectedId, name }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
-      setOrchs(prev => prev.map(o => o.id === selectedId ? { ...o, name } : o))
-    } catch (e) { alert(e.message) }
-  }
-
-  async function handleStart({ agentName = null, profileName = null, globalVariables = [] } = {}) {
-    if (!selectedId || isRunning || starting) return
-    setStarting(true)
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission()
-    }
-    prevStatusRef.current = null
-    try {
-      const res = await fetch('/api/orchestrate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          orchestrationId: selectedId, action: 'start',
-          connection: { hciUrl: connection.hciUrl, orgName: connection.orgName, isProduction: connection.isProduction },
-          sessionId,
-          defaultAgent: agentName || null, defaultProfile: profileName || null,
-          globalVariables: globalVariables || [],
-        }),
-      })
-      const data = await res.json()
-      if (res.status === 401) { onSessionExpired?.(); setStarting(false); return }
-      if (!res.ok) throw new Error(data.error)
-      setRun(data)
-    } catch (e) { alert(e.message) }
-    setStarting(false)
-  }
-
-  async function handleResume() {
-    if (!selectedId || isRunning || starting) return
-    setStarting(true)
-    prevStatusRef.current = null
-    try {
-      const res = await fetch('/api/orchestrate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          orchestrationId: selectedId, action: 'resume',
-          connection: { hciUrl: connection.hciUrl, orgName: connection.orgName, isProduction: connection.isProduction },
-          sessionId,
-        }),
-      })
-      const data = await res.json()
-      if (res.status === 401) { onSessionExpired?.(); setStarting(false); return }
-      if (!res.ok) throw new Error(data.error)
-      setRun(data)
-    } catch (e) { alert(e.message) }
-    setStarting(false)
-  }
-
-  async function handleCancel() {
-    if (!selectedId || !isRunning) return
-    setCancelling(true)
-    try {
-      const res = await fetch('/api/orchestrate', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orchestrationId: selectedId }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
-      setRun(data)
-    } catch (e) { alert(e.message) }
-    setCancelling(false)
-  }
-
-  // ── Export / Import ───────────────────────────────────────────────────────
-  function exportOrchestrations() {
-    if (!orchs.length) return
-    const payload = {
-      version:    '1.0',
-      exportedAt: new Date().toISOString(),
-      appVersion: typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : null,
-      sourceConnection: { name: connection.name, orgName: connection.orgName, isProduction: !!connection.isProduction },
-      orchestrations: orchs.map(o => ({
-        name:  o.name,
-        nodes: o.nodes || [],
-        edges: o.edges || [],
-      })),
-    }
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
-    const url  = URL.createObjectURL(blob)
-    const a    = document.createElement('a')
-    const date = new Date().toISOString().slice(0, 10)
-    const safeName = (connection.name || 'connection').replace(/[^\w-]+/g, '_').slice(0, 40)
-    a.href = url
-    a.download = `ibp-orquestaciones-${safeName}-${date}.json`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    setTimeout(() => URL.revokeObjectURL(url), 1000)
-  }
-
-  async function bulkImportOrchestrations(parsed, { replaceDuplicates }) {
-    let added = 0, replaced = 0, skipped = 0, failed = 0
-    const errors = []
-    for (const incoming of parsed.orchestrations) {
-      const existing = orchs.find(o =>
-        (o.name || '').trim().toLowerCase() === (incoming.name || '').trim().toLowerCase()
-      )
-      try {
-        if (existing) {
-          if (replaceDuplicates) {
-            const res = await fetch('/api/orchestrations', {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                id:    existing.id,
-                name:  incoming.name,
-                nodes: incoming.nodes || [],
-                edges: incoming.edges || [],
-              }),
-            })
-            const data = await res.json()
-            if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
-            replaced++
-          } else {
-            skipped++
-          }
-        } else {
-          const res = await fetch('/api/orchestrations', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              connectionId: connection.id,
-              name:  incoming.name,
-              nodes: incoming.nodes || [],
-              edges: incoming.edges || [],
-            }),
-          })
-          const data = await res.json()
-          if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
-          added++
-        }
-      } catch (e) {
-        failed++
-        errors.push({ name: incoming.name, message: e.message })
-      }
-    }
-    await loadOrchs()
-    return { added, replaced, skipped, failed, errors }
-  }
+  const crud = useOrchestrationCrud(connection)
+  const run = useOrchestrationRun(crud.selectedId, connection, sessionId, onSessionExpired, crud.selected?.name)
+  const transfer = useOrchestrationTransfer(connection, crud.orchs, crud.reload)
 
   return {
-    orchs, loading, error, selected, selectedId, setSelectedId,
-    run, isRunning, saving, starting, cancelling,
-    createOrch, duplicateOrch, deleteOrch, saveGraph, commitName, handleStart, handleResume, handleCancel,
-    exportOrchestrations, bulkImportOrchestrations,
+    orchs: crud.orchs,
+    loading: crud.loading,
+    error: crud.error,
+    selected: crud.selected,
+    selectedId: crud.selectedId,
+    setSelectedId: crud.setSelectedId,
+    saving: crud.saving,
+    createOrch: crud.createOrch,
+    duplicateOrch: crud.duplicateOrch,
+    deleteOrch: crud.deleteOrch,
+    saveGraph: crud.saveGraph,
+    commitName: crud.commitName,
+
+    run: run.run,
+    isRunning: run.isRunning,
+    starting: run.starting,
+    cancelling: run.cancelling,
+    handleStart: run.handleStart,
+    handleResume: run.handleResume,
+    handleCancel: run.handleCancel,
+
+    exportOrchestrations: transfer.exportOrchestrations,
+    bulkImportOrchestrations: transfer.bulkImportOrchestrations,
   }
 }

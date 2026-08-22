@@ -58,12 +58,12 @@ export default function GroupNode({ data, selected, id }) {
         </span>
         <span style={{
           fontSize: 9, padding: '1px 4px', borderRadius: 6,
-          background: modeColor + '22', color: modeColor, border: `1px solid ${modeColor}44`,
+          background: withAlpha(modeColor, .133), color: modeColor, border: `1px solid ${withAlpha(modeColor, .267)}`,
           fontFamily: 'var(--mono)', flexShrink: 0, marginRight: 4,
         }}>{modeLabel}</span>
         <span style={{
           fontSize: 9, padding: '1px 4px', borderRadius: 6,
-          background: color + '22', color, border: `1px solid ${color}44`,
+          background: withAlpha(color, .133), color, border: `1px solid ${withAlpha(color, .267)}`,
           fontFamily: 'var(--mono)', flexShrink: 0,
         }}>{icon}</span>
       </div>

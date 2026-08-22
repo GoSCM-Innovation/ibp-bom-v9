@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { alpha, color } from '../../styles/tokens'
+import { alpha, color, withAlpha } from '../../styles/tokens'
 import { avatarColor, ENV_DOT } from '../../constants/avatar'
 
 const W = 220
@@ -254,7 +254,7 @@ function SidebarItem({
       {numberIcon && avatarStyle ? (
         <span style={{
           width: 26, height: 26, borderRadius: 6, flexShrink: 0,
-          background: active ? iconColor : `${iconColor}33`,
+          background: active ? iconColor : withAlpha(iconColor, .2),
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: 10, fontWeight: 700,
           color: active ? color.white : iconColor,
