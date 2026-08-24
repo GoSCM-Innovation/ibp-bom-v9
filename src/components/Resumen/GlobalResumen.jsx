@@ -10,7 +10,7 @@ import { soapCall } from '../../api/soapCall'
 import { taskStatus, TASK_STATUS } from '../../constants/status'
 import { filterInputStyle as inputStyle } from '../../styles/forms'
 import { toolbarBtn } from '../../styles/buttons'
-import { alpha, color, hex, radius, withAlpha } from '../../styles/tokens'
+import { alpha, color, hex, radius, tint } from '../../styles/tokens'
 
 const REFRESH_MS = 5 * 60 * 1000
 
@@ -560,7 +560,7 @@ function EnvBadge({ isProduction, inverted = false }) {
   // When sitting on an accent (yellow) background, swap to a darker readable style
   const style = inverted
     ? { background: alpha.black(.18), color: color.onAccent, border: `1px solid ${alpha.black(.25)}` }
-    : { background: bg, color: fg, border: `1px solid ${withAlpha(fg, .2)}` }
+    : { background: bg, color: fg, border: `1px solid ${tint(fg, .2)}` }
   return (
     <span style={{
       ...style,

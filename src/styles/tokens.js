@@ -92,6 +92,27 @@ export function withAlpha(hexColor, a) {
   return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`
 }
 
+// Versión translúcida de un color CUALQUIERA, sea hex o var().
+//
+// Es la que va en los helpers que reciben el color por parámetro (botones de
+// acción, chips, badges): ahí no se sabe de antemano si llega un hex o una
+// variable, y withAlpha() solo sabe descomponer hex.
+//
+// Para un var() usa color-mix, que es la unica forma de aplicarle alfa a una
+// variable CSS sin resolverla en JS. Antes esto se escribia concatenando el
+// alfa al valor (`${color}33`), que con un var() producia `var(--cyan)33`:
+// CSS invalido que el navegador descarta en silencio, asi que esos bordes
+// simplemente no se pintaban.
+export function tint(c, a) {
+  const s = String(c)
+  if (s.startsWith('var(') || s.startsWith('color-mix(')) {
+    // toFixed antes del porcentaje: .333 * 100 da 33.300000000000004 y eso
+    // terminaria escrito tal cual en el CSS.
+    return `color-mix(in srgb, ${s} ${Number((a * 100).toFixed(4))}%, transparent)`
+  }
+  return withAlpha(s, a)
+}
+
 // Versión translúcida de un color de tema, compuesta sobre el triplete RGB de
 // index.css. Reemplaza a los rgba() literales que estaban repartidos por los
 // componentes: había 231 usos de 94 colores escritos a mano, y buena parte

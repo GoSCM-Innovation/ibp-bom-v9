@@ -7,7 +7,7 @@ import MobileTaskPicker from './MobileTaskPicker'
 import NodeConfigPanel from '../canvas/NodeConfigPanel'
 import Sheet from '../../ui/Sheet'
 import { createPortal } from 'react-dom'
-import { alpha, withAlpha } from '../../../styles/tokens'
+import { alpha, tint } from '../../../styles/tokens'
 
 function buildSteps(nodes, edges) {
   function buildContext(parentId, depth, parentBadge) {
@@ -377,8 +377,8 @@ function iconBtn(color, disabled = false) {
   return {
     width: 'var(--tap-min)', height: 'var(--tap-min)',
     minWidth: 'var(--tap-min)', flexShrink: 0,
-    border: `1px solid ${disabled ? 'var(--border)' : withAlpha(color, .333)}`,
-    background: disabled ? 'var(--bg3)' : withAlpha(color, .125),
+    border: `1px solid ${disabled ? 'var(--border)' : tint(color, .333)}`,
+    background: disabled ? 'var(--bg3)' : tint(color, .125),
     color: disabled ? 'var(--text2)' : color,
     fontSize: 16, fontWeight: 700, borderRadius: 8,
     cursor: disabled ? 'default' : 'pointer',
