@@ -1,6 +1,6 @@
 import { Handle, Position, NodeResizer } from '@xyflow/react'
 import { STATUS_COLORS, STATUS_ICONS } from '../canvasUtils'
-import { hex, withAlpha } from '../../../styles/tokens'
+import { hex, tint } from '../../../styles/tokens'
 
 const MODE_STYLES = {
   parallel: { color: hex.cyan,   label: '⊞ En paralelo'   },
@@ -18,9 +18,9 @@ export default function GroupNode({ data, selected, id }) {
   const ms     = MODE_STYLES[mode] || MODE_STYLES.parallel
   const modeColor  = ms.color
   const modeLabel  = ms.label
-  const bg         = withAlpha(modeColor, isActive ? 0.08 : 0.04)
-  const borderColor = selected ? 'var(--accent)' : isActive ? color : withAlpha(modeColor, 0.4)
-  const hBorder     = withAlpha(modeColor, selected ? 0.3 : 0.15)
+  const bg         = tint(modeColor, isActive ? 0.08 : 0.04)
+  const borderColor = selected ? 'var(--accent)' : isActive ? color : tint(modeColor, 0.4)
+  const hBorder     = tint(modeColor, selected ? 0.3 : 0.15)
 
   return (
     <div
@@ -58,12 +58,12 @@ export default function GroupNode({ data, selected, id }) {
         </span>
         <span style={{
           fontSize: 9, padding: '1px 4px', borderRadius: 6,
-          background: modeColor + '22', color: modeColor, border: `1px solid ${modeColor}44`,
+          background: tint(modeColor, .133), color: modeColor, border: `1px solid ${tint(modeColor, .267)}`,
           fontFamily: 'var(--mono)', flexShrink: 0, marginRight: 4,
         }}>{modeLabel}</span>
         <span style={{
           fontSize: 9, padding: '1px 4px', borderRadius: 6,
-          background: color + '22', color, border: `1px solid ${color}44`,
+          background: tint(color, .133), color, border: `1px solid ${tint(color, .267)}`,
           fontFamily: 'var(--mono)', flexShrink: 0,
         }}>{icon}</span>
       </div>

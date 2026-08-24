@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { nodeStatusColor } from './canvasUtils'
 import { soapCall } from '../../api/soapCall'
-import { alpha, color, hex, withAlpha } from '../../styles/tokens'
+import { alpha, color, hex, tint } from '../../styles/tokens'
 
 const STATUS_LABEL = {
   pending: 'Pendiente', running: 'Ejecutando', success: 'Completado',
@@ -27,7 +27,7 @@ function StatusBadge({ status }) {
   return (
     <span style={{
       fontSize: 9, padding: '1px 6px', borderRadius: 8, fontFamily: 'var(--mono)', fontWeight: 700,
-      background: color + '22', color, border: `1px solid ${color}44`, flexShrink: 0,
+      background: tint(color, .133), color, border: `1px solid ${tint(color, .267)}`, flexShrink: 0,
     }}>
       {STATUS_LABEL[status] || status}
     </span>
@@ -110,7 +110,7 @@ function NodeRow({ ns, nodeDef, connection, sessionId, indent }) {
       }}>
         <span style={{
           fontSize: 9, padding: '1px 4px', borderRadius: 8, flexShrink: 0,
-          background: withAlpha(typeColor, .133), color: typeColor, border: `1px solid ${withAlpha(typeColor, .267)}`,
+          background: tint(typeColor, .133), color: typeColor, border: `1px solid ${tint(typeColor, .267)}`,
           fontFamily: 'var(--mono)',
         }}>{typeLabel}</span>
         <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text)', flex: 1, minWidth: 80, wordBreak: 'break-word' }}>
@@ -167,7 +167,7 @@ export default function RunLogModal({ run, connection, sessionId, nodes = [], on
             <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>Log de ejecución</span>
             <span style={{
               fontSize: 10, padding: '2px 8px', borderRadius: 10, fontFamily: 'var(--mono)', fontWeight: 700,
-              background: overallColor + '22', color: overallColor, border: `1px solid ${overallColor}44`,
+              background: tint(overallColor, .133), color: overallColor, border: `1px solid ${tint(overallColor, .267)}`,
             }}>{run.status}</span>
             <span style={{ fontSize: 10, color: 'var(--text3)', fontFamily: 'var(--mono)' }}>
               {formatTime(run.startedAt)} · {duration(run.startedAt, run.finishedAt)}

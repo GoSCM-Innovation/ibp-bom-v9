@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { alpha, color, hex, withAlpha } from '../../styles/tokens'
+import { alpha, color, hex, tint } from '../../styles/tokens'
 
 function isDuplicate(incoming, existing) {
   return (incoming.name || '').trim().toLowerCase() === (existing.name || '').trim().toLowerCase()
@@ -179,7 +179,7 @@ function Pill({ color, label }) {
   return (
     <span style={{
       fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 10,
-      background: withAlpha(color, .133), color, border: `1px solid ${withAlpha(color, .267)}`,
+      background: tint(color, .133), color, border: `1px solid ${tint(color, .267)}`,
     }}>
       {label}
     </span>

@@ -3,7 +3,7 @@ import { Handle, Position } from '@xyflow/react'
 import { STATUS_COLORS, STATUS_ICONS } from '../canvasUtils'
 import PromotedBadge from '../../ui/PromotedBadge'
 import { usePromotedTasksContext, isTaskPromoted } from '../../../hooks/usePromotedTasks'
-import { alpha, hex, withAlpha } from '../../../styles/tokens'
+import { alpha, hex, tint } from '../../../styles/tokens'
 import { taskType } from '../../../constants/taskType'
 
 const STRATEGY_COLOR = { stop: hex.slate, continue: hex.warning, retry: hex.info }
@@ -90,9 +90,9 @@ export default function TaskNode({ data, selected, id }) {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span style={{
             fontSize: 9, padding: '1px 4px', borderRadius: 6, fontFamily: 'var(--mono)',
-            background: withAlpha(strategyColor, .133),
+            background: tint(strategyColor, .133),
             color: strategyColor,
-            border: `1px solid ${withAlpha(strategyColor, .267)}`,
+            border: `1px solid ${tint(strategyColor, .267)}`,
           }}>
             {STRATEGY_LABEL[data.errorStrategy] || STRATEGY_LABEL.stop}
             {data.errorStrategy === 'retry' && data.maxRetries ? ` ×${data.maxRetries}` : ''}

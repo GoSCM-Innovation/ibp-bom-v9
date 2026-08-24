@@ -105,6 +105,33 @@ describe('paleta', () => {
     expect(hits).toEqual([])
   })
 
+  it('withAlpha solo se usa donde el color es un hex literal del propio modulo', () => {
+    // withAlpha() lanza ante un var(), asi que solo sirve donde el color se
+    // conoce y es hex. En un helper que recibe el color por parametro no se
+    // sabe que llega: ahi va tint(), que resuelve las dos formas.
+    //
+    // Esto no es teorico: btnStyle() de Connections e iconBtn() del wizard
+    // movil reciben 'var(--cyan)' y compania, y pasarlos por withAlpha dejaba
+    // la pagina en blanco.
+    const PERMITIDOS = new Set(['styles/tokens.js', 'constants/status.js', 'constants/taskType.js'])
+    const hits = FILES
+      .filter(([name, src]) => !PERMITIDOS.has(name) && /\bwithAlpha\s*\(/.test(src))
+      .map(([name]) => `${name}: usar tint() en vez de withAlpha()`)
+    expect(hits).toEqual([])
+  })
+
+  it('nadie deriva un tinte concatenando el alfa al hex', () => {
+    // `color + '22'` y `` `${color}44` `` exigen que color sea un hex y
+    // producen CSS invalido en silencio si alguien pasa un var(). Se derivan
+    // con withAlpha(), que ademas falla ruidosamente ante un no-hex.
+    const hits = []
+    for (const [name, src] of FILES) {
+      for (const m of src.matchAll(/\+\s*'[0-9a-fA-F]{2}'/g)) hits.push(`${name}: ${m[0]}`)
+      for (const m of src.matchAll(/\$\{[A-Za-z_$][\w$.]*\}[0-9a-fA-F]{2}\b/g)) hits.push(`${name}: ${m[0]}`)
+    }
+    expect(hits).toEqual([])
+  })
+
   it('nadie redefine inputStyle/selectStyle/labelStyle por su cuenta', () => {
     const hits = FILES
       .filter(([name]) => name !== 'styles/forms.js')

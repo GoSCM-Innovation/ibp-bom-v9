@@ -38,11 +38,25 @@ Elegir mal falla, y hasta hace poco fallaba en silencio:
 |---|---|---|
 | `color.accent` | El valor se usa tal cual en un estilo. Es `'var(--accent)'`. | `{ color: color.accent }` |
 | `alpha.accent(.4)` | Hace falta el mismo color con transparencia. | `{ background: alpha.accent(.4) }` |
-| `hex.accent` | Un helper recibe el color y le deriva tintes con `withAlpha()`, o el valor va a un atributo SVG (`fill` de recharts, `nodeColor` del minimapa). Un `var()` no sirve ahí. | `actionBtn(hex.green, false)` |
+| `hex.accent` | El valor va a un atributo SVG (`fill` de recharts, `nodeColor` del minimapa), donde un `var()` no se resuelve. | `<Cell fill={hex.green} />` |
 
-Regla práctica: **usar `color.*` salvo que algo tenga que operar sobre el color**. Si hay que descomponerlo o pasarlo a un atributo SVG, `hex.*`.
+Regla práctica: **usar `color.*` salvo que el valor vaya a un atributo SVG**.
 
-`withAlpha()` lanza `TypeError` si recibe cualquier cosa que no sea un hex de seis dígitos. Antes devolvía `NaN` y pintaba transparente sin avisar, que es el error fácil al elegir entre `color.*` y `hex.*`.
+### Aplicar transparencia: `alpha.*`, `tint()` y `withAlpha()`
+
+Tres funciones, y elegir mal ya rompió la app una vez:
+
+| Función | Acepta | Cuándo |
+|---|---|---|
+| `alpha.accent(.4)` | — | Sabés qué color de la paleta es. Es la primera opción. |
+| `tint(c, .4)` | hex **y** `var()` | El color llega **por parámetro** y no sabés qué forma tiene. |
+| `withAlpha(c, .4)` | solo hex | El color es un literal hex del propio módulo y el resultado va a un atributo SVG. Solo `status.js` y `taskType.js`. |
+
+**La regla operativa: si el color entra como argumento de una función, usá `tint()`.** `withAlpha()` lanza `TypeError` ante un `var()`, y un helper como `btnStyle(color)` no controla qué le pasan sus llamadores.
+
+Eso fue un bug real: `btnStyle()` de Connections recibe `'var(--cyan)'`, y pasarlo por `withAlpha()` dejaba la página de conexiones en blanco. Antes de `withAlpha` el mismo código concatenaba el alfa al valor y producía `var(--cyan)33`, CSS inválido que el navegador descartaba en silencio: esos bordes nunca se pintaron. Hay un test que monta la lista de verdad ([Connections.test.jsx](../tests/src/Connections.test.jsx)) porque los tests de tokens no pueden ver este caso: el color nunca aparece escrito junto a la llamada.
+
+`tint()` resuelve el `var()` con `color-mix(in srgb, ...)`, que es la única forma de aplicar alfa a una variable CSS sin resolverla en JS.
 
 Lo que no se debe hacer, y que los tests bloquean:
 
@@ -123,6 +137,8 @@ Quedan fuera los botones que son de verdad únicos: el FAB del wizard móvil, la
 - aparece un hex de ocho dígitos (el canal alfa va por `alpha.*()`),
 - se usa `'#fff'` o `'#000'` en vez de `color.white` / `color.onAccent`,
 - alguien redefine `inputStyle`/`selectStyle`/`labelStyle` por su cuenta,
+- se deriva un tinte concatenando el alfa al hex (`color + '22'`, `` `${color}33` ``),
+- se usa `withAlpha()` fuera de los tres módulos que pueden garantizar un hex,
 - un `padding`, `margin`, `gap`, `fontSize` o `borderRadius` usa un valor fuera de escala,
 - algo completamente redondeado usa un radio grande en vez de `radius.pill`.
 

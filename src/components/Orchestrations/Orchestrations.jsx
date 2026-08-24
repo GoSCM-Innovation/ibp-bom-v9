@@ -11,7 +11,7 @@ import WizardEditor                from './mobile/WizardEditor'
 import { useOrchestration }        from './useOrchestration'
 import { nodeStatusColor }        from './canvasUtils'
 import { useIsMobile }             from '../../hooks/useViewport'
-import { alpha, color, hex, withAlpha } from '../../styles/tokens'
+import { alpha, color, hex, tint } from '../../styles/tokens'
 
 function parseOrchImportText(text) {
   let raw
@@ -62,7 +62,7 @@ function RunBadge({ status }) {
   return (
     <span style={{
       fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 10,
-      background: color + '22', color, border: `1px solid ${color}44`,
+      background: tint(color, .133), color, border: `1px solid ${tint(color, .267)}`,
       fontFamily: 'var(--mono)',
     }}>
       {labels[status] || status}
@@ -667,9 +667,9 @@ function actionBtn(color, disabled, active = false) {
   if (!color) color = hex.slate
   return {
     padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600,
-    background: disabled ? 'var(--bg3)' : withAlpha(color, active ? .133 : .082),
+    background: disabled ? 'var(--bg3)' : tint(color, active ? .133 : .082),
     color:      disabled ? 'var(--text2)' : color,
-    border:     `1px solid ${disabled ? 'var(--border)' : withAlpha(color, active ? .333 : .188)}`,
+    border:     `1px solid ${disabled ? 'var(--border)' : tint(color, active ? .333 : .188)}`,
     cursor:     disabled ? 'default' : 'pointer', transition: 'all .15s',
     flexShrink: 0,
   }
