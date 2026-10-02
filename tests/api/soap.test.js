@@ -426,6 +426,20 @@ describe('parseResponse', () => {
         .toEqual(['primera\nsegunda\ntercera'])
     })
 
+    it('decodifica cada <messageLine> hijo por separado', () => {
+      const xml = `<monitorLog><messageLines><messageLine>${b64('Cabecera\n=====')}</messageLine><messageLine>${b64('/ruta/paso1  STOP  10')}</messageLine><messageLine>${b64('/ruta/paso2  STOP  20')}</messageLine></messageLines></monitorLog>`
+      expect(parseResponse('getTaskLogs', xml).monitorLog.messageLines)
+        .toEqual(['Cabecera\n=====\n/ruta/paso1  STOP  10\n/ruta/paso2  STOP  20'])
+    })
+
+    it('ignora el espacio entre <messageLine> de un XML indentado', () => {
+      const xml = `<traceLog><messageLines>
+        <messageLine>${b64('uno')}</messageLine>
+        <messageLine>${b64('dos')}</messageLine>
+      </messageLines></traceLog>`
+      expect(parseResponse('getTaskLogs', xml).traceLog.messageLines).toEqual(['uno\ndos'])
+    })
+
     it('deja pasar texto plano que no es base64 válido', () => {
       const xml = '<errorLog><messageLines>error: falló el job</messageLines></errorLog>'
       expect(parseResponse('getTaskLogs', xml).errorLog.messageLines).toEqual(['error: falló el job'])
