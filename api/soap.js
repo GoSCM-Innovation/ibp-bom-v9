@@ -333,10 +333,11 @@ function parseResponse(operation, xml) {
     }
 
     case 'getTaskLogs': {
-      // SAP returns each messageLine base64-encoded when base64Encode=true, but it packs
-      // several independently-encoded lines into one <messageLines> element separated by
-      // newlines. Decode token-by-token: concatenating first would leave a line's '=' padding
-      // mid-string and break the base64 sniff, dumping the whole block back out as raw base64.
+      // SAP returns each line base64-encoded when base64Encode=true, and packs several
+      // independently-encoded lines into one <messageLines> element: either as
+      // <messageLine> children or separated by newlines. Decode line-by-line: concatenating
+      // first would leave a line's '=' padding mid-string and break the base64 sniff,
+      // dumping the whole block back out as raw base64.
       // Buffer.from is lenient, so plaintext lines that fail the sniff round-trip unchanged.
       const decodeToken = (part) => {
         const clean = part.replace(/\s+/g, '')
@@ -348,9 +349,13 @@ function parseResponse(operation, xml) {
         }
         return part
       }
-      const decodeLine = (raw) => {
+      const decodeText = (raw) => {
         const text = raw.replace(/<!\[CDATA\[|\]\]>/g, '').replace(/<[^>]+>/g, '').trim()
         return text.split(/\r?\n/).map(decodeToken).join('\n')
+      }
+      const decodeLine = (raw) => {
+        const children = xmlAll(raw, 'messageLine')
+        return children.length > 0 ? children.map(decodeText).join('\n') : decodeText(raw)
       }
       const parseLog = (name) => {
         const block = xmlVal(xml, name)
